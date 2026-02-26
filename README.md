@@ -1641,15 +1641,21 @@ A config-driven optimization layer between agents and LLM APIs. Implements 14 ru
 config:
   theme: base
   themeVariables:
-    fontSize: 14px
+    fontSize: 16px
     primaryColor: "#4A90D9"
     primaryTextColor: "#ffffff"
     primaryBorderColor: "#2E6BA6"
     lineColor: "#5C6BC0"
     secondaryColor: "#7E57C2"
     tertiaryColor: "#26A69A"
+  flowchart:
+    rankSpacing: 80
+    nodeSpacing: 40
+    padding: 20
+    htmlLabels: true
+    curve: basis
 ---
-graph TD
+flowchart TD
 
     %% ── CLIENT INTAKE ──────────────────────────────────
     subgraph INTAKE["<br/>CLIENT INTAKE & VALIDATION<br/><br/>"]
@@ -1769,6 +1775,27 @@ graph TD
         DST --> TRAIN
     end
 
+    %% ── INTERNET / EXTERNAL RESOURCES ──────────────────
+    subgraph INET["<br/>🌍 INTERNET & EXTERNAL RESOURCES<br/><br/>"]
+        direction TB
+        WEB["🌐 Web Browsing<br/><i>HTTP/HTTPS requests</i><br/><i>URL fetching · Scraping</i>"]
+        SEARCH["🔍 Search Engines<br/><i>Web search APIs</i><br/><i>Knowledge retrieval</i>"]
+        EXTAPI["🔗 External APIs<br/><i>Webhooks · REST endpoints</i><br/><i>Third-party services</i>"]
+        NPM["📦 Package Registries<br/><i>npm · PyPI · crates.io</i><br/><i>Dependency downloads</i>"]
+        GIT["🐙 Git Repositories<br/><i>GitHub · GitLab</i><br/><i>Source cloning & pulls</i>"]
+    end
+
+    %% ── DEVICE / LOCAL RESOURCES ───────────────────────
+    subgraph LOCAL["<br/>💻 DEVICE & LOCAL RESOURCES<br/><br/>"]
+        direction TB
+        FS["📁 File System<br/><i>Config files · Logs · Data</i><br/><i>Persistent Docker volumes</i>"]
+        SHELL["🖥️ Shell Execution<br/><i>npm · pnpm · node · system cmds</i><br/><i>Process spawning</i>"]
+        DB["🗄️ Local Databases<br/><i>SQLite · JSON stores</i><br/><i>Cost logs · Response cache</i>"]
+        DSOCK["🐳 Docker Socket<br/><i>/var/run/docker.sock</i><br/><i>Container orchestration (DooD)</i>"]
+        PORTS["🔌 Network Ports<br/><i>:3100 · :3200 · :3300 · :3400</i><br/><i>:9090 · :9091 dashboards</i>"]
+        MEM["🧠 RAM / tmpfs<br/><i>Ephemeral secret storage</i><br/><i>In-memory caches</i>"]
+    end
+
     %% ── CONNECTIONS ────────────────────────────────────
 
     %% Intake → Docker
@@ -1834,6 +1861,42 @@ graph TD
     TRAIN -->|"weights"| NC
     TRAIN -->|"weights"| PC
     TRAIN -->|"weights"| OC
+
+    %% Agents → Internet Resources
+    ZC -->|"fetch URLs"| WEB
+    NC -->|"fetch URLs"| WEB
+    PC -->|"fetch URLs"| WEB
+    OC -->|"fetch URLs"| WEB
+    ZC -->|"search"| SEARCH
+    NC -->|"search"| SEARCH
+    PC -->|"search"| SEARCH
+    OC -->|"search"| SEARCH
+    ZC -->|"call APIs"| EXTAPI
+    NC -->|"call APIs"| EXTAPI
+    PC -->|"call APIs"| EXTAPI
+    OC -->|"call APIs"| EXTAPI
+    NC -->|"install pkgs"| NPM
+    OC -->|"install pkgs"| NPM
+    NC -->|"clone repos"| GIT
+    OC -->|"clone repos"| GIT
+
+    %% Agents → Device / Local Resources
+    ZC -->|"read/write config"| FS
+    NC -->|"read/write config"| FS
+    PC -->|"read/write config"| FS
+    OC -->|"read/write config"| FS
+    NC -->|"exec commands"| SHELL
+    OC -->|"exec commands"| SHELL
+    NC -->|"Docker-outside-Docker"| DSOCK
+    ZC -->|"expose :3100"| PORTS
+    NC -->|"expose :3200"| PORTS
+    PC -->|"expose :3300"| PORTS
+    OC -->|"expose :3400"| PORTS
+    OPTIMIZER -->|"SQLite tracking"| DB
+    R12 -->|"cost data"| DB
+    TMPFS -->|"secret mount"| MEM
+    WATCHDOG -->|"expose :9090"| PORTS
+    OPTIMIZER -->|"expose :9091"| PORTS
 
     %% ── STYLES ─────────────────────────────────────────
 
@@ -1915,6 +1978,25 @@ graph TD
     style ADP fill:#5D4037,stroke:#3E2723,color:#fff
     style DST fill:#6D4C41,stroke:#4E342E,color:#fff
     style TRAIN fill:#795548,stroke:#5D4037,color:#fff
+
+    %% Subgraph colors — Internet & Device
+    style INET fill:#1A237E,stroke:#283593,stroke-width:2px,color:#C5CAE9
+    style LOCAL fill:#37474F,stroke:#455A64,stroke-width:2px,color:#CFD8DC
+
+    %% Node colors — Internet (deep blue tones)
+    style WEB fill:#1565C0,stroke:#0D47A1,color:#fff
+    style SEARCH fill:#1976D2,stroke:#1565C0,color:#fff
+    style EXTAPI fill:#1E88E5,stroke:#1976D2,color:#fff
+    style NPM fill:#42A5F5,stroke:#1E88E5,color:#fff
+    style GIT fill:#2196F3,stroke:#1E88E5,color:#fff
+
+    %% Node colors — Device / Local (grey-blue tones)
+    style FS fill:#455A64,stroke:#37474F,color:#fff
+    style SHELL fill:#546E7A,stroke:#455A64,color:#fff
+    style DB fill:#607D8B,stroke:#546E7A,color:#fff
+    style DSOCK fill:#78909C,stroke:#607D8B,color:#fff
+    style PORTS fill:#90A4AE,stroke:#78909C,color:#000
+    style MEM fill:#B0BEC5,stroke:#90A4AE,color:#000
 ```
 
 ## Credits
