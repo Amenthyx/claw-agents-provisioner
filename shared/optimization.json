@@ -1,0 +1,130 @@
+{
+  "enabled": true,
+  "dashboard_port": 9091,
+  "log_file": "optimizer.log",
+  "cost_log_db": "cost_log.sqlite3",
+  "cache_db": "response_cache.sqlite3",
+  "budget_db": "budget_tracking.sqlite3",
+  "cost_log_jsonl": "cost_log.jsonl",
+  "models": {
+    "tiers": {
+      "budget": [
+        "deepseek-chat",
+        "gemini-2.0-flash"
+      ],
+      "standard": [
+        "claude-sonnet-4-6",
+        "gpt-4.1-mini"
+      ],
+      "premium": [
+        "claude-opus-4-6",
+        "gpt-4.1",
+        "claude-sonnet-4-6"
+      ]
+    },
+    "costs_per_1k_tokens": {
+      "deepseek-chat": {
+        "input": 0.00014,
+        "output": 0.00028
+      },
+      "gemini-2.0-flash": {
+        "input": 0.0,
+        "output": 0.0
+      },
+      "claude-sonnet-4-6": {
+        "input": 0.003,
+        "output": 0.015
+      },
+      "claude-opus-4-6": {
+        "input": 0.015,
+        "output": 0.075
+      },
+      "gpt-4.1": {
+        "input": 0.002,
+        "output": 0.008
+      },
+      "gpt-4.1-mini": {
+        "input": 0.0004,
+        "output": 0.0016
+      }
+    }
+  },
+  "rules": {
+    "conversation_dedup": {
+      "enabled": true,
+      "window_seconds": 60
+    },
+    "semantic_cache": {
+      "enabled": true,
+      "similarity_threshold": 0.85,
+      "ttl_seconds": 3600
+    },
+    "token_estimator": {
+      "enabled": true
+    },
+    "context_pruner": {
+      "enabled": true,
+      "max_tokens": 100000,
+      "summary_threshold": 0.7
+    },
+    "prompt_optimizer": {
+      "enabled": true
+    },
+    "budget_enforcer": {
+      "enabled": true,
+      "daily_limit": 50.0,
+      "weekly_limit": 200.0,
+      "monthly_limit": 500.0,
+      "alert_threshold": 0.8,
+      "auto_downgrade": true
+    },
+    "task_complexity_router": {
+      "enabled": true,
+      "simple_max_tokens": 500,
+      "complex_indicators": [
+        "analyze",
+        "compare",
+        "design",
+        "architect",
+        "debug",
+        "security"
+      ]
+    },
+    "latency_router": {
+      "enabled": false,
+      "max_latency_ms": 2000
+    },
+    "provider_health_scorer": {
+      "enabled": true,
+      "min_health_score": 0.5,
+      "window_minutes": 60
+    },
+    "rate_limit_manager": {
+      "enabled": true,
+      "requests_per_minute": {
+        "anthropic": 50,
+        "openai": 60,
+        "deepseek": 100,
+        "gemini": 60
+      }
+    },
+    "fallback_chain": {
+      "enabled": true,
+      "max_retries": 3,
+      "retry_on": [
+        429,
+        500,
+        502,
+        503
+      ]
+    },
+    "response_quality_gate": {
+      "enabled": true,
+      "min_length": 10,
+      "max_retries": 2
+    },
+    "cost_attribution_logger": {
+      "enabled": true
+    }
+  }
+}

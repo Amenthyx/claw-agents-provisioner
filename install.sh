@@ -377,6 +377,47 @@ configure_env() {
     log ".env configuration complete."
     info "File saved to: $env_file"
     info "You can edit it manually at any time: \$EDITOR .env"
+
+    # --- Vault Migration ---
+    echo ""
+    echo -e "${BOLD}Security Vault (Optional)${NC}"
+    echo ""
+    info "You can encrypt your API keys in a vault instead of storing them in plaintext .env."
+    info "This prevents keys from appearing in docker inspect and on-disk config files."
+    echo ""
+
+    if prompt_yn "Set up encrypted secrets vault?" "n"; then
+        # Check for cryptography package
+        if ! python3 -c "import cryptography" 2>/dev/null; then
+            log "Installing cryptography package..."
+            pip3 install --user cryptography 2>/dev/null || \
+            python3 -m pip install --user cryptography
+        fi
+
+        local vault_py="${SCRIPT_DIR}/shared/claw_vault.py"
+        if [[ -f "$vault_py" ]]; then
+            if [[ -f "${SCRIPT_DIR}/secrets.vault" ]]; then
+                info "Vault already exists at secrets.vault"
+                if prompt_yn "Import current .env keys into existing vault?" "y"; then
+                    python3 "$vault_py" import-env "$env_file"
+                    log "Keys imported into vault."
+                fi
+            else
+                log "Creating new vault..."
+                python3 "$vault_py" init
+                if [[ -f "${SCRIPT_DIR}/secrets.vault" ]]; then
+                    log "Importing .env keys into vault..."
+                    python3 "$vault_py" import-env "$env_file"
+                    log "Vault created and keys imported."
+                    info "Your API keys are now encrypted in secrets.vault"
+                    info "Set CLAW_VAULT_PASSWORD env var before starting agents."
+                    info "The .env file is kept for non-secret config vars."
+                fi
+            fi
+        else
+            warn "shared/claw_vault.py not found — skipping vault setup."
+        fi
+    fi
 }
 
 # =============================================================================
@@ -856,6 +897,233 @@ setup_multi_instance() {
 }
 
 # =============================================================================
+#  Step 10: Vault Management
+# =============================================================================
+
+manage_vault() {
+    step "Step 10: Encrypted Secrets Vault"
+
+    local vault_py="${SCRIPT_DIR}/shared/claw_vault.py"
+
+    if [[ ! -f "$vault_py" ]]; then
+        err "shared/claw_vault.py not found!"
+        return 1
+    fi
+
+    # Check for cryptography package
+    if ! python3 -c "import cryptography" 2>/dev/null; then
+        warn "cryptography package not installed."
+        if prompt_yn "Install it now?" "y"; then
+            pip3 install --user cryptography 2>/dev/null || \
+            python3 -m pip install --user cryptography
+        else
+            info "Skipped — vault requires: pip install cryptography"
+            return 0
+        fi
+    fi
+
+    echo -e "  ${BOLD}1)${NC} Create new vault"
+    echo -e "  ${BOLD}2)${NC} Import .env into vault"
+    echo -e "  ${BOLD}3)${NC} List vault secrets"
+    echo -e "  ${BOLD}4)${NC} Get a secret value"
+    echo -e "  ${BOLD}5)${NC} Set a secret"
+    echo -e "  ${BOLD}6)${NC} Rotate vault password"
+    echo -e "  ${BOLD}7)${NC} Export vault to .env"
+    echo -e "  ${BOLD}8)${NC} Delete a secret"
+    echo -e "  ${BOLD}9)${NC} Skip"
+    echo -ne "\n${CYAN}Choose [1-9]:${NC} "
+    read -r vchoice
+
+    case "$vchoice" in
+        1)
+            python3 "$vault_py" init
+            ;;
+        2)
+            local envpath
+            envpath=$(prompt_input "Path to .env file" "${SCRIPT_DIR}/.env")
+            if [[ -f "$envpath" ]]; then
+                python3 "$vault_py" import-env "$envpath"
+            else
+                err "File not found: $envpath"
+            fi
+            ;;
+        3)
+            python3 "$vault_py" list
+            ;;
+        4)
+            local key
+            key=$(prompt_input "Secret key name" "")
+            if [[ -n "$key" ]]; then
+                python3 "$vault_py" get "$key"
+            fi
+            ;;
+        5)
+            local key val
+            key=$(prompt_input "Secret key name" "")
+            val=$(prompt_input "Secret value" "")
+            if [[ -n "$key" && -n "$val" ]]; then
+                python3 "$vault_py" set "$key" "$val"
+            fi
+            ;;
+        6)
+            python3 "$vault_py" rotate
+            ;;
+        7)
+            local outpath
+            outpath=$(prompt_input "Output .env path" "${SCRIPT_DIR}/.env.from-vault")
+            python3 "$vault_py" export-env "$outpath"
+            ;;
+        8)
+            local key
+            key=$(prompt_input "Secret key to delete" "")
+            if [[ -n "$key" ]]; then
+                python3 "$vault_py" delete "$key"
+            fi
+            ;;
+        *)
+            info "Skipped."
+            ;;
+    esac
+}
+
+# =============================================================================
+#  Step 11: Optimization Engine Setup
+# =============================================================================
+
+setup_optimizer() {
+    step "Step 11: Multi-Model Optimization Engine"
+
+    local optimizer_py="${SCRIPT_DIR}/shared/claw_optimizer.py"
+    local optimizer_cfg="${SCRIPT_DIR}/shared/optimization.json"
+
+    if [[ ! -f "$optimizer_py" ]]; then
+        err "shared/claw_optimizer.py not found!"
+        return 1
+    fi
+
+    echo -e "  ${BOLD}1)${NC} Generate optimization config (optimization.json)"
+    echo -e "  ${BOLD}2)${NC} Edit optimization config"
+    echo -e "  ${BOLD}3)${NC} Run optimization report"
+    echo -e "  ${BOLD}4)${NC} Start optimization proxy service"
+    echo -e "  ${BOLD}5)${NC} View cost report from logs"
+    echo -e "  ${BOLD}6)${NC} Skip"
+    echo -ne "\n${CYAN}Choose [1-6]:${NC} "
+    read -r optchoice
+
+    case "$optchoice" in
+        1)
+            python3 "$optimizer_py" --init-config
+            log "Config generated at: $optimizer_cfg"
+            info "Edit it to customize rules, budgets, and model tiers."
+            ;;
+        2)
+            if [[ ! -f "$optimizer_cfg" ]]; then
+                warn "No optimization.json found — generating one first..."
+                python3 "$optimizer_py" --init-config
+            fi
+            local editor="${EDITOR:-${VISUAL:-nano}}"
+            info "Opening $optimizer_cfg with $editor..."
+            "$editor" "$optimizer_cfg"
+            ;;
+        3)
+            python3 "$optimizer_py" --once
+            ;;
+        4)
+            if [[ ! -f "$optimizer_cfg" ]]; then
+                warn "No optimization.json found — generating default config first..."
+                python3 "$optimizer_py" --init-config
+            fi
+            log "Starting optimization proxy (Ctrl+C to stop)..."
+            python3 "$optimizer_py" -c "$optimizer_cfg"
+            ;;
+        5)
+            python3 "$optimizer_py" --report
+            ;;
+        *)
+            info "Skipped."
+            ;;
+    esac
+}
+
+# =============================================================================
+#  Step 12: Security Rules
+# =============================================================================
+
+setup_security() {
+    step "Step 12: Security Rules Engine"
+
+    local security_py="${SCRIPT_DIR}/shared/claw_security.py"
+
+    if [[ ! -f "$security_py" ]]; then
+        err "shared/claw_security.py not found!"
+        return 1
+    fi
+
+    echo -e "  ${BOLD}1)${NC} Generate default security rules (security_rules.json)"
+    echo -e "  ${BOLD}2)${NC} View security posture report"
+    echo -e "  ${BOLD}3)${NC} Test a URL against rules"
+    echo -e "  ${BOLD}4)${NC} Test content against rules"
+    echo -e "  ${BOLD}5)${NC} Test an IP address against rules"
+    echo -e "  ${BOLD}6)${NC} Generate system prompt security appendix"
+    echo -e "  ${BOLD}7)${NC} Validate current rules"
+    echo -e "  ${BOLD}8)${NC} Edit security rules"
+    echo -e "  ${BOLD}9)${NC} Skip"
+    echo -ne "\n${CYAN}Choose [1-9]:${NC} "
+    read -r secchoice
+
+    case "$secchoice" in
+        1)
+            python3 "$security_py" --init-config
+            ;;
+        2)
+            python3 "$security_py" --report
+            ;;
+        3)
+            local url
+            url=$(prompt_input "URL to test" "")
+            if [[ -n "$url" ]]; then
+                python3 "$security_py" --check-url "$url"
+            fi
+            ;;
+        4)
+            local content
+            content=$(prompt_input "Content to test" "")
+            if [[ -n "$content" ]]; then
+                python3 "$security_py" --check-content "$content"
+            fi
+            ;;
+        5)
+            local ip
+            ip=$(prompt_input "IP address to test" "")
+            if [[ -n "$ip" ]]; then
+                python3 "$security_py" --check-ip "$ip"
+            fi
+            ;;
+        6)
+            local compliance
+            compliance=$(prompt_input "Active compliance frameworks (e.g., gdpr,hipaa)" "${CLAW_COMPLIANCE:-none}")
+            python3 "$security_py" --generate-prompt --compliance "$compliance"
+            ;;
+        7)
+            python3 "$security_py" --validate
+            ;;
+        8)
+            local rules_file="${SCRIPT_DIR}/shared/security_rules.json"
+            if [[ ! -f "$rules_file" ]]; then
+                warn "No security_rules.json found — generating one first..."
+                python3 "$security_py" --init-config
+            fi
+            local editor="${EDITOR:-${VISUAL:-nano}}"
+            info "Opening $rules_file with $editor..."
+            "$editor" "$rules_file"
+            ;;
+        *)
+            info "Skipped."
+            ;;
+    esac
+}
+
+# =============================================================================
 #  Main Menu
 # =============================================================================
 
@@ -877,21 +1145,24 @@ show_banner() {
 show_menu() {
     echo -e "${BOLD}Main Menu${NC}"
     echo ""
-    echo -e "  ${BOLD}0)${NC} System requirements check"
-    echo -e "  ${BOLD}1)${NC} Base system provisioning     ${DIM}(Docker, Python, Git)${NC}"
-    echo -e "  ${BOLD}2)${NC} Install Python dependencies   ${DIM}(reportlab, torch, etc.)${NC}"
-    echo -e "  ${BOLD}3)${NC} Configure environment         ${DIM}(API keys, channels, agent)${NC}"
-    echo -e "  ${BOLD}4)${NC} Assessment pipeline           ${DIM}(PDF forms, validation)${NC}"
-    echo -e "  ${BOLD}5)${NC} Deploy agent                  ${DIM}(Docker, Vagrant, bare-metal)${NC}"
-    echo -e "  ${BOLD}6)${NC} Fine-tuning                   ${DIM}(LoRA/QLoRA, datasets)${NC}"
-    echo -e "  ${BOLD}7)${NC} Watchdog monitoring            ${DIM}(alerts, auto-restart, dashboard)${NC}"
-    echo -e "  ${BOLD}8)${NC} Health check                  ${DIM}(verify running agents)${NC}"
-    echo -e "  ${BOLD}9)${NC} Multi-instance setup          ${DIM}(named instances, separate ports)${NC}"
+    echo -e "  ${BOLD}0)${NC}  System requirements check"
+    echo -e "  ${BOLD}1)${NC}  Base system provisioning     ${DIM}(Docker, Python, Git)${NC}"
+    echo -e "  ${BOLD}2)${NC}  Install Python dependencies   ${DIM}(reportlab, torch, etc.)${NC}"
+    echo -e "  ${BOLD}3)${NC}  Configure environment         ${DIM}(API keys, channels, agent)${NC}"
+    echo -e "  ${BOLD}4)${NC}  Assessment pipeline           ${DIM}(PDF forms, validation)${NC}"
+    echo -e "  ${BOLD}5)${NC}  Deploy agent                  ${DIM}(Docker, Vagrant, bare-metal)${NC}"
+    echo -e "  ${BOLD}6)${NC}  Fine-tuning                   ${DIM}(LoRA/QLoRA, datasets)${NC}"
+    echo -e "  ${BOLD}7)${NC}  Watchdog monitoring            ${DIM}(alerts, auto-restart, dashboard)${NC}"
+    echo -e "  ${BOLD}8)${NC}  Health check                  ${DIM}(verify running agents)${NC}"
+    echo -e "  ${BOLD}9)${NC}  Multi-instance setup          ${DIM}(named instances, separate ports)${NC}"
+    echo -e "  ${BOLD}10)${NC} Vault management              ${DIM}(encrypted secrets, rotate, import)${NC}"
+    echo -e "  ${BOLD}11)${NC} Optimization engine            ${DIM}(cost routing, caching, budgets)${NC}"
+    echo -e "  ${BOLD}12)${NC} Security rules                 ${DIM}(forbidden URLs, content, data, network)${NC}"
     echo ""
-    echo -e "  ${BOLD}f)${NC} Full setup (steps 1-7 sequentially)"
-    echo -e "  ${BOLD}q)${NC} Quit"
+    echo -e "  ${BOLD}f)${NC}  Full setup (steps 1-7 sequentially)"
+    echo -e "  ${BOLD}q)${NC}  Quit"
     echo ""
-    echo -ne "${CYAN}Choose [0-9/f/q]:${NC} "
+    echo -ne "${CYAN}Choose [0-11/f/q]:${NC} "
 }
 
 run_full_setup() {
@@ -949,6 +1220,9 @@ main() {
             7) setup_watchdog; wait_key ;;
             8) run_healthcheck; wait_key ;;
             9) setup_multi_instance; wait_key ;;
+            10) manage_vault; wait_key ;;
+            11) setup_optimizer; wait_key ;;
+            12) setup_security; wait_key ;;
             f|F) run_full_setup; wait_key ;;
             q|Q)
                 echo ""

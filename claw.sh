@@ -14,6 +14,8 @@ set -euo pipefail
 #   ./claw.sh datasets --list              List all 50 use-case datasets
 #   ./claw.sh datasets --validate          Validate datasets (rows, schema, license)
 #   ./claw.sh datasets --download-all      Download all 50 datasets
+#   ./claw.sh vault <command>               Encrypted secrets vault
+#   ./claw.sh optimizer <command>           Multi-model optimization
 #   ./claw.sh health <agent>               Run health check
 #   ./claw.sh help                         Show this help
 # =============================================================================
@@ -113,6 +115,25 @@ print_help() {
     echo -e "  ${GREEN}datasets --validate${NC}          Validate all datasets (rows, schema, license)"
     echo -e "  ${GREEN}datasets --download-all${NC}      Download all 50 datasets"
     echo ""
+    echo -e "${BOLD}SECURITY:${NC}"
+    echo -e "  ${GREEN}vault init${NC}                   Create a new encrypted secrets vault"
+    echo -e "  ${GREEN}vault import-env <file>${NC}      Import .env keys into the vault"
+    echo -e "  ${GREEN}vault list${NC}                   List stored secret names"
+    echo -e "  ${GREEN}vault get <key>${NC}              Retrieve a secret value"
+    echo -e "  ${GREEN}vault set <key> <value>${NC}      Store a secret"
+    echo -e "  ${GREEN}vault rotate${NC}                 Change vault password"
+    echo -e "  ${GREEN}vault export-env <file>${NC}      Export secrets back to .env format"
+    echo -e "  ${GREEN}security report${NC}              Security posture report"
+    echo -e "  ${GREEN}security check-url <url>${NC}     Test a URL against rules"
+    echo -e "  ${GREEN}security check-content <txt>${NC} Test content against rules"
+    echo -e "  ${GREEN}security generate-prompt${NC}     Generate system prompt security appendix"
+    echo -e "  ${GREEN}security init${NC}                Generate security_rules.json"
+    echo ""
+    echo -e "${BOLD}OPTIMIZATION:${NC}"
+    echo -e "  ${GREEN}optimizer init${NC}               Generate optimization.json config"
+    echo -e "  ${GREEN}optimizer report${NC}             Show cost optimization report"
+    echo -e "  ${GREEN}optimizer start${NC}              Start optimization proxy service"
+    echo ""
     echo -e "${BOLD}OPERATIONS:${NC}"
     echo -e "  ${GREEN}health <agent|all>${NC}           Run agent health check"
     echo -e "  ${GREEN}logs <agent>${NC}                 Tail agent logs (Docker)"
@@ -148,20 +169,38 @@ cmd_start_docker() {
 
     header "Starting ${agent} via Docker Compose..."
 
-    # Check for .env file
-    if [ ! -f "${SCRIPT_DIR}/.env" ]; then
-        warn "No .env file found. Copying from .env.template..."
-        if [ -f "${SCRIPT_DIR}/.env.template" ]; then
-            cp "${SCRIPT_DIR}/.env.template" "${SCRIPT_DIR}/.env"
-            warn "Please edit .env with your API keys before running agents."
-        else
-            err "No .env.template found either. Create a .env file with your configuration."
+    # Determine if vault mode or legacy .env mode
+    local compose_files=("-f" "docker-compose.yml")
+
+    if [ -f "${SCRIPT_DIR}/secrets.vault" ]; then
+        log "Vault detected — using encrypted secrets mode."
+        if [ ! -f "${SCRIPT_DIR}/docker-compose.secrets.yml" ]; then
+            err "docker-compose.secrets.yml not found. Cannot use vault mode."
             exit 1
+        fi
+        compose_files+=("-f" "docker-compose.secrets.yml")
+
+        # Ensure CLAW_VAULT_PASSWORD is set
+        if [ -z "${CLAW_VAULT_PASSWORD:-}" ]; then
+            warn "CLAW_VAULT_PASSWORD is not set. Containers won't be able to decrypt secrets."
+            warn "Set it with: export CLAW_VAULT_PASSWORD='your-password'"
+        fi
+    else
+        # Legacy .env mode
+        if [ ! -f "${SCRIPT_DIR}/.env" ]; then
+            warn "No .env file found. Copying from .env.template..."
+            if [ -f "${SCRIPT_DIR}/.env.template" ]; then
+                cp "${SCRIPT_DIR}/.env.template" "${SCRIPT_DIR}/.env"
+                warn "Please edit .env with your API keys before running agents."
+            else
+                err "No .env.template found either. Create a .env file with your configuration."
+                exit 1
+            fi
         fi
     fi
 
     cd "${SCRIPT_DIR}"
-    docker compose --profile "${agent}" up -d --build
+    docker compose "${compose_files[@]}" --profile "${agent}" up -d --build
     log "Agent ${agent} started successfully!"
     echo ""
     info "  Container: claw-${agent}"
@@ -582,6 +621,105 @@ case "${COMMAND}" in
             err "Usage: ./claw.sh validate --assessment <file>"
             exit 1
         fi
+        ;;
+
+    security)
+        # Security rules engine
+        local security_py="${SCRIPT_DIR}/shared/claw_security.py"
+        if [ ! -f "${security_py}" ]; then
+            err "shared/claw_security.py not found!"
+            exit 1
+        fi
+        local sec_action="${1:-report}"
+        shift 2>/dev/null || true
+        case "${sec_action}" in
+            init)
+                python3 "${security_py}" --init-config
+                ;;
+            report)
+                python3 "${security_py}" --report
+                ;;
+            check-url)
+                if [[ -z "${1:-}" ]]; then
+                    err "Usage: ./claw.sh security check-url <url>"
+                    exit 1
+                fi
+                python3 "${security_py}" --check-url "$1"
+                ;;
+            check-content)
+                if [[ -z "${1:-}" ]]; then
+                    err "Usage: ./claw.sh security check-content <text>"
+                    exit 1
+                fi
+                python3 "${security_py}" --check-content "$1"
+                ;;
+            check-ip)
+                if [[ -z "${1:-}" ]]; then
+                    err "Usage: ./claw.sh security check-ip <ip>"
+                    exit 1
+                fi
+                python3 "${security_py}" --check-ip "$1"
+                ;;
+            generate-prompt)
+                local compliance="${CLAW_COMPLIANCE:-}"
+                python3 "${security_py}" --generate-prompt --compliance "${compliance}"
+                ;;
+            validate)
+                python3 "${security_py}" --validate
+                ;;
+            *)
+                python3 "${security_py}" "$@"
+                ;;
+        esac
+        ;;
+
+    vault)
+        # Encrypted secrets vault management
+        local vault_py="${SCRIPT_DIR}/shared/claw_vault.py"
+        if [ ! -f "${vault_py}" ]; then
+            err "shared/claw_vault.py not found!"
+            exit 1
+        fi
+        # Check for cryptography package
+        if ! python3 -c "import cryptography" 2>/dev/null; then
+            err "Missing required package. Run: pip install cryptography"
+            exit 1
+        fi
+        # Pass all remaining args to the vault CLI
+        python3 "${vault_py}" "$@"
+        ;;
+
+    optimizer)
+        # Multi-model optimization engine
+        local optimizer_py="${SCRIPT_DIR}/shared/claw_optimizer.py"
+        if [ ! -f "${optimizer_py}" ]; then
+            err "shared/claw_optimizer.py not found!"
+            exit 1
+        fi
+        local opt_action="${1:-}"
+        shift 2>/dev/null || true
+        case "${opt_action}" in
+            init)
+                python3 "${optimizer_py}" --init-config
+                ;;
+            report)
+                python3 "${optimizer_py}" --report
+                ;;
+            start)
+                local opt_config="${SCRIPT_DIR}/shared/optimization.json"
+                if [ ! -f "${opt_config}" ]; then
+                    warn "No optimization.json found — generating default config..."
+                    python3 "${optimizer_py}" --init-config
+                fi
+                python3 "${optimizer_py}" -c "${opt_config}"
+                ;;
+            ""|--help|-h)
+                python3 "${optimizer_py}" --once
+                ;;
+            *)
+                python3 "${optimizer_py}" "$@"
+                ;;
+        esac
         ;;
 
     zeroclaw|nanoclaw|picoclaw|openclaw)

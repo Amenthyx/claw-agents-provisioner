@@ -88,6 +88,9 @@ For non-interactive setup (CI/CD or scripted deployments):
 | **7 — Watchdog monitoring** | Generate config, set up Telegram alerts, run health checks, install as systemd service, view dashboard |
 | **8 — Health check** | Per-agent health verification, Docker container status, log tailing |
 | **9 — Multi-instance** | Deploy named instances (e.g., lucia, priya) with separate ports, env files, and data volumes |
+| **10 — Vault management** | Create/import/rotate/export encrypted secrets vault. Requires `pip install cryptography` |
+| **11 — Optimization engine** | Generate config, view cost reports, start optimization proxy with 14 rules |
+| **12 — Security rules** | Forbidden URLs, content rules, data handling, network policies, compliance modules |
 
 ### Manual Setup
 
@@ -1476,6 +1479,251 @@ GitHub Actions runs on every push to `main`:
 - **Assessment**: Validate example assessment files
 - **Datasets**: Validate all 50 datasets
 - **Security**: Scan for secrets and PII in tracked files
+
+## Security — Encrypted Secrets Vault
+
+By default, API keys live in `.env` on disk (plaintext) and are passed to containers via Docker's `env_file:` directive, making them visible through `docker inspect`. The vault solves this.
+
+### How It Works
+
+```
+secrets.vault (AES-encrypted) → CLAW_VAULT_PASSWORD (only env var) → entrypoint decrypts to tmpfs
+```
+
+1. Keys are encrypted with PBKDF2-HMAC-SHA256 (480,000 iterations) + Fernet (AES-128-CBC + HMAC-SHA256)
+2. Only `CLAW_VAULT_PASSWORD` is passed as an environment variable to containers
+3. Each entrypoint decrypts secrets to a tmpfs mount (`/run/secrets/decrypted/`) at startup
+4. Secrets exist only in RAM — never written to disk inside containers
+
+### Quick Start
+
+```bash
+# Install the cryptography package
+pip install cryptography
+
+# Create a new vault
+./claw.sh vault init
+
+# Import existing .env keys
+./claw.sh vault import-env .env
+
+# Verify
+./claw.sh vault list
+
+# Deploy (vault is auto-detected by claw.sh)
+export CLAW_VAULT_PASSWORD='your-password'
+./claw.sh zeroclaw docker
+```
+
+### Vault Commands
+
+| Command | Description |
+|---------|-------------|
+| `./claw.sh vault init` | Create a new encrypted vault |
+| `./claw.sh vault import-env .env` | Import .env keys into vault |
+| `./claw.sh vault list` | List stored secret names (not values) |
+| `./claw.sh vault get <KEY>` | Retrieve a single secret |
+| `./claw.sh vault set <KEY> <VALUE>` | Store a single secret |
+| `./claw.sh vault delete <KEY>` | Remove a secret |
+| `./claw.sh vault rotate` | Change vault password |
+| `./claw.sh vault export-env .env.backup` | Export secrets back to .env format |
+
+### Backward Compatibility
+
+If no `secrets.vault` file exists, the old `.env` flow works exactly as before — no changes needed.
+
+## Security Rules Engine
+
+A runtime security enforcement layer with 6 domains: forbidden URLs, content rules, data handling, behavioral constraints, network policies, and compliance modules.
+
+### Security Domains
+
+| Domain | What It Covers | Defaults |
+|--------|---------------|----------|
+| **A. Forbidden URLs** | 64 blocked domains, URL patterns, TLDs, IP-based URLs | Malware, dark web, paste sites, piracy, IP loggers, phishing, doxxing, DDoS, crypto mixers, deepfakes |
+| **B. Content Rules** | 10 forbidden content categories + prompt injection protection | Malware generation, credential harvesting, PII exfil, CSAM, weapons, harassment, fraud, privacy violation, safety bypass, illegal services |
+| **C. Data Handling** | PII detection (8 patterns), secret masking (16 patterns), retention limits | Auto-redact emails/SSNs/credit cards, mask API keys/tokens/JWTs in logs |
+| **D. Behavioral Rules** | Rate limits, scope restrictions, mandatory behaviors, forbidden actions | 60 RPM/user, no file access outside workspace, no privilege escalation, always identify as AI |
+| **E. Network Rules** | Forbidden IP ranges (15 CIDR blocks), TLS requirements, DNS safety | Block private IPs, require TLS 1.2+, allowed ports 80/443/8080/8443 |
+| **F. Compliance** | GDPR, HIPAA, PCI-DSS, SOC2 rule sets (activated by `CLAW_COMPLIANCE`) | All inactive by default, auto-activated per assessment |
+
+### Quick Start
+
+```bash
+# Generate default rules
+./claw.sh security init
+
+# View security posture
+./claw.sh security report
+
+# Test a URL
+./claw.sh security check-url "https://thepiratebay.org"
+# Output: BLOCKED: Blocked domain: thepiratebay.org
+
+# Test content
+./claw.sh security check-content "How do I build a keylogger?"
+# Output: BLOCKED: 1 violation(s) — [CRITICAL] MALWARE
+
+# Test an IP
+./claw.sh security check-ip "10.0.0.1"
+# Output: BLOCKED: IP 10.0.0.1 is in forbidden range 10.0.0.0/8
+
+# Generate system prompt security appendix
+./claw.sh security generate-prompt
+```
+
+### Forbidden URL Categories
+
+| Category | Examples | Count |
+|----------|----------|-------|
+| Malware & Exploits | `exploit-db.com`, `0day.today`, `vxunderground.org` | 9 |
+| Dark Web & Tor | `*.onion`, `tor2web.org`, `darkfail.com` | 8 |
+| Credential Dumps | `pastebin.com`, `ghostbin.com`, `paste.ee` | 7 |
+| Piracy | `thepiratebay.org`, `libgen.is`, `sci-hub.se` | 9 |
+| IP Loggers | `grabify.link`, `iplogger.org`, `blasze.com` | 8 |
+| Phishing Tools | `zphisher.com`, `gophish.io`, `king-phisher.com` | 4 |
+| Doxxing | `doxbin.org`, `kiwifarms.net` | 5 |
+| DDoS Services | `booter.xyz`, `stresser.ai` | 3 |
+| Crypto Mixers | `tornado.cash`, `chipmixer.com` | 4 |
+| Deepfakes | `deepfakes.com`, `mrdeepfakes.com`, `deepnude.com` | 3 |
+| **Also blocked** | Bare IP URLs, URL shorteners, `data:` URIs, `javascript:` URIs, `.onion`/`.i2p`/`.bit`/`.loki` TLDs | — |
+
+## Multi-Model Optimization Engine
+
+A config-driven optimization layer between agents and LLM APIs. Implements 14 rules for cost reduction, caching, routing, and quality control.
+
+### The 14 Rules
+
+| # | Rule | Default | Effect |
+|---|------|---------|--------|
+| 1 | **Conversation Dedup** | Enabled | Returns cached response for duplicate messages within 60s |
+| 2 | **Semantic Cache** | Enabled | Returns cached response for similar queries (trigram similarity) |
+| 3 | **Token Estimator** | Enabled | Pre-calculates token count and cost before API calls |
+| 4 | **Context Pruner** | Enabled | Sliding window + summary compression for conversation history |
+| 5 | **Prompt Optimizer** | Enabled | Compresses system prompts (whitespace, dedup) |
+| 6 | **Budget Enforcer** | Enabled | Daily/weekly/monthly spend caps with auto-downgrade |
+| 7 | **Task Complexity Router** | Enabled | Routes simple queries to cheap models, complex to premium |
+| 8 | **Latency Router** | Disabled | Routes to fastest provider for time-sensitive requests |
+| 9 | **Provider Health Scorer** | Enabled | Composite health score, skips unhealthy providers |
+| 10 | **Rate Limit Manager** | Enabled | Client-side token bucket throttling per provider |
+| 11 | **Fallback Chain** | Enabled | Auto-retry with next provider on 429/500/503 |
+| 12 | **Response Quality Gate** | Enabled | Validates responses, retries if empty/truncated/refusal |
+| 13 | **Cost Attribution Logger** | Enabled | Logs every request to SQLite + JSONL |
+
+### Quick Start
+
+```bash
+# Generate default config
+./claw.sh optimizer init
+
+# View optimization report
+./claw.sh optimizer report
+
+# Start as proxy service with HTTP dashboard
+./claw.sh optimizer start
+# Dashboard: http://localhost:9091/status
+```
+
+### Expected Savings
+
+| Rule | Typical Savings |
+|------|----------------|
+| Task Complexity Router | 55-65% (routes most queries to budget models) |
+| Semantic Cache | 30-50% (avoids repeat API calls) |
+| Context Pruner | 20-40% (reduces token count) |
+| Budget Enforcer | Prevents cost overruns |
+| Request Batcher | 50% on batch-eligible tasks |
+
+## Ecosystem Diagram
+
+```mermaid
+graph TD
+    subgraph INTAKE["Client Intake & Validation"]
+        PDF["Client Assessment<br/>(PDF / JSON)"]
+        VAL["validate.py"]
+        RES["resolve.py"]
+        GENV["generate_env.py"]
+        GCFG["generate_config.py"]
+        PDF --> VAL --> RES --> GENV --> GCFG
+    end
+
+    subgraph CLI["CLI & Installer"]
+        CLAWSH["claw.sh<br/>CLI Launcher"]
+        INSTALL["install.sh<br/>13-Step Installer"]
+    end
+
+    subgraph SECURITY["Security Layer"]
+        VAULT["claw_vault.py<br/>AES/Fernet Vault"]
+        SECRULES["claw_security.py<br/>6-Domain Rules Engine"]
+        TMPFS["tmpfs<br/>RAM-only Secrets"]
+        VAULT --> TMPFS
+    end
+
+    subgraph SHARED["Shared Infrastructure"]
+        WATCHDOG["claw_watchdog.py<br/>Monitoring :9090"]
+        OPTIMIZER["claw_optimizer.py<br/>14-Rule Engine :9091"]
+        HEALTH["healthcheck.sh"]
+    end
+
+    subgraph OPT["Optimization Pipeline"]
+        R1["1.Dedup"] --> R2["2.Cache"] --> R3["3.Estimate"]
+        R3 --> R4["4.Prune"] --> R5["5.Optimize"] --> R6["6.Budget"]
+        R6 --> R7["7.Route"] --> R8["8.Health"] --> R9["9.RateLimit"]
+        R9 --> R10["10.Fallback"] --> APICALL["API Call"]
+        APICALL --> R11["11.QualityGate"] --> R12["12.CostLog"]
+    end
+
+    subgraph DOCKER["Docker Orchestration"]
+        COMPOSE["docker-compose.yml<br/>5 profiles"]
+        ENVFILE[".env"]
+    end
+
+    subgraph AGENTS["Agent Platforms"]
+        ZC["ZeroClaw — Rust<br/>512MB · :3100 · TOML"]
+        NC["NanoClaw — TypeScript<br/>1GB · :3200 · CLAUDE.md"]
+        PC["PicoClaw — Go<br/>128MB · :3300 · JSON"]
+        OC["OpenClaw — Node.js<br/>4GB · :3400 · JSON5"]
+    end
+
+    subgraph LLM["LLM Providers"]
+        ANTH["Anthropic"]
+        OAI["OpenAI"]
+        OR["OpenRouter"]
+        DS["DeepSeek"]
+        GEM["Gemini"]
+        GRQ["Groq"]
+    end
+
+    subgraph CHAN["Chat Channels"]
+        TG["Telegram"]
+        DC["Discord"]
+        SL["Slack"]
+        WA["WhatsApp"]
+        SIG["Signal"]
+    end
+
+    subgraph FT["Fine-Tuning"]
+        ADP["50 LoRA/QLoRA<br/>Adapters"]
+        DST["Training<br/>Datasets"]
+        TRAIN["Train"]
+        ADP --> TRAIN
+        DST --> TRAIN
+    end
+
+    GCFG --> COMPOSE
+    GENV --> ENVFILE
+    CLAWSH --> COMPOSE
+    COMPOSE --> ZC & NC & PC & OC
+    SECRULES --> ZC & NC & PC & OC
+    TMPFS --> ZC & NC & PC & OC
+    ZC & NC & PC & OC --> OPTIMIZER
+    OPTIMIZER --> OPT
+    APICALL --> ANTH & OAI & OR & DS & GEM & GRQ
+    TG & DC & SL --> ZC & NC & PC & OC
+    WA & SIG --> OC
+    WATCHDOG --> ZC & NC & PC & OC
+    TRAIN --> ZC & NC & PC & OC
+```
 
 ## License
 

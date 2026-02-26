@@ -51,12 +51,47 @@ env_or_default() {
     echo "${!var_name:-$default_value}"
 }
 
+# Read a secret: checks /run/secrets/decrypted/<KEY> first, falls back to env var
+read_secret() {
+    local key="$1"
+    local default_value="${2:-}"
+    local secret_file="/run/secrets/decrypted/${key}"
+    if [[ -f "$secret_file" ]]; then
+        cat "$secret_file"
+    else
+        echo "${!key:-$default_value}"
+    fi
+}
+
 json_escape() {
     local val="$1"
     val="${val//\\/\\\\}"
     val="${val//\"/\\\"}"
     echo "$val"
 }
+
+# -------------------------------------------------------------------
+# 0. Vault decryption (if vault is mounted)
+# -------------------------------------------------------------------
+VAULT_FILE="${CLAW_VAULT_FILE:-/run/secrets/secrets.vault}"
+if [[ -f "$VAULT_FILE" ]]; then
+    log_info "Vault detected — decrypting secrets to tmpfs..."
+    DECRYPT_DIR="/run/secrets/decrypted"
+    mkdir -p "$DECRYPT_DIR" 2>/dev/null || true
+
+    if command -v python3 > /dev/null 2>&1; then
+        VAULT_PY="${CLAW_VAULT_PY:-/usr/local/bin/claw_vault.py}"
+        if [[ -f "$VAULT_PY" ]]; then
+            python3 "$VAULT_PY" inject "$DECRYPT_DIR" --vault-file "$VAULT_FILE" 2>/dev/null && \
+                log_info "Secrets decrypted to tmpfs." || \
+                log_warn "Vault decryption failed — falling back to env vars."
+        else
+            log_warn "claw_vault.py not found at $VAULT_PY — falling back to env vars."
+        fi
+    else
+        log_warn "python3 not available — cannot decrypt vault, falling back to env vars."
+    fi
+fi
 
 # -------------------------------------------------------------------
 # 1. Create OpenClaw home directory
@@ -77,37 +112,37 @@ PORT=$(env_or_default "OPENCLAW_PORT" "3000")
 # Map provider to OpenClaw env var name and provider ID
 case "$PROVIDER" in
     anthropic)
-        API_KEY=$(env_or_default "ANTHROPIC_API_KEY" "")
+        API_KEY=$(read_secret "ANTHROPIC_API_KEY" "")
         OPENCLAW_KEY_VAR="ANTHROPIC_API_KEY"
         PROVIDER_ID="anthropic"
         ;;
     openai)
-        API_KEY=$(env_or_default "OPENAI_API_KEY" "")
+        API_KEY=$(read_secret "OPENAI_API_KEY" "")
         OPENCLAW_KEY_VAR="OPENAI_API_KEY"
         PROVIDER_ID="openai"
         ;;
     openrouter)
-        API_KEY=$(env_or_default "OPENROUTER_API_KEY" "")
+        API_KEY=$(read_secret "OPENROUTER_API_KEY" "")
         OPENCLAW_KEY_VAR="OPENROUTER_API_KEY"
         PROVIDER_ID="openrouter"
         ;;
     deepseek)
-        API_KEY=$(env_or_default "DEEPSEEK_API_KEY" "")
+        API_KEY=$(read_secret "DEEPSEEK_API_KEY" "")
         OPENCLAW_KEY_VAR="DEEPSEEK_API_KEY"
         PROVIDER_ID="deepseek"
         ;;
     gemini)
-        API_KEY=$(env_or_default "GEMINI_API_KEY" "")
+        API_KEY=$(read_secret "GEMINI_API_KEY" "")
         OPENCLAW_KEY_VAR="GOOGLE_API_KEY"
         PROVIDER_ID="google"
         ;;
     groq)
-        API_KEY=$(env_or_default "GROQ_API_KEY" "")
+        API_KEY=$(read_secret "GROQ_API_KEY" "")
         OPENCLAW_KEY_VAR="GROQ_API_KEY"
         PROVIDER_ID="groq"
         ;;
     *)
-        API_KEY=$(env_or_default "ANTHROPIC_API_KEY" "")
+        API_KEY=$(read_secret "ANTHROPIC_API_KEY" "")
         OPENCLAW_KEY_VAR="ANTHROPIC_API_KEY"
         PROVIDER_ID="anthropic"
         log_warn "Unknown provider '${PROVIDER}', defaulting to anthropic."
@@ -128,11 +163,11 @@ export "OPENCLAW_DEEPSEEK_API_KEY=$(env_or_default "DEEPSEEK_API_KEY" "")"
 # -------------------------------------------------------------------
 # 3. Resolve channel tokens
 # -------------------------------------------------------------------
-TELEGRAM_TOKEN=$(env_or_default "TELEGRAM_BOT_TOKEN" "")
-DISCORD_TOKEN=$(env_or_default "DISCORD_BOT_TOKEN" "")
-SLACK_TOKEN=$(env_or_default "SLACK_BOT_TOKEN" "")
-SLACK_APP_TOKEN=$(env_or_default "SLACK_APP_TOKEN" "")
-WHATSAPP_SESSION=$(env_or_default "WHATSAPP_SESSION_DATA" "")
+TELEGRAM_TOKEN=$(read_secret "TELEGRAM_BOT_TOKEN" "")
+DISCORD_TOKEN=$(read_secret "DISCORD_BOT_TOKEN" "")
+SLACK_TOKEN=$(read_secret "SLACK_BOT_TOKEN" "")
+SLACK_APP_TOKEN=$(read_secret "SLACK_APP_TOKEN" "")
+WHATSAPP_SESSION=$(read_secret "WHATSAPP_SESSION_DATA" "")
 
 # -------------------------------------------------------------------
 # 4. Resolve assessment-derived fields
@@ -164,10 +199,10 @@ log_info "Generating ${ENV_FILE}..."
     echo "${OPENCLAW_KEY_VAR}=${API_KEY}"
 
     # Include all available provider keys (OpenClaw supports multi-provider)
-    ANTHROPIC_KEY=$(env_or_default "ANTHROPIC_API_KEY" "")
-    OPENAI_KEY=$(env_or_default "OPENAI_API_KEY" "")
-    OPENROUTER_KEY=$(env_or_default "OPENROUTER_API_KEY" "")
-    DEEPSEEK_KEY=$(env_or_default "DEEPSEEK_API_KEY" "")
+    ANTHROPIC_KEY=$(read_secret "ANTHROPIC_API_KEY" "")
+    OPENAI_KEY=$(read_secret "OPENAI_API_KEY" "")
+    OPENROUTER_KEY=$(read_secret "OPENROUTER_API_KEY" "")
+    DEEPSEEK_KEY=$(read_secret "DEEPSEEK_API_KEY" "")
 
     [[ -n "$ANTHROPIC_KEY" && "$OPENCLAW_KEY_VAR" != "ANTHROPIC_API_KEY" ]] && echo "ANTHROPIC_API_KEY=${ANTHROPIC_KEY}"
     [[ -n "$OPENAI_KEY" && "$OPENCLAW_KEY_VAR" != "OPENAI_API_KEY" ]] && echo "OPENAI_API_KEY=${OPENAI_KEY}"

@@ -10,6 +10,21 @@
 # Watchdog config (contains bot tokens)
 watchdog.json
 
+# Vault files (encrypted secrets)
+secrets.vault
+secrets.*.vault
+.env.config
+
+# Security rules (may contain custom overrides)
+security_rules.json
+
+# Optimizer databases
+cost_log.sqlite3
+response_cache.sqlite3
+budget_tracking.sqlite3
+cost_log.jsonl
+optimizer.log
+
 # Client assessment files (contain PII)
 client-assessment*.json
 !client-assessment.example.json

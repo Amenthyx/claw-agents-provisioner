@@ -50,6 +50,18 @@ env_or_default() {
     echo "${!var_name:-$default_value}"
 }
 
+# Read a secret: checks /run/secrets/decrypted/<KEY> first, falls back to env var
+read_secret() {
+    local key="$1"
+    local default_value="${2:-}"
+    local secret_file="/run/secrets/decrypted/${key}"
+    if [[ -f "$secret_file" ]]; then
+        cat "$secret_file"
+    else
+        echo "${!key:-$default_value}"
+    fi
+}
+
 # Safely apply sed substitution — skip if file does not exist
 safe_sed() {
     local pattern="$1"
@@ -58,6 +70,29 @@ safe_sed() {
         sed -i "$pattern" "$file"
     fi
 }
+
+# -------------------------------------------------------------------
+# 0. Vault decryption (if vault is mounted)
+# -------------------------------------------------------------------
+VAULT_FILE="${CLAW_VAULT_FILE:-/run/secrets/secrets.vault}"
+if [[ -f "$VAULT_FILE" ]]; then
+    log_info "Vault detected — decrypting secrets to tmpfs..."
+    DECRYPT_DIR="/run/secrets/decrypted"
+    mkdir -p "$DECRYPT_DIR" 2>/dev/null || true
+
+    if command -v python3 > /dev/null 2>&1; then
+        VAULT_PY="${CLAW_VAULT_PY:-/usr/local/bin/claw_vault.py}"
+        if [[ -f "$VAULT_PY" ]]; then
+            python3 "$VAULT_PY" inject "$DECRYPT_DIR" --vault-file "$VAULT_FILE" 2>/dev/null && \
+                log_info "Secrets decrypted to tmpfs." || \
+                log_warn "Vault decryption failed — falling back to env vars."
+        else
+            log_warn "claw_vault.py not found at $VAULT_PY — falling back to env vars."
+        fi
+    else
+        log_warn "python3 not available — cannot decrypt vault, falling back to env vars."
+    fi
+fi
 
 # -------------------------------------------------------------------
 # 1. Create NanoClaw home directory
@@ -78,32 +113,32 @@ MAX_MEMORY=$(env_or_default "NANOCLAW_MAX_MEMORY_MB" "512")
 # NanoClaw primarily expects CLAUDE_API_KEY for Anthropic
 case "$PROVIDER" in
     anthropic)
-        API_KEY=$(env_or_default "ANTHROPIC_API_KEY" "")
+        API_KEY=$(read_secret "ANTHROPIC_API_KEY" "")
         if [[ -n "$API_KEY" ]]; then
             export CLAUDE_API_KEY="${API_KEY}"
             export ANTHROPIC_API_KEY="${API_KEY}"
         fi
         ;;
     openai)
-        API_KEY=$(env_or_default "OPENAI_API_KEY" "")
+        API_KEY=$(read_secret "OPENAI_API_KEY" "")
         if [[ -n "$API_KEY" ]]; then
             export OPENAI_API_KEY="${API_KEY}"
         fi
         ;;
     openrouter)
-        API_KEY=$(env_or_default "OPENROUTER_API_KEY" "")
+        API_KEY=$(read_secret "OPENROUTER_API_KEY" "")
         if [[ -n "$API_KEY" ]]; then
             export OPENROUTER_API_KEY="${API_KEY}"
         fi
         ;;
     deepseek)
-        API_KEY=$(env_or_default "DEEPSEEK_API_KEY" "")
+        API_KEY=$(read_secret "DEEPSEEK_API_KEY" "")
         if [[ -n "$API_KEY" ]]; then
             export DEEPSEEK_API_KEY="${API_KEY}"
         fi
         ;;
     *)
-        API_KEY=$(env_or_default "ANTHROPIC_API_KEY" "")
+        API_KEY=$(read_secret "ANTHROPIC_API_KEY" "")
         if [[ -n "$API_KEY" ]]; then
             export CLAUDE_API_KEY="${API_KEY}"
         fi
@@ -117,10 +152,10 @@ if [[ -z "${API_KEY:-}" ]]; then
 fi
 
 # 2b. Map channel tokens to NanoClaw-expected env var names
-TELEGRAM_TOKEN=$(env_or_default "TELEGRAM_BOT_TOKEN" "")
-DISCORD_TOKEN=$(env_or_default "DISCORD_BOT_TOKEN" "")
-SLACK_TOKEN=$(env_or_default "SLACK_BOT_TOKEN" "")
-WHATSAPP_SESSION=$(env_or_default "WHATSAPP_SESSION_DATA" "")
+TELEGRAM_TOKEN=$(read_secret "TELEGRAM_BOT_TOKEN" "")
+DISCORD_TOKEN=$(read_secret "DISCORD_BOT_TOKEN" "")
+SLACK_TOKEN=$(read_secret "SLACK_BOT_TOKEN" "")
+WHATSAPP_SESSION=$(read_secret "WHATSAPP_SESSION_DATA" "")
 
 case "$CHANNEL" in
     telegram)
@@ -150,7 +185,7 @@ case "$CHANNEL" in
     slack)
         if [[ -n "$SLACK_TOKEN" ]]; then
             export SLACK_TOKEN="${SLACK_TOKEN}"
-            SLACK_APP=$(env_or_default "SLACK_APP_TOKEN" "")
+            SLACK_APP=$(read_secret "SLACK_APP_TOKEN" "")
             [[ -n "$SLACK_APP" ]] && export SLACK_APP_TOKEN="${SLACK_APP}"
             log_info "Slack channel configured."
         else
@@ -158,7 +193,7 @@ case "$CHANNEL" in
         fi
         ;;
     signal)
-        SIGNAL_PHONE=$(env_or_default "SIGNAL_PHONE_NUMBER" "")
+        SIGNAL_PHONE=$(read_secret "SIGNAL_PHONE_NUMBER" "")
         if [[ -n "$SIGNAL_PHONE" ]]; then
             export SIGNAL_PHONE_NUMBER="${SIGNAL_PHONE}"
             log_info "Signal channel configured."

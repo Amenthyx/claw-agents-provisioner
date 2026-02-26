@@ -49,6 +49,18 @@ env_or_default() {
     echo "${!var_name:-$default_value}"
 }
 
+# Read a secret: checks /run/secrets/decrypted/<KEY> first, falls back to env var
+read_secret() {
+    local key="$1"
+    local default_value="${2:-}"
+    local secret_file="/run/secrets/decrypted/${key}"
+    if [[ -f "$secret_file" ]]; then
+        cat "$secret_file"
+    else
+        echo "${!key:-$default_value}"
+    fi
+}
+
 # JSON-escape a string value
 json_escape() {
     local val="$1"
@@ -56,6 +68,29 @@ json_escape() {
     val="${val//\"/\\\"}"
     echo "$val"
 }
+
+# -------------------------------------------------------------------
+# 0. Vault decryption (if vault is mounted)
+# -------------------------------------------------------------------
+VAULT_FILE="${CLAW_VAULT_FILE:-/run/secrets/secrets.vault}"
+if [[ -f "$VAULT_FILE" ]]; then
+    log_info "Vault detected — decrypting secrets to tmpfs..."
+    DECRYPT_DIR="/run/secrets/decrypted"
+    mkdir -p "$DECRYPT_DIR" 2>/dev/null || true
+
+    if command -v python3 > /dev/null 2>&1; then
+        VAULT_PY="${CLAW_VAULT_PY:-/usr/local/bin/claw_vault.py}"
+        if [[ -f "$VAULT_PY" ]]; then
+            python3 "$VAULT_PY" inject "$DECRYPT_DIR" --vault-file "$VAULT_FILE" 2>/dev/null && \
+                log_info "Secrets decrypted to tmpfs." || \
+                log_warn "Vault decryption failed — falling back to env vars."
+        else
+            log_warn "claw_vault.py not found at $VAULT_PY — falling back to env vars."
+        fi
+    else
+        log_warn "python3 not available — cannot decrypt vault, falling back to env vars."
+    fi
+fi
 
 # -------------------------------------------------------------------
 # 1. Create PicoClaw home directory
@@ -76,37 +111,37 @@ GATEWAY_PORT=$(env_or_default "PICOCLAW_GATEWAY_PORT" "8080")
 # Map provider to API key and export PicoClaw-expected vars
 case "$PROVIDER" in
     anthropic)
-        API_KEY=$(env_or_default "ANTHROPIC_API_KEY" "")
+        API_KEY=$(read_secret "ANTHROPIC_API_KEY" "")
         [[ -n "$API_KEY" ]] && export PICOCLAW_ANTHROPIC_KEY="${API_KEY}"
         API_BASE="https://api.anthropic.com/v1"
         ;;
     openai)
-        API_KEY=$(env_or_default "OPENAI_API_KEY" "")
+        API_KEY=$(read_secret "OPENAI_API_KEY" "")
         [[ -n "$API_KEY" ]] && export PICOCLAW_OPENAI_KEY="${API_KEY}"
         API_BASE="https://api.openai.com/v1"
         ;;
     openrouter)
-        API_KEY=$(env_or_default "OPENROUTER_API_KEY" "")
+        API_KEY=$(read_secret "OPENROUTER_API_KEY" "")
         [[ -n "$API_KEY" ]] && export PICOCLAW_OPENROUTER_KEY="${API_KEY}"
         API_BASE="https://openrouter.ai/api/v1"
         ;;
     deepseek)
-        API_KEY=$(env_or_default "DEEPSEEK_API_KEY" "")
+        API_KEY=$(read_secret "DEEPSEEK_API_KEY" "")
         [[ -n "$API_KEY" ]] && export PICOCLAW_API_KEY="${API_KEY}"
         API_BASE="https://api.deepseek.com/v1"
         ;;
     gemini)
-        API_KEY=$(env_or_default "GEMINI_API_KEY" "")
+        API_KEY=$(read_secret "GEMINI_API_KEY" "")
         [[ -n "$API_KEY" ]] && export PICOCLAW_GEMINI_KEY="${API_KEY}"
         API_BASE="https://generativelanguage.googleapis.com/v1beta"
         ;;
     groq)
-        API_KEY=$(env_or_default "GROQ_API_KEY" "")
+        API_KEY=$(read_secret "GROQ_API_KEY" "")
         [[ -n "$API_KEY" ]] && export PICOCLAW_GROQ_KEY="${API_KEY}"
         API_BASE="https://api.groq.com/openai/v1"
         ;;
     *)
-        API_KEY=$(env_or_default "DEEPSEEK_API_KEY" "")
+        API_KEY=$(read_secret "DEEPSEEK_API_KEY" "")
         [[ -n "$API_KEY" ]] && export PICOCLAW_API_KEY="${API_KEY}"
         API_BASE="https://api.deepseek.com/v1"
         log_warn "Unknown provider '${PROVIDER}', defaulting to deepseek."
@@ -119,8 +154,8 @@ if [[ -z "${API_KEY:-}" ]]; then
 fi
 
 # Also export any additional provider keys that are set
-ANTHROPIC_KEY=$(env_or_default "ANTHROPIC_API_KEY" "")
-OPENAI_KEY=$(env_or_default "OPENAI_API_KEY" "")
+ANTHROPIC_KEY=$(read_secret "ANTHROPIC_API_KEY" "")
+OPENAI_KEY=$(read_secret "OPENAI_API_KEY" "")
 [[ -n "$ANTHROPIC_KEY" ]] && export PICOCLAW_ANTHROPIC_KEY="${ANTHROPIC_KEY}"
 [[ -n "$OPENAI_KEY" ]] && export PICOCLAW_OPENAI_KEY="${OPENAI_KEY}"
 
@@ -176,9 +211,9 @@ fi
 # -------------------------------------------------------------------
 # 7. Build channel configuration
 # -------------------------------------------------------------------
-TELEGRAM_TOKEN=$(env_or_default "TELEGRAM_BOT_TOKEN" "")
-DISCORD_TOKEN=$(env_or_default "DISCORD_BOT_TOKEN" "")
-SLACK_TOKEN=$(env_or_default "SLACK_BOT_TOKEN" "")
+TELEGRAM_TOKEN=$(read_secret "TELEGRAM_BOT_TOKEN" "")
+DISCORD_TOKEN=$(read_secret "DISCORD_BOT_TOKEN" "")
+SLACK_TOKEN=$(read_secret "SLACK_BOT_TOKEN" "")
 
 CHANNELS_ITEMS=""
 if [[ -n "$TELEGRAM_TOKEN" ]]; then
