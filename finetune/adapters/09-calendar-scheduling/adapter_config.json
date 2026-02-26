@@ -1,0 +1,17 @@
+{
+  "base_model_name_or_path": "microsoft/Phi-3-mini-4k-instruct",
+  "task_type": "CAUSAL_LM",
+  "r": 16,
+  "lora_alpha": 32,
+  "lora_dropout": 0.05,
+  "target_modules": [
+    "q_proj",
+    "v_proj",
+    "k_proj",
+    "o_proj"
+  ],
+  "bias": "none",
+  "dataset_path": "finetune/datasets/09-calendar-scheduling/data.jsonl",
+  "use_case_id": "09-calendar-scheduling",
+  "use_case_name": "Calendar & Scheduling"
+}

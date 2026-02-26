@@ -1,0 +1,17 @@
+{
+  "base_model_name_or_path": "mistralai/Mistral-7B-v0.3",
+  "task_type": "CAUSAL_LM",
+  "r": 32,
+  "lora_alpha": 64,
+  "lora_dropout": 0.05,
+  "target_modules": [
+    "q_proj",
+    "v_proj",
+    "k_proj",
+    "o_proj"
+  ],
+  "bias": "none",
+  "dataset_path": "finetune/datasets/41-document-processing/data.jsonl",
+  "use_case_id": "41-document-processing",
+  "use_case_name": "Document Processing & OCR"
+}

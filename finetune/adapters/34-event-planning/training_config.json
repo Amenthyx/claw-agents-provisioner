@@ -1,0 +1,24 @@
+{
+  "base_model": "microsoft/Phi-3-mini-4k-instruct",
+  "method": "qlora",
+  "rank": 16,
+  "lora_alpha": 32,
+  "lora_dropout": 0.05,
+  "target_modules": [
+    "q_proj",
+    "v_proj",
+    "k_proj",
+    "o_proj"
+  ],
+  "epochs": 3,
+  "learning_rate": 0.0003,
+  "batch_size": 8,
+  "gradient_accumulation_steps": 2,
+  "max_seq_length": 2048,
+  "warmup_steps": 30,
+  "logging_steps": 10,
+  "save_steps": 200,
+  "vram_estimate_gb": 6,
+  "dataset_path": "finetune/datasets/34-event-planning/data.jsonl",
+  "output_dir": "finetune/output/34-event-planning/"
+}

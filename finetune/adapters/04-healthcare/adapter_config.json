@@ -1,0 +1,20 @@
+{
+  "base_model_name_or_path": "mistralai/Mistral-7B-v0.3",
+  "task_type": "CAUSAL_LM",
+  "r": 64,
+  "lora_alpha": 128,
+  "lora_dropout": 0.05,
+  "target_modules": [
+    "q_proj",
+    "v_proj",
+    "k_proj",
+    "o_proj",
+    "gate_proj",
+    "up_proj",
+    "down_proj"
+  ],
+  "bias": "none",
+  "dataset_path": "finetune/datasets/04-healthcare/data.jsonl",
+  "use_case_id": "04-healthcare",
+  "use_case_name": "Healthcare Triage"
+}

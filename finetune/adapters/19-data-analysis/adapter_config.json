@@ -1,0 +1,20 @@
+{
+  "base_model_name_or_path": "meta-llama/Meta-Llama-3.1-8B",
+  "task_type": "CAUSAL_LM",
+  "r": 64,
+  "lora_alpha": 128,
+  "lora_dropout": 0.05,
+  "target_modules": [
+    "q_proj",
+    "v_proj",
+    "k_proj",
+    "o_proj",
+    "gate_proj",
+    "up_proj",
+    "down_proj"
+  ],
+  "bias": "none",
+  "dataset_path": "finetune/datasets/19-data-analysis/data.jsonl",
+  "use_case_id": "19-data-analysis",
+  "use_case_name": "Data Analysis & Reporting"
+}
