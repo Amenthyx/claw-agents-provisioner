@@ -1,0 +1,51 @@
+# ===================================================================
+# CLAW AGENTS PROVISIONER — GITIGNORE
+# ===================================================================
+
+# Environment files (contain API keys)
+.env
+.env.local
+.env.*.local
+
+# Client assessment files (contain PII)
+client-assessment*.json
+!client-assessment.example.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Fine-tuning outputs (trained weights — large files)
+finetune/runs/
+finetune/outputs/
+*.safetensors
+*.bin
+*.pt
+*.pth
+!finetune/datasets/**
+!finetune/adapters/**
+
+# Vagrant
+.vagrant/
+
+# Docker
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (for agents that use it)
+node_modules/
