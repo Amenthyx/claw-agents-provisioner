@@ -30,7 +30,70 @@ One-command deployment of personalized AI agents. Transform a client needs asses
 - Python 3.11+ (for assessment pipeline)
 - Git
 
-### 1. Clone and configure
+### Interactive Installer (Recommended)
+
+The easiest way to set up the entire project is the interactive installer:
+
+```bash
+git clone https://github.com/Amenthyx/claw-agents-provisioner.git
+cd claw-agents-provisioner
+chmod +x install.sh
+./install.sh
+```
+
+This opens an interactive menu that walks you through every step:
+
+```
+   ██████╗██╗      █████╗ ██╗    ██╗
+  ██╔════╝██║     ██╔══██╗██║    ██║
+  ██║     ██║     ███████║██║ █╗ ██║
+  ██║     ██║     ██╔══██║██║███╗██║
+  ╚██████╗███████╗██║  ██║╚███╔███╔╝
+   ╚═════╝╚══════╝╚═╝  ╚═╝ ╚══╝╚══╝
+
+  Main Menu
+
+  0) System requirements check
+  1) Base system provisioning     (Docker, Python, Git)
+  2) Install Python dependencies  (reportlab, torch, etc.)
+  3) Configure environment        (API keys, channels, agent)
+  4) Assessment pipeline          (PDF forms, validation)
+  5) Deploy agent                 (Docker, Vagrant, bare-metal)
+  6) Fine-tuning                  (LoRA/QLoRA, datasets)
+  7) Watchdog monitoring          (alerts, auto-restart, dashboard)
+  8) Health check                 (verify running agents)
+  9) Multi-instance setup         (named instances, separate ports)
+
+  f) Full setup (steps 1-7 sequentially)
+  q) Quit
+```
+
+For non-interactive setup (CI/CD or scripted deployments):
+
+```bash
+./install.sh --full    # Runs all steps sequentially with prompts
+```
+
+#### What Each Step Does
+
+| Step | Description |
+|------|-------------|
+| **0 — Requirements check** | Verifies Git, Python 3.8+, Docker, Docker Compose, Vagrant (optional) |
+| **1 — Base provisioning** | Installs Docker, Python 3.11+, pip, system utilities via `provision-base.sh` (Ubuntu/Debian) |
+| **2 — Python dependencies** | Installs `reportlab pypdf jsonschema` for assessments, optionally `torch transformers peft` for fine-tuning |
+| **3 — Environment config** | Interactive wizard: choose LLM provider + model, enter API keys, configure channels, select agent platform. Writes `.env` |
+| **4 — Assessment pipeline** | Generate blank/pre-filled PDF forms (Private or Enterprise tier), validate JSON, convert filled PDFs back to JSON |
+| **5 — Deploy agent** | Deploy via Docker, Vagrant, or bare-metal install scripts. Supports assessment-driven auto-deployment |
+| **6 — Fine-tuning** | List/validate/download all 50 datasets, train LoRA or QLoRA adapters, dry-run mode |
+| **7 — Watchdog monitoring** | Generate config, set up Telegram alerts, run health checks, install as systemd service, view dashboard |
+| **8 — Health check** | Per-agent health verification, Docker container status, log tailing |
+| **9 — Multi-instance** | Deploy named instances (e.g., lucia, priya) with separate ports, env files, and data volumes |
+
+### Manual Setup
+
+If you prefer to configure everything manually:
+
+#### 1. Clone and configure
 
 ```bash
 git clone https://github.com/Amenthyx/claw-agents-provisioner.git
@@ -39,7 +102,7 @@ cp .env.template .env
 # Edit .env with your API keys
 ```
 
-### 2. Deploy a specific agent
+#### 2. Deploy a specific agent
 
 ```bash
 # Via Docker
@@ -53,7 +116,7 @@ cp .env.template .env
 ./claw.sh nanoclaw vagrant
 ```
 
-### 3. Deploy from assessment
+#### 3. Deploy from assessment
 
 ```bash
 # Validate the assessment first
