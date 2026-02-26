@@ -1139,6 +1139,7 @@ show_banner() {
     echo -e "${NC}"
     echo -e "  ${DIM}Claw Agents Provisioner — Interactive Setup${NC}"
     echo -e "  ${DIM}One-command deployment of personalized AI agents${NC}"
+    echo -e "  ${DIM}Created by Mauro Tommasi — linkedin.com/in/maurotommasi${NC}"
     echo ""
 }
 

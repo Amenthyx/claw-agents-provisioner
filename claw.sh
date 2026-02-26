@@ -87,6 +87,8 @@ print_banner() {
     echo "                                    __/ |                    "
     echo "                                   |___/   Provisioner v1.0 "
     echo -e "${NC}"
+    echo -e "  ${DIM}Created by Mauro Tommasi — linkedin.com/in/maurotommasi${NC}"
+    echo ""
 }
 
 # -------------------------------------------------------------------

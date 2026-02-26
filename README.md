@@ -1637,93 +1637,289 @@ A config-driven optimization layer between agents and LLM APIs. Implements 14 ru
 ## Ecosystem Diagram
 
 ```mermaid
+---
+config:
+  theme: base
+  themeVariables:
+    fontSize: 14px
+    primaryColor: "#4A90D9"
+    primaryTextColor: "#ffffff"
+    primaryBorderColor: "#2E6BA6"
+    lineColor: "#5C6BC0"
+    secondaryColor: "#7E57C2"
+    tertiaryColor: "#26A69A"
+---
 graph TD
-    subgraph INTAKE["Client Intake & Validation"]
-        PDF["Client Assessment<br/>(PDF / JSON)"]
-        VAL["validate.py"]
-        RES["resolve.py"]
-        GENV["generate_env.py"]
-        GCFG["generate_config.py"]
-        PDF --> VAL --> RES --> GENV --> GCFG
+
+    %% ── CLIENT INTAKE ──────────────────────────────────
+    subgraph INTAKE["<br/>CLIENT INTAKE & VALIDATION<br/><br/>"]
+        direction TB
+        PDF["📄 Client Assessment<br/><i>PDF / JSON</i>"]
+        VAL["✅ validate.py<br/><i>Schema check</i>"]
+        RES["🔀 resolve.py<br/><i>Conflict resolution</i>"]
+        GENV["⚙️ generate_env.py<br/><i>Environment builder</i>"]
+        GCFG["📝 generate_config.py<br/><i>Agent config writer</i>"]
+        PDF --> VAL
+        VAL --> RES
+        RES --> GENV
+        GENV --> GCFG
     end
 
-    subgraph CLI["CLI & Installer"]
-        CLAWSH["claw.sh<br/>CLI Launcher"]
-        INSTALL["install.sh<br/>13-Step Installer"]
+    %% ── CLI LAYER ──────────────────────────────────────
+    subgraph CLI["<br/>CLI & INSTALLER<br/><br/>"]
+        direction TB
+        CLAWSH["🖥️ claw.sh<br/><i>CLI Launcher</i><br/><i>vault · security · optimizer</i>"]
+        INSTALL["📦 install.sh<br/><i>13-Step Interactive Installer</i>"]
+        CLAWSH --- INSTALL
     end
 
-    subgraph SECURITY["Security Layer"]
-        VAULT["claw_vault.py<br/>AES/Fernet Vault"]
-        SECRULES["claw_security.py<br/>6-Domain Rules Engine"]
-        TMPFS["tmpfs<br/>RAM-only Secrets"]
+    %% ── SECURITY LAYER ─────────────────────────────────
+    subgraph SECURITY["<br/>🔒 SECURITY LAYER<br/><br/>"]
+        direction TB
+        VAULT["🔐 claw_vault.py<br/><i>AES-128 / Fernet Encrypted Vault</i><br/><i>PBKDF2 · 480K iterations</i>"]
+        SECRULES["🛡️ claw_security.py<br/><i>6-Domain Rules Engine</i><br/><i>64 blocked domains · PII detection</i>"]
+        TMPFS["💾 tmpfs<br/><i>RAM-only Secrets Mount</i><br/><i>Ephemeral · 1MB max</i>"]
         VAULT --> TMPFS
     end
 
-    subgraph SHARED["Shared Infrastructure"]
-        WATCHDOG["claw_watchdog.py<br/>Monitoring :9090"]
-        OPTIMIZER["claw_optimizer.py<br/>14-Rule Engine :9091"]
-        HEALTH["healthcheck.sh"]
+    %% ── SHARED INFRA ───────────────────────────────────
+    subgraph SHARED["<br/>SHARED INFRASTRUCTURE<br/><br/>"]
+        direction TB
+        WATCHDOG["👁️ claw_watchdog.py<br/><i>Monitoring Dashboard :9090</i><br/><i>Health · Alerts · Auto-restart</i>"]
+        OPTIMIZER["⚡ claw_optimizer.py<br/><i>14-Rule Optimization Engine :9091</i><br/><i>Cache · Route · Budget · Fallback</i>"]
+        HEALTH["💊 healthcheck.sh<br/><i>Container Health Probes</i>"]
     end
 
-    subgraph OPT["Optimization Pipeline"]
-        R1["1.Dedup"] --> R2["2.Cache"] --> R3["3.Estimate"]
-        R3 --> R4["4.Prune"] --> R5["5.Optimize"] --> R6["6.Budget"]
-        R6 --> R7["7.Route"] --> R8["8.Health"] --> R9["9.RateLimit"]
-        R9 --> R10["10.Fallback"] --> APICALL["API Call"]
-        APICALL --> R11["11.QualityGate"] --> R12["12.CostLog"]
+    %% ── OPTIMIZATION PIPELINE ──────────────────────────
+    subgraph OPT["<br/>⚡ OPTIMIZATION PIPELINE<br/><br/>"]
+        direction TB
+        R1["1️⃣ Conversation Dedup<br/><i>60s window</i>"]
+        R2["2️⃣ Semantic Cache<br/><i>Trigram similarity</i>"]
+        R3["3️⃣ Token Estimator<br/><i>Pre-calculate cost</i>"]
+        R4["4️⃣ Context Pruner<br/><i>Sliding window</i>"]
+        R5["5️⃣ Prompt Optimizer<br/><i>Compress prompts</i>"]
+        R6["6️⃣ Budget Enforcer<br/><i>Spend caps</i>"]
+        R7["7️⃣ Task Router<br/><i>Complexity → model tier</i>"]
+        R8["8️⃣ Health Scorer<br/><i>Provider reliability</i>"]
+        R9["9️⃣ Rate Limiter<br/><i>Token bucket</i>"]
+        R10["🔟 Fallback Chain<br/><i>Auto-retry</i>"]
+        APICALL["🌐 API CALL"]
+        R11["✅ Quality Gate<br/><i>Response validation</i>"]
+        R12["📊 Cost Logger<br/><i>SQLite + JSONL</i>"]
+        R1 --> R2
+        R2 --> R3
+        R3 --> R4
+        R4 --> R5
+        R5 --> R6
+        R6 --> R7
+        R7 --> R8
+        R8 --> R9
+        R9 --> R10
+        R10 --> APICALL
+        APICALL --> R11
+        R11 --> R12
     end
 
-    subgraph DOCKER["Docker Orchestration"]
-        COMPOSE["docker-compose.yml<br/>5 profiles"]
-        ENVFILE[".env"]
+    %% ── DOCKER ORCHESTRATION ───────────────────────────
+    subgraph DOCKER["<br/>🐳 DOCKER ORCHESTRATION<br/><br/>"]
+        direction TB
+        COMPOSE["📋 docker-compose.yml<br/><i>5 service profiles</i>"]
+        SECRETS_YML["📋 docker-compose.secrets.yml<br/><i>Vault override layer</i>"]
+        ENVFILE["📄 .env<br/><i>Environment variables</i>"]
+        COMPOSE --- SECRETS_YML
     end
 
-    subgraph AGENTS["Agent Platforms"]
-        ZC["ZeroClaw — Rust<br/>512MB · :3100 · TOML"]
-        NC["NanoClaw — TypeScript<br/>1GB · :3200 · CLAUDE.md"]
-        PC["PicoClaw — Go<br/>128MB · :3300 · JSON"]
-        OC["OpenClaw — Node.js<br/>4GB · :3400 · JSON5"]
+    %% ── AGENT PLATFORMS ────────────────────────────────
+    subgraph AGENTS["<br/>🤖 AGENT PLATFORMS<br/><br/>"]
+        direction TB
+        ZC["🦀 ZeroClaw<br/><b>Rust</b><br/><i>512 MB · :3100 · TOML config</i><br/><i>Performance-first agent</i>"]
+        NC["🟦 NanoClaw<br/><b>TypeScript</b><br/><i>1 GB · :3200 · CLAUDE.md config</i><br/><i>Claude-native agent</i>"]
+        PC["🐹 PicoClaw<br/><b>Go</b><br/><i>128 MB · :3300 · JSON config</i><br/><i>Lightweight agent</i>"]
+        OC["🟢 OpenClaw<br/><b>Node.js</b><br/><i>4 GB · :3400 · JSON5 config</i><br/><i>Full-featured agent</i>"]
     end
 
-    subgraph LLM["LLM Providers"]
-        ANTH["Anthropic"]
-        OAI["OpenAI"]
-        OR["OpenRouter"]
-        DS["DeepSeek"]
-        GEM["Gemini"]
-        GRQ["Groq"]
+    %% ── LLM PROVIDERS ──────────────────────────────────
+    subgraph LLM["<br/>🧠 LLM PROVIDERS<br/><br/>"]
+        direction TB
+        ANTH["🟠 Anthropic<br/><i>Claude</i>"]
+        OAI["🟢 OpenAI<br/><i>GPT</i>"]
+        OR["🔵 OpenRouter<br/><i>Multi-model</i>"]
+        DS["🔷 DeepSeek<br/><i>Budget tier</i>"]
+        GEM["🟡 Gemini<br/><i>Google</i>"]
+        GRQ["⚡ Groq<br/><i>Fast inference</i>"]
     end
 
-    subgraph CHAN["Chat Channels"]
-        TG["Telegram"]
-        DC["Discord"]
-        SL["Slack"]
-        WA["WhatsApp"]
-        SIG["Signal"]
+    %% ── CHAT CHANNELS ──────────────────────────────────
+    subgraph CHAN["<br/>💬 CHAT CHANNELS<br/><br/>"]
+        direction TB
+        TG["✈️ Telegram"]
+        DC["🎮 Discord"]
+        SL["💼 Slack"]
+        WA["📱 WhatsApp"]
+        SIG["🔒 Signal"]
     end
 
-    subgraph FT["Fine-Tuning"]
-        ADP["50 LoRA/QLoRA<br/>Adapters"]
-        DST["Training<br/>Datasets"]
-        TRAIN["Train"]
+    %% ── FINE-TUNING ────────────────────────────────────
+    subgraph FT["<br/>🎯 FINE-TUNING<br/><br/>"]
+        direction TB
+        ADP["🧬 50 LoRA/QLoRA Adapters<br/><i>Pre-built adapter library</i>"]
+        DST["📚 Training Datasets<br/><i>Curated per domain</i>"]
+        TRAIN["🏋️ Training Pipeline<br/><i>Fine-tune & merge</i>"]
         ADP --> TRAIN
         DST --> TRAIN
     end
 
-    GCFG --> COMPOSE
-    GENV --> ENVFILE
-    CLAWSH --> COMPOSE
-    COMPOSE --> ZC & NC & PC & OC
-    SECRULES --> ZC & NC & PC & OC
-    TMPFS --> ZC & NC & PC & OC
-    ZC & NC & PC & OC --> OPTIMIZER
-    OPTIMIZER --> OPT
-    APICALL --> ANTH & OAI & OR & DS & GEM & GRQ
-    TG & DC & SL --> ZC & NC & PC & OC
-    WA & SIG --> OC
-    WATCHDOG --> ZC & NC & PC & OC
-    TRAIN --> ZC & NC & PC & OC
+    %% ── CONNECTIONS ────────────────────────────────────
+
+    %% Intake → Docker
+    GCFG -->|"config"| COMPOSE
+    GENV -->|"env vars"| ENVFILE
+
+    %% CLI → Docker
+    CLAWSH -->|"deploy"| COMPOSE
+
+    %% Docker → Agents
+    COMPOSE -->|"start"| ZC
+    COMPOSE -->|"start"| NC
+    COMPOSE -->|"start"| PC
+    COMPOSE -->|"start"| OC
+
+    %% Security → Agents
+    SECRULES -->|"enforce rules"| ZC
+    SECRULES -->|"enforce rules"| NC
+    SECRULES -->|"enforce rules"| PC
+    SECRULES -->|"enforce rules"| OC
+    TMPFS -->|"inject secrets"| ZC
+    TMPFS -->|"inject secrets"| NC
+    TMPFS -->|"inject secrets"| PC
+    TMPFS -->|"inject secrets"| OC
+
+    %% Agents → Optimizer → LLM
+    ZC -->|"LLM request"| OPTIMIZER
+    NC -->|"LLM request"| OPTIMIZER
+    PC -->|"LLM request"| OPTIMIZER
+    OC -->|"LLM request"| OPTIMIZER
+    OPTIMIZER -->|"pipeline"| OPT
+    APICALL -->|"route"| ANTH
+    APICALL -->|"route"| OAI
+    APICALL -->|"route"| OR
+    APICALL -->|"route"| DS
+    APICALL -->|"route"| GEM
+    APICALL -->|"route"| GRQ
+
+    %% Chat Channels → Agents
+    TG -->|"messages"| ZC
+    TG -->|"messages"| NC
+    TG -->|"messages"| PC
+    TG -->|"messages"| OC
+    DC -->|"messages"| ZC
+    DC -->|"messages"| NC
+    DC -->|"messages"| PC
+    DC -->|"messages"| OC
+    SL -->|"messages"| ZC
+    SL -->|"messages"| NC
+    SL -->|"messages"| PC
+    SL -->|"messages"| OC
+    WA -->|"messages"| OC
+    SIG -->|"messages"| OC
+
+    %% Monitoring
+    WATCHDOG -->|"monitor"| ZC
+    WATCHDOG -->|"monitor"| NC
+    WATCHDOG -->|"monitor"| PC
+    WATCHDOG -->|"monitor"| OC
+
+    %% Fine-tuning → Agents
+    TRAIN -->|"weights"| ZC
+    TRAIN -->|"weights"| NC
+    TRAIN -->|"weights"| PC
+    TRAIN -->|"weights"| OC
+
+    %% ── STYLES ─────────────────────────────────────────
+
+    %% Subgraph colors
+    style INTAKE fill:#1B5E20,stroke:#2E7D32,stroke-width:2px,color:#E8F5E9
+    style CLI fill:#0D47A1,stroke:#1565C0,stroke-width:2px,color:#E3F2FD
+    style SECURITY fill:#B71C1C,stroke:#C62828,stroke-width:2px,color:#FFEBEE
+    style SHARED fill:#4A148C,stroke:#6A1B9A,stroke-width:2px,color:#F3E5F5
+    style OPT fill:#E65100,stroke:#EF6C00,stroke-width:2px,color:#FFF3E0
+    style DOCKER fill:#01579B,stroke:#0277BD,stroke-width:2px,color:#E1F5FE
+    style AGENTS fill:#1A237E,stroke:#283593,stroke-width:2px,color:#E8EAF6
+    style LLM fill:#311B92,stroke:#4527A0,stroke-width:2px,color:#EDE7F6
+    style CHAN fill:#006064,stroke:#00838F,stroke-width:2px,color:#E0F7FA
+    style FT fill:#3E2723,stroke:#4E342E,stroke-width:2px,color:#EFEBE9
+
+    %% Node colors — Intake (green tones)
+    style PDF fill:#2E7D32,stroke:#1B5E20,color:#fff
+    style VAL fill:#388E3C,stroke:#2E7D32,color:#fff
+    style RES fill:#43A047,stroke:#388E3C,color:#fff
+    style GENV fill:#4CAF50,stroke:#43A047,color:#fff
+    style GCFG fill:#66BB6A,stroke:#4CAF50,color:#fff
+
+    %% Node colors — CLI (blue)
+    style CLAWSH fill:#1565C0,stroke:#0D47A1,color:#fff
+    style INSTALL fill:#1976D2,stroke:#1565C0,color:#fff
+
+    %% Node colors — Security (red tones)
+    style VAULT fill:#C62828,stroke:#B71C1C,color:#fff
+    style SECRULES fill:#D32F2F,stroke:#C62828,color:#fff
+    style TMPFS fill:#E53935,stroke:#D32F2F,color:#fff
+
+    %% Node colors — Shared (purple tones)
+    style WATCHDOG fill:#6A1B9A,stroke:#4A148C,color:#fff
+    style OPTIMIZER fill:#7B1FA2,stroke:#6A1B9A,color:#fff
+    style HEALTH fill:#8E24AA,stroke:#7B1FA2,color:#fff
+
+    %% Node colors — Optimization pipeline (orange tones)
+    style R1 fill:#E65100,stroke:#BF360C,color:#fff
+    style R2 fill:#EF6C00,stroke:#E65100,color:#fff
+    style R3 fill:#F57C00,stroke:#EF6C00,color:#fff
+    style R4 fill:#FB8C00,stroke:#F57C00,color:#fff
+    style R5 fill:#FF9800,stroke:#FB8C00,color:#fff
+    style R6 fill:#FFA726,stroke:#FF9800,color:#fff
+    style R7 fill:#FFB74D,stroke:#FFA726,color:#000
+    style R8 fill:#E65100,stroke:#BF360C,color:#fff
+    style R9 fill:#EF6C00,stroke:#E65100,color:#fff
+    style R10 fill:#F57C00,stroke:#EF6C00,color:#fff
+    style APICALL fill:#FF5722,stroke:#E64A19,color:#fff
+    style R11 fill:#FB8C00,stroke:#F57C00,color:#fff
+    style R12 fill:#FF9800,stroke:#FB8C00,color:#fff
+
+    %% Node colors — Docker (cyan-blue)
+    style COMPOSE fill:#0277BD,stroke:#01579B,color:#fff
+    style SECRETS_YML fill:#0288D1,stroke:#0277BD,color:#fff
+    style ENVFILE fill:#039BE5,stroke:#0288D1,color:#fff
+
+    %% Node colors — Agents (indigo)
+    style ZC fill:#D84315,stroke:#BF360C,color:#fff
+    style NC fill:#1565C0,stroke:#0D47A1,color:#fff
+    style PC fill:#00838F,stroke:#006064,color:#fff
+    style OC fill:#2E7D32,stroke:#1B5E20,color:#fff
+
+    %% Node colors — LLM Providers
+    style ANTH fill:#D84315,stroke:#BF360C,color:#fff
+    style OAI fill:#2E7D32,stroke:#1B5E20,color:#fff
+    style OR fill:#1565C0,stroke:#0D47A1,color:#fff
+    style DS fill:#0277BD,stroke:#01579B,color:#fff
+    style GEM fill:#F9A825,stroke:#F57F17,color:#000
+    style GRQ fill:#6A1B9A,stroke:#4A148C,color:#fff
+
+    %% Node colors — Chat Channels (teal)
+    style TG fill:#0288D1,stroke:#01579B,color:#fff
+    style DC fill:#5C6BC0,stroke:#3949AB,color:#fff
+    style SL fill:#00897B,stroke:#00695C,color:#fff
+    style WA fill:#2E7D32,stroke:#1B5E20,color:#fff
+    style SIG fill:#37474F,stroke:#263238,color:#fff
+
+    %% Node colors — Fine-tuning (brown)
+    style ADP fill:#5D4037,stroke:#3E2723,color:#fff
+    style DST fill:#6D4C41,stroke:#4E342E,color:#fff
+    style TRAIN fill:#795548,stroke:#5D4037,color:#fff
 ```
+
+## Credits
+
+**Created by [Mauro Tommasi](https://www.linkedin.com/in/maurotommasi/)** — Architecture, development, and maintenance of the Claw Agents Provisioner ecosystem.
 
 ## License
 
