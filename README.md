@@ -100,6 +100,26 @@ The resolver scores 15 deployment profiles using weighted factors:
 | Maximum context + $50+ budget | GPT-4.1 (1M tokens) |
 | Default best value | Claude Sonnet 4.6 |
 
+### PDF Assessment Form
+
+Generate a fillable PDF for clients who prefer paper/PDF workflows:
+
+```bash
+# Generate blank form
+python assessment/generate_pdf_form.py -o assessment.pdf
+
+# Generate pre-filled from existing JSON
+python assessment/generate_pdf_form.py --prefill assessment/client-assessment.example.json -o lucia.pdf
+
+# Convert filled PDF back to JSON
+python assessment/pdf_to_json.py filled-form.pdf -o client-assessment.json
+
+# Convert with validation
+python assessment/pdf_to_json.py filled-form.pdf -o client-assessment.json --validate
+```
+
+Requirements: `pip install reportlab pypdf`
+
 ## Example Walkthroughs
 
 ### Real Estate Agent (Lucia)
@@ -985,6 +1005,37 @@ docker compose --profile zeroclaw --profile picoclaw up -d
 # All agents
 docker compose --profile zeroclaw --profile nanoclaw --profile picoclaw --profile openclaw up -d
 ```
+
+### Multiple Named Instances
+
+Run several instances simultaneously, each with its own ID, ports, and data:
+
+```bash
+# Instance 1: Lucia (real estate on OpenClaw, port 3401)
+CLAW_OPENCLAW_PORT=3401 docker compose -p lucia --profile openclaw up -d
+
+# Instance 2: Priya (IoT on PicoClaw, port 3301)
+CLAW_PICOCLAW_PORT=3301 docker compose -p priya --profile picoclaw up -d
+
+# Instance 3: Kai (DevSecOps on NanoClaw, port 3201)
+CLAW_NANOCLAW_PORT=3201 docker compose -p kai --profile nanoclaw up -d
+```
+
+Each `-p <name>` creates fully isolated containers, volumes, and networks:
+
+```bash
+# Manage instances
+docker compose -p lucia ps                              # status
+docker compose -p lucia logs -f                          # follow logs
+docker compose -p lucia --profile openclaw down          # stop
+docker compose -p lucia --profile openclaw down -v       # stop + remove data
+
+# Per-instance env files (separate API keys per client)
+cp .env .env.lucia
+docker compose -p lucia --env-file .env.lucia --profile openclaw up -d
+```
+
+Port environment variables: `CLAW_ZEROCLAW_PORT`, `CLAW_NANOCLAW_PORT`, `CLAW_PICOCLAW_PORT`, `CLAW_OPENCLAW_PORT`.
 
 ## Troubleshooting
 

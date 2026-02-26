@@ -70,6 +70,8 @@ Co-Authored-By: <role> <email>
 | 12 | 2026-02-26 | f5799ec | feat(datasets) | Replace seed data with real HuggingFace datasets — 250K rows | M5a | BE |
 | 13 | 2026-02-26 | b657872 | docs(m6) | Add README, LICENSE, AI context, pre-commit hooks, catalog docs | M6 | INFRA |
 | 14 | 2026-02-26 | f036655 | fix(qa) | Wave 3 — fix 11 CRITICAL/HIGH issues across entrypoints, pipeline, configs | M6 | QA |
+| 15 | 2026-02-26 | 2723be5 | docs(release) | Wave 5 — final project status, kanban, and commit log update | M6 | PM |
+| 16 | 2026-02-26 | f21e8f5 | feat(assessment) | Add fillable PDF form, PDF-to-JSON converter, dataset examples, multi-instance Docker Compose | M6 | BE |
 
 ---
 
