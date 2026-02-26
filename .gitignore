@@ -7,6 +7,9 @@
 .env.local
 .env.*.local
 
+# Watchdog config (contains bot tokens)
+watchdog.json
+
 # Client assessment files (contain PII)
 client-assessment*.json
 !client-assessment.example.json
