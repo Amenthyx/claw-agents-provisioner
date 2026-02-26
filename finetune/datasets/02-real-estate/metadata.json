@@ -1,11 +1,11 @@
 {
   "use_case_id": "02-real-estate",
   "use_case_name": "Real Estate Agent",
-  "source_url": "https://www.kaggle.com/datasets/promptcloud/real-estate-question-and-answer-data",
+  "source_url": "https://huggingface.co/datasets/databricks/databricks-dolly-15k",
   "source_name": "Real Estate Question and Answer Data",
   "license": "CC0-1.0",
   "original_rows": 15000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

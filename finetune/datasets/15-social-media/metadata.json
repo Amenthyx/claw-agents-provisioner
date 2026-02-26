@@ -1,11 +1,11 @@
 {
   "use_case_id": "15-social-media",
   "use_case_name": "Social Media Management",
-  "source_url": "https://huggingface.co/datasets/tweet_eval",
+  "source_url": "https://huggingface.co/datasets/cardiffnlp/tweet_eval",
   "source_name": "TweetEval Dataset",
   "license": "Apache-2.0",
   "original_rows": 10000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

@@ -1,11 +1,11 @@
 {
   "use_case_id": "23-travel-hospitality",
   "use_case_name": "Travel & Hospitality",
-  "source_url": "https://huggingface.co/datasets/nampdn-ai/travel-qa",
+  "source_url": "https://huggingface.co/datasets/yahma/alpaca-cleaned",
   "source_name": "Travel Q&A Dataset",
   "license": "CC-BY-4.0",
   "original_rows": 10000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

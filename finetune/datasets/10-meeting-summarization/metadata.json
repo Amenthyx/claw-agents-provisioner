@@ -1,11 +1,11 @@
 {
   "use_case_id": "10-meeting-summarization",
   "use_case_name": "Meeting Summarization",
-  "source_url": "https://huggingface.co/datasets/edinburghcstr/ami",
+  "source_url": "https://huggingface.co/datasets/knkarthick/dialogsum",
   "source_name": "AMI Meeting Corpus",
   "license": "CC-BY-4.0",
   "original_rows": 10000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

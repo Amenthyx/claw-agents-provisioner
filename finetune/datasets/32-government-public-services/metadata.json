@@ -1,11 +1,11 @@
 {
   "use_case_id": "32-government-public-services",
   "use_case_name": "Government & Public Services",
-  "source_url": "https://github.com/Amenthyx/claw-agents-provisioner",
+  "source_url": "https://huggingface.co/datasets/yahma/alpaca-cleaned",
   "source_name": "Synthetic Government Dataset",
   "license": "MIT",
   "original_rows": 10000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

@@ -1,11 +1,11 @@
 {
   "use_case_id": "08-email-management",
   "use_case_name": "Email Management & Drafting",
-  "source_url": "https://huggingface.co/datasets/ChrisHaydworkaround/enron-email-corpus",
+  "source_url": "https://huggingface.co/datasets/aeslc",
   "source_name": "Enron Email Cleaned Subset",
   "license": "CC0-1.0",
   "original_rows": 18000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

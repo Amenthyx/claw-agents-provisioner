@@ -1,11 +1,11 @@
 {
   "use_case_id": "06-personal-finance",
   "use_case_name": "Personal Finance Advisor",
-  "source_url": "https://huggingface.co/datasets/financial_phrasebank",
+  "source_url": "https://huggingface.co/datasets/gbharti/finance-alpaca",
   "source_name": "Financial PhraseBank",
   "license": "CC-BY-SA-3.0",
   "original_rows": 10000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

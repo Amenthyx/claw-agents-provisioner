@@ -5,7 +5,7 @@
   "source_name": "Bitext Customer Support Dataset",
   "license": "Apache-2.0",
   "original_rows": 26872,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

@@ -1,11 +1,11 @@
 {
   "use_case_id": "07-code-review",
   "use_case_name": "Code Review & Dev Workflow",
-  "source_url": "https://huggingface.co/datasets/mhassanen/code-review-instruction-dataset",
+  "source_url": "https://huggingface.co/datasets/iamtarun/python_code_instructions_18k_alpaca",
   "source_name": "CodeReviewer Dataset",
   "license": "Apache-2.0",
   "original_rows": 20000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

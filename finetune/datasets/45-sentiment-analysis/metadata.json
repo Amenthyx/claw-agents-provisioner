@@ -1,20 +1,24 @@
 {
   "use_case_id": "45-sentiment-analysis",
   "use_case_name": "Sentiment Analysis & Feedback",
-  "source_url": "https://huggingface.co/datasets/amazon_reviews_multi",
+  "source_url": "https://huggingface.co/datasets/mteb/amazon_reviews_multi",
   "source_name": "Amazon Reviews Multi",
   "license": "Apache-2.0",
-  "original_rows": 10000,
-  "sampled_rows": 5,
+  "original_rows": 200000,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
-    "messages"
+    "instruction",
+    "response",
+    "category"
   ],
   "language": "en",
   "domain_tags": [
-    "sentiment",
+    "sentiment-analysis",
     "feedback",
-    "reviews"
+    "reviews",
+    "NLP",
+    "opinion-mining"
   ],
   "recommended_base_model": "mistralai/Mistral-7B-v0.3",
   "recommended_lora_rank": 32

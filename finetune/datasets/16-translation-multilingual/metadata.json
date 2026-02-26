@@ -1,11 +1,11 @@
 {
   "use_case_id": "16-translation-multilingual",
   "use_case_name": "Translation & Multilingual",
-  "source_url": "https://huggingface.co/datasets/opus_books",
+  "source_url": "https://huggingface.co/datasets/Helsinki-NLP/opus_books",
   "source_name": "OPUS Parallel Corpus",
   "license": "CC-BY-4.0",
   "original_rows": 10000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

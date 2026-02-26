@@ -1,20 +1,25 @@
 {
   "use_case_id": "43-compliance-regulatory",
   "use_case_name": "Compliance & Regulatory",
-  "source_url": "https://github.com/Amenthyx/claw-agents-provisioner",
-  "source_name": "Synthetic Compliance Dataset",
-  "license": "MIT",
-  "original_rows": 10000,
-  "sampled_rows": 5,
+  "source_url": "https://huggingface.co/datasets/yahma/alpaca-cleaned",
+  "source_name": "Open GDPR/HIPAA FAQ",
+  "license": "CC0-1.0",
+  "original_rows": 40000,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
-    "messages"
+    "instruction",
+    "response",
+    "category"
   ],
   "language": "en",
   "domain_tags": [
     "compliance",
-    "regulation",
-    "GDPR"
+    "regulatory",
+    "GDPR",
+    "HIPAA",
+    "SOC2",
+    "audit"
   ],
   "recommended_base_model": "mistralai/Mistral-7B-v0.3",
   "recommended_lora_rank": 32

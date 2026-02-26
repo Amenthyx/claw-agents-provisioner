@@ -1,11 +1,11 @@
 {
   "use_case_id": "03-e-commerce",
   "use_case_name": "E-Commerce Assistant",
-  "source_url": "https://huggingface.co/datasets/AmazonScience/amazon-product-qa",
+  "source_url": "https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023",
   "source_name": "Amazon Product Q&A Dataset",
   "license": "Apache-2.0",
   "original_rows": 50000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

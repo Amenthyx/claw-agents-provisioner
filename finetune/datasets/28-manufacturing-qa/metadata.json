@@ -1,11 +1,11 @@
 {
   "use_case_id": "28-manufacturing-qa",
   "use_case_name": "Manufacturing & QA",
-  "source_url": "https://github.com/Amenthyx/claw-agents-provisioner",
+  "source_url": "https://huggingface.co/datasets/yahma/alpaca-cleaned",
   "source_name": "Synthetic Manufacturing Dataset",
   "license": "MIT",
   "original_rows": 10000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

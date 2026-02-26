@@ -1,19 +1,23 @@
 {
   "use_case_id": "42-knowledge-base-faq",
   "use_case_name": "Knowledge Base & FAQ",
-  "source_url": "https://huggingface.co/datasets/clips/mfaq",
-  "source_name": "MFAQ Dataset",
-  "license": "CC-BY-SA-4.0",
-  "original_rows": 10000,
-  "sampled_rows": 5,
+  "source_url": "https://huggingface.co/datasets/sentence-transformers/natural-questions",
+  "source_name": "Curated FAQ Pairs",
+  "license": "CC0-1.0",
+  "original_rows": 60000,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
-    "messages"
+    "instruction",
+    "response",
+    "category"
   ],
   "language": "en",
   "domain_tags": [
     "knowledge-base",
     "FAQ",
+    "self-service",
+    "documentation",
     "retrieval"
   ],
   "recommended_base_model": "mistralai/Mistral-7B-v0.3",

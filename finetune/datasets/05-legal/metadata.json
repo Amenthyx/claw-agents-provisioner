@@ -1,11 +1,11 @@
 {
   "use_case_id": "05-legal",
   "use_case_name": "Legal Document Review",
-  "source_url": "https://huggingface.co/datasets/casehold/casehold",
+  "source_url": "https://huggingface.co/datasets/nguha/legalbench",
   "source_name": "CaseHOLD Legal Q&A",
   "license": "CC-BY-4.0",
   "original_rows": 53137,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

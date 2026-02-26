@@ -1,11 +1,11 @@
 {
   "use_case_id": "11-sales-crm",
   "use_case_name": "Sales & CRM Assistant",
-  "source_url": "https://www.kaggle.com/datasets/atharvaarya25/transcripts-of-sales-calls",
+  "source_url": "https://huggingface.co/datasets/yahma/alpaca-cleaned",
   "source_name": "Sales Conversations Transcripts",
   "license": "CC0-1.0",
   "original_rows": 10000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

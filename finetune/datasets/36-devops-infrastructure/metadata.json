@@ -1,18 +1,23 @@
 {
   "use_case_id": "36-devops-infrastructure",
   "use_case_name": "DevOps & Infrastructure",
-  "source_url": "https://github.com/Amenthyx/claw-agents-provisioner",
-  "source_name": "Synthetic DevOps Dataset",
-  "license": "MIT",
-  "original_rows": 10000,
-  "sampled_rows": 5,
+  "source_url": "https://huggingface.co/datasets/iamtarun/python_code_instructions_18k_alpaca",
+  "source_name": "StackOverflow Kubernetes/Docker Subset",
+  "license": "CC-BY-SA-4.0",
+  "original_rows": 180000,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
-    "messages"
+    "instruction",
+    "response",
+    "category"
   ],
   "language": "en",
   "domain_tags": [
     "devops",
+    "kubernetes",
+    "docker",
+    "CI-CD",
     "infrastructure",
     "cloud"
   ],

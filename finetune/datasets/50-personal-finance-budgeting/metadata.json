@@ -1,20 +1,24 @@
 {
   "use_case_id": "50-personal-finance-budgeting",
   "use_case_name": "Personal Finance & Budgeting",
-  "source_url": "https://github.com/Amenthyx/claw-agents-provisioner",
-  "source_name": "Synthetic Budgeting Dataset",
-  "license": "MIT",
-  "original_rows": 10000,
-  "sampled_rows": 5,
+  "source_url": "https://huggingface.co/datasets/gbharti/finance-alpaca",
+  "source_name": "Open Financial Literacy Q&A",
+  "license": "CC0-1.0",
+  "original_rows": 177000,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
-    "messages"
+    "instruction",
+    "response",
+    "category"
   ],
   "language": "en",
   "domain_tags": [
     "personal-finance",
     "budgeting",
-    "savings"
+    "savings",
+    "investing",
+    "financial-literacy"
   ],
   "recommended_base_model": "mistralai/Mistral-7B-v0.3",
   "recommended_lora_rank": 32

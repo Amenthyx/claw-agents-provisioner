@@ -1,11 +1,11 @@
 {
   "use_case_id": "18-research-summarization",
   "use_case_name": "Research & Summarization",
-  "source_url": "https://huggingface.co/datasets/scientific_papers",
+  "source_url": "https://huggingface.co/datasets/ccdv/arxiv-summarization",
   "source_name": "Scientific Papers",
   "license": "CC-BY-4.0",
   "original_rows": 10000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

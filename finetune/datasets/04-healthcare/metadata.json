@@ -5,7 +5,7 @@
   "source_name": "MedQuAD Medical Q&A",
   "license": "CC0-1.0",
   "original_rows": 47457,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

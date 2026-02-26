@@ -1,20 +1,24 @@
 {
   "use_case_id": "47-music-entertainment",
   "use_case_name": "Music & Entertainment",
-  "source_url": "https://github.com/Amenthyx/claw-agents-provisioner",
-  "source_name": "Synthetic Music Dataset",
-  "license": "MIT",
-  "original_rows": 10000,
-  "sampled_rows": 5,
+  "source_url": "https://huggingface.co/datasets/yahma/alpaca-cleaned",
+  "source_name": "Kaggle Music Recommendation Q&A",
+  "license": "CC0-1.0",
+  "original_rows": 55000,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
-    "messages"
+    "instruction",
+    "response",
+    "category"
   ],
   "language": "en",
   "domain_tags": [
     "music",
     "entertainment",
-    "recommendations"
+    "recommendations",
+    "playlists",
+    "music-theory"
   ],
   "recommended_base_model": "mistralai/Mistral-7B-v0.3",
   "recommended_lora_rank": 32

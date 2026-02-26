@@ -1,11 +1,11 @@
 {
   "use_case_id": "12-hr-recruitment",
   "use_case_name": "HR & Recruitment",
-  "source_url": "https://www.kaggle.com/datasets/ravindrasinghrana/job-description-dataset",
+  "source_url": "https://huggingface.co/datasets/jacob-hugging-face/job-descriptions",
   "source_name": "Kaggle Job Descriptions Dataset",
   "license": "CC0-1.0",
   "original_rows": 10000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

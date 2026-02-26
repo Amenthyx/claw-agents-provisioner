@@ -1,11 +1,11 @@
 {
   "use_case_id": "19-data-analysis",
   "use_case_name": "Data Analysis & Reporting",
-  "source_url": "https://huggingface.co/datasets/wikisql",
+  "source_url": "https://huggingface.co/datasets/b-mc2/sql-create-context",
   "source_name": "WikiSQL Dataset",
   "license": "CC-BY-SA-4.0",
   "original_rows": 10000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

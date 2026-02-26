@@ -1,20 +1,24 @@
 {
   "use_case_id": "48-gaming-virtual-worlds",
   "use_case_name": "Gaming & Virtual Worlds",
-  "source_url": "https://github.com/Amenthyx/claw-agents-provisioner",
-  "source_name": "Synthetic Gaming Dataset",
-  "license": "MIT",
-  "original_rows": 10000,
-  "sampled_rows": 5,
+  "source_url": "https://huggingface.co/datasets/yahma/alpaca-cleaned",
+  "source_name": "Open Game NPC Dialogue",
+  "license": "CC0-1.0",
+  "original_rows": 42000,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
-    "messages"
+    "instruction",
+    "response",
+    "category"
   ],
   "language": "en",
   "domain_tags": [
     "gaming",
-    "NPC",
-    "virtual-assistant"
+    "virtual-worlds",
+    "NPC-dialogue",
+    "game-mechanics",
+    "strategy"
   ],
   "recommended_base_model": "mistralai/Mistral-7B-v0.3",
   "recommended_lora_rank": 32

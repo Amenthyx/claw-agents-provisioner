@@ -1,11 +1,11 @@
 {
   "use_case_id": "21-accounting-bookkeeping",
   "use_case_name": "Accounting & Bookkeeping",
-  "source_url": "https://github.com/Amenthyx/claw-agents-provisioner",
+  "source_url": "https://huggingface.co/datasets/gbharti/finance-alpaca",
   "source_name": "Synthetic Accounting Dataset",
   "license": "MIT",
   "original_rows": 10000,
-  "sampled_rows": 5,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
     "messages"

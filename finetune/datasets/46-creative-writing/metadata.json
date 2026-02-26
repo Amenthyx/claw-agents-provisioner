@@ -4,18 +4,12 @@
   "source_url": "https://huggingface.co/datasets/euclaise/writingprompts",
   "source_name": "WritingPrompts",
   "license": "CC-BY-4.0",
-  "original_rows": 10000,
-  "sampled_rows": 5,
+  "original_rows": 300000,
+  "sampled_rows": 10000,
   "format": "jsonl",
-  "columns": [
-    "messages"
-  ],
+  "columns": ["instruction", "response", "category"],
   "language": "en",
-  "domain_tags": [
-    "creative-writing",
-    "storytelling",
-    "fiction"
-  ],
+  "domain_tags": ["creative-writing", "storytelling", "fiction", "narrative", "prompts"],
   "recommended_base_model": "mistralai/Mistral-7B-v0.3",
   "recommended_lora_rank": 32
 }

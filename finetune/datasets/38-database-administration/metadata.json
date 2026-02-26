@@ -1,20 +1,25 @@
 {
   "use_case_id": "38-database-administration",
   "use_case_name": "Database Administration",
-  "source_url": "https://github.com/Amenthyx/claw-agents-provisioner",
-  "source_name": "Synthetic DBA Dataset",
-  "license": "MIT",
-  "original_rows": 10000,
-  "sampled_rows": 5,
+  "source_url": "https://huggingface.co/datasets/b-mc2/sql-create-context",
+  "source_name": "StackOverflow SQL Subset",
+  "license": "CC-BY-SA-4.0",
+  "original_rows": 120000,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
-    "messages"
+    "instruction",
+    "response",
+    "category"
   ],
   "language": "en",
   "domain_tags": [
     "database",
     "SQL",
-    "optimization"
+    "PostgreSQL",
+    "MySQL",
+    "query-optimization",
+    "DBA"
   ],
   "recommended_base_model": "mistralai/Mistral-7B-v0.3",
   "recommended_lora_rank": 32

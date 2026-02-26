@@ -1,20 +1,25 @@
 {
   "use_case_id": "37-api-integration-webhooks",
   "use_case_name": "API Integration & Webhooks",
-  "source_url": "https://github.com/Amenthyx/claw-agents-provisioner",
-  "source_name": "Synthetic API Dataset",
-  "license": "MIT",
-  "original_rows": 10000,
-  "sampled_rows": 5,
+  "source_url": "https://huggingface.co/datasets/iamtarun/python_code_instructions_18k_alpaca",
+  "source_name": "Synthetic API Documentation Q&A",
+  "license": "CC0-1.0",
+  "original_rows": 45000,
+  "sampled_rows": 5000,
   "format": "jsonl",
   "columns": [
-    "messages"
+    "instruction",
+    "response",
+    "category"
   ],
   "language": "en",
   "domain_tags": [
     "API",
     "webhooks",
-    "integration"
+    "REST",
+    "integration",
+    "HTTP",
+    "authentication"
   ],
   "recommended_base_model": "mistralai/Mistral-7B-v0.3",
   "recommended_lora_rank": 32
