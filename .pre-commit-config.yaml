@@ -1,0 +1,47 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+        exclude: '\.example\.json$'
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: ['--maxkb=5000']
+
+  - repo: https://github.com/koalaman/shellcheck-precommit
+    rev: v0.10.0
+    hooks:
+      - id: shellcheck
+        args: ['--severity=warning']
+
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        entry: hadolint
+        args: ['--failure-threshold=warning']
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+        args: ['--fix']
+
+  - repo: local
+    hooks:
+      - id: no-env-files
+        name: Prevent .env files from being committed
+        entry: bash -c 'for f in "$@"; do if echo "$f" | grep -qE "^\.env$|/\.env$"; then echo "ERROR: .env file detected: $f"; exit 1; fi; done' --
+        language: system
+        pass_filenames: true
+
+      - id: no-api-keys
+        name: Check for API key patterns
+        entry: bash -c 'for f in "$@"; do if grep -qE "sk-ant-|sk-or-|xoxb-|hf_[a-zA-Z0-9]{20}" "$f" 2>/dev/null; then echo "ERROR: Potential API key in $f"; exit 1; fi; done' --
+        language: system
+        types: [text]
+        exclude: '(\.env\.template|\.md|\.yml|\.yaml)$'
