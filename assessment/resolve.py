@@ -241,6 +241,10 @@ def resolve_assessment(
     platform_scores = matrix.get("platform_scores", {})
     llm_models = matrix.get("llm_models", {})
 
+    if not mappings:
+        print("ERROR: needs-mapping-matrix.json contains no mappings", file=sys.stderr)
+        sys.exit(1)
+
     # Score all mappings
     scored: list[tuple[float, dict[str, Any]]] = []
     for mapping in mappings:

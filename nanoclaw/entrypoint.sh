@@ -184,7 +184,13 @@ if [[ -d "${NANOCLAW_DIR}/src" ]]; then
         safe_sed "s/claude-3-5-sonnet-20241022/${MODEL}/g" "$src_file"
         safe_sed "s/claude-3-sonnet-20240229/${MODEL}/g" "$src_file"
     done
-    log_info "Model references patched to: ${MODEL}"
+    # 3a-verify. Validate that model replacement actually took effect
+    PATCHED_COUNT=$(grep -rl "${MODEL}" "${NANOCLAW_DIR}/src" 2>/dev/null | wc -l)
+    if [[ "$PATCHED_COUNT" -gt 0 ]]; then
+        log_info "Model references patched to: ${MODEL} (found in ${PATCHED_COUNT} file(s))"
+    else
+        log_warn "Model replacement could not be verified — no files contain '${MODEL}' after patching."
+    fi
 
     # 3b. Patch sandbox runtime if configured
     SANDBOX_RUNTIME=$(env_or_default "NANOCLAW_SANDBOX_RUNTIME" "docker")
@@ -245,8 +251,8 @@ if [[ "$SYSTEM_PROMPT_ENRICHMENT" == "true" ]]; then
     [[ -n "$CLIENT_NAME" ]] && CONTEXT_LINES="${CONTEXT_LINES}\n- Client: ${CLIENT_NAME}"
     [[ -n "$SKILLS" ]] && CONTEXT_LINES="${CONTEXT_LINES}\n- Installed skills: ${SKILLS}"
 
-    # Append to CLAUDE.md if we have content
-    if [[ -n "$ENRICHMENT_CONTENT" || -n "$CONTEXT_LINES" ]]; then
+    # Append to CLAUDE.md if any assessment env vars are set or we have enrichment content
+    if [[ -n "$ENRICHMENT_CONTENT" || -n "$CONTEXT_LINES" || -n "$CLIENT_INDUSTRY" || -n "$CLIENT_LANGUAGE" || -n "$(env_or_default "CLAW_DATA_SENSITIVITY" "")" ]]; then
         if [[ -f "$CLAUDE_MD" ]]; then
             {
                 echo ""
@@ -291,16 +297,30 @@ else
     exit 1
 fi
 
+# Verify that at least one way to run NanoClaw exists before attempting start
+if [[ ! -f "package.json" && ! -f "src/index.js" && ! -f "dist/index.js" ]]; then
+    log_error "Could not determine how to start NanoClaw. No package.json, src/index.js, or dist/index.js found in $(pwd)."
+    exit 1
+fi
+
 # Start using available package manager or direct node
 if [[ -f "package.json" ]]; then
     if command -v pnpm > /dev/null 2>&1; then
         exec pnpm run start
     elif command -v npm > /dev/null 2>&1; then
         exec npm run start
+    else
+        log_error "package.json found but neither pnpm nor npm is available in PATH."
+        exit 1
     fi
 fi
 
 # Fallback: direct node execution
+if ! command -v node > /dev/null 2>&1; then
+    log_error "node binary not found in PATH. Cannot start NanoClaw."
+    exit 1
+fi
+
 if [[ -f "src/index.js" ]]; then
     exec node src/index.js
 elif [[ -f "dist/index.js" ]]; then

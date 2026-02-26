@@ -3,7 +3,7 @@
   "use_case_name": "Cybersecurity & Threat Intel",
   "source_url": "https://huggingface.co/datasets/rdpahalern/Cybersecurity-Q-A",
   "source_name": "NVD CVE Descriptions",
-  "license": "Public-Domain",
+  "license": "Public Domain",
   "original_rows": 220000,
   "sampled_rows": 5000,
   "format": "jsonl",

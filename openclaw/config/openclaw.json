@@ -1,0 +1,58 @@
+{
+  "$schema": "https://docs.openclaw.ai/schema/config.json",
+  "_comment": "OpenClaw Configuration Template",
+  "_note": "This is a placeholder template that ships with the Docker image. The entrypoint.sh script will OVERWRITE this file on container startup with values derived from the unified .env and assessment results. Do not rely on manual edits surviving container restarts.",
+
+  "llm": {
+    "_comment": "LLM provider and model. OpenClaw supports multi-provider routing — additional keys go in ~/.openclaw/.env.",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6"
+  },
+
+  "server": {
+    "_comment": "HTTP server settings. OpenClaw is the heaviest agent (~1.5 GB RAM) and supports 13+ channel adapters.",
+    "host": "0.0.0.0",
+    "port": 3000,
+    "logLevel": "info"
+  },
+
+  "channels": {
+    "_comment": "Channel adapters are enabled by entrypoint.sh when the corresponding *_BOT_TOKEN env vars are set. API keys are read from ~/.openclaw/.env at runtime.",
+    "telegram": { "enabled": false },
+    "discord": { "enabled": false },
+    "slack": { "enabled": false },
+    "whatsapp": { "enabled": false }
+  },
+
+  "skills": {
+    "_comment": "Skills from the Claw catalog, provisioned based on assessment results. Each key is a skill identifier with an enabled flag.",
+    "auto-reply": { "enabled": false },
+    "crm-sync": { "enabled": false }
+  },
+
+  "agent": {
+    "_comment": "Agent identity and behavior settings derived from client assessment (CLAW_CLIENT_INDUSTRY, CLAW_CLIENT_LANGUAGE, CLAW_DATA_SENSITIVITY, etc.).",
+    "name": "OpenClaw Agent",
+    "industry": "general",
+    "language": "en",
+    "dataSensitivity": "medium",
+    "compliance": "none",
+    "skills": []
+  },
+
+  "dm_policy": "pairing",
+
+  "privacy": {
+    "_comment": "Data sensitivity and compliance. Values: low, medium, high, critical. Compliance options: none, gdpr, hipaa, pci-dss.",
+    "sensitivity": "medium",
+    "storage": "private-cloud",
+    "compliance": []
+  },
+
+  "adapter": {
+    "_comment": "LoRA adapter for domain specialization. Enabled when CLAW_ADAPTER_PATH is set and the adapter directory exists.",
+    "enabled": false,
+    "path": "",
+    "method": "qlora"
+  }
+}

@@ -251,39 +251,32 @@ cmd_deploy() {
 
     header "Assessment-Driven Deployment Pipeline"
 
+    # Verify required assessment scripts exist
+    local required_scripts=("validate.py" "resolve.py" "generate_env.py" "generate_config.py")
+    for script in "${required_scripts[@]}"; do
+        if [ ! -f "${SCRIPT_DIR}/assessment/${script}" ]; then
+            err "Required assessment script not found: assessment/${script}"
+            err "The assessment pipeline is incomplete. Please check your installation."
+            exit 1
+        fi
+    done
+
     # Step 1: Validate assessment
     log "Step 1/5: Validating assessment..."
-    if [ -f "${SCRIPT_DIR}/assessment/validate.py" ]; then
-        python3 "${SCRIPT_DIR}/assessment/validate.py" "${assessment_file}"
-    else
-        warn "Validator not found — skipping validation"
-    fi
+    python3 "${SCRIPT_DIR}/assessment/validate.py" "${assessment_file}"
 
     # Step 2: Resolve platform, model, skills
     log "Step 2/5: Resolving platform and configuration..."
-    if [ -f "${SCRIPT_DIR}/assessment/resolve.py" ]; then
-        RESOLVE_OUTPUT=$(python3 "${SCRIPT_DIR}/assessment/resolve.py" "${assessment_file}")
-        eval "${RESOLVE_OUTPUT}"
-    else
-        warn "Resolver not found — using defaults from .env"
-        RESOLVED_AGENT="${CLAW_AGENT:-openclaw}"
-    fi
+    RESOLVE_JSON=$(python3 "${SCRIPT_DIR}/assessment/resolve.py" "${assessment_file}" --json)
+    RESOLVED_AGENT=$(echo "${RESOLVE_JSON}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('platform','openclaw'))")
 
     # Step 3: Generate .env
     log "Step 3/5: Generating .env configuration..."
-    if [ -f "${SCRIPT_DIR}/assessment/generate_env.py" ]; then
-        python3 "${SCRIPT_DIR}/assessment/generate_env.py" "${assessment_file}"
-    else
-        warn "Env generator not found — using existing .env"
-    fi
+    python3 "${SCRIPT_DIR}/assessment/generate_env.py" "${assessment_file}"
 
     # Step 4: Generate agent-specific config
     log "Step 4/5: Generating agent config..."
-    if [ -f "${SCRIPT_DIR}/assessment/generate_config.py" ]; then
-        python3 "${SCRIPT_DIR}/assessment/generate_config.py" "${assessment_file}"
-    else
-        warn "Config generator not found — agent will use defaults"
-    fi
+    python3 "${SCRIPT_DIR}/assessment/generate_config.py" "${assessment_file}"
 
     # Step 5: Deploy
     local target_agent="${RESOLVED_AGENT:-${CLAW_AGENT:-openclaw}}"

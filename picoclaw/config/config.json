@@ -1,0 +1,65 @@
+{
+  "_comment": "PicoClaw Configuration Template",
+  "_note": "This is a placeholder template that ships with the Docker image. The entrypoint.sh script will OVERWRITE this file on container startup with values derived from the unified .env and assessment results. Do not rely on manual edits surviving container restarts.",
+
+  "log_level": "info",
+
+  "server": {
+    "_comment": "Gateway server settings — PicoClaw exposes a lightweight HTTP API for edge/IoT deployments.",
+    "host": "0.0.0.0",
+    "port": 8080
+  },
+
+  "llm": {
+    "_comment": "Primary LLM provider. PicoClaw defaults to DeepSeek for cost-efficiency on low-resource hardware.",
+    "provider": "deepseek",
+    "model": "deepseek-chat"
+  },
+
+  "model_list": [
+    {
+      "_comment": "Primary model routed through LiteLLM-compatible proxy. Entrypoint populates api_key and api_base from env vars.",
+      "model_name": "deepseek-chat",
+      "litellm_params": {
+        "model": "deepseek/deepseek-chat",
+        "api_key": "PLACEHOLDER",
+        "api_base": "https://api.deepseek.com/v1"
+      }
+    }
+  ],
+
+  "channels": [
+    {
+      "_comment": "Channel entries are injected by entrypoint.sh when *_BOT_TOKEN env vars are set. Example structure shown below.",
+      "type": "telegram",
+      "bot_token": "PLACEHOLDER"
+    }
+  ],
+
+  "privacy": {
+    "_comment": "Data handling and compliance settings derived from the client assessment.",
+    "data_sensitivity": "medium",
+    "compliance": "none",
+    "redact_pii": false,
+    "max_context_tokens": 4096,
+    "_note_sensitivity_levels": "low = public data only, medium = internal business data, high = PII/financial, critical = healthcare/legal"
+  },
+
+  "agent": {
+    "_comment": "Agent identity and behavior, populated from assessment fields (CLAW_CLIENT_INDUSTRY, CLAW_CLIENT_LANGUAGE, etc.).",
+    "name": "PicoClaw Agent",
+    "industry": "general",
+    "language": "en",
+    "data_sensitivity": "medium",
+    "compliance": "none",
+    "skills": [],
+    "max_memory_mb": 128
+  },
+
+  "adapter": {
+    "_comment": "LoRA adapter configuration. Enabled when CLAW_ADAPTER_PATH points to a valid adapter directory.",
+    "enabled": false,
+    "path": "",
+    "endpoint": "http://localhost:8000/v1"
+  }
+}

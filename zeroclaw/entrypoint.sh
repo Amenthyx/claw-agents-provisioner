@@ -232,8 +232,8 @@ USE_CASE=$(env_or_default "CLAW_FINETUNE_USE_CASE" "")
 if [[ "$SYSTEM_PROMPT_ENRICHMENT" == "true" && -n "$USE_CASE" ]]; then
     PROMPT_FILE="${SCRIPT_DIR:-/app}/../finetune/adapters/${USE_CASE}/system_prompt.txt"
     if [[ -f "$PROMPT_FILE" ]]; then
-        # Read system prompt and escape for TOML
-        SYSTEM_PROMPT=$(cat "$PROMPT_FILE" | sed 's/"/\\"/g' | tr '\n' '\\' | sed 's/\\/\\n/g')
+        # Read system prompt and escape for TOML (escape quotes, replace newlines with \n)
+        SYSTEM_PROMPT=$(printf '%s' "$(cat "$PROMPT_FILE")" | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n')
         cat >> "${ZEROCLAW_CONFIG_FILE}" << TOML_EOF
 
 [system_prompt]

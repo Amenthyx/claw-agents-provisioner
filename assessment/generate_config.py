@@ -332,6 +332,13 @@ def generate_configs(
             file_path.write_text(content, encoding="utf-8")
             generated.append(file_path)
 
+    else:
+        print(
+            f"WARNING: Unknown platform '{result.platform}'. "
+            f"Expected one of: zeroclaw, nanoclaw, picoclaw, openclaw.",
+            file=sys.stderr,
+        )
+
     # Also generate system_prompt.txt for any platform (useful for API-only models)
     system_prompt_path = platform_dir / "system_prompt.txt"
     persona = assessment.get("communication_preferences", {})

@@ -262,10 +262,32 @@ JSON_EOF
 
 log_info "Config written to ${CONFIG_FILE}"
 
+# Validate that the generated config file exists and is valid JSON
+if [[ ! -f "${CONFIG_FILE}" ]]; then
+    log_error "Config file was not created at ${CONFIG_FILE}."
+    exit 1
+fi
+if command -v python3 > /dev/null 2>&1; then
+    if ! python3 -c "import json; json.load(open('${CONFIG_FILE}'))" 2>/dev/null; then
+        log_error "Generated config file is not valid JSON: ${CONFIG_FILE}"
+        exit 1
+    fi
+    log_info "Config JSON validated successfully."
+elif command -v python > /dev/null 2>&1; then
+    if ! python -c "import json; json.load(open('${CONFIG_FILE}'))" 2>/dev/null; then
+        log_error "Generated config file is not valid JSON: ${CONFIG_FILE}"
+        exit 1
+    fi
+    log_info "Config JSON validated successfully."
+else
+    log_warn "python3/python not found — skipping JSON validation of config file."
+fi
+
 # -------------------------------------------------------------------
 # 10. Start PicoClaw
 # -------------------------------------------------------------------
-log_info "Starting PicoClaw (gateway: ${GATEWAY_HOST}:${GATEWAY_PORT}, model: ${MODEL})..."
+log_info "Starting PicoClaw agent..."
+log_info "Gateway: ${GATEWAY_HOST}:${GATEWAY_PORT}, Model: ${MODEL}"
 
 if command -v picoclaw > /dev/null 2>&1; then
     exec picoclaw serve --config "${CONFIG_FILE}"

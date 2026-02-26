@@ -331,29 +331,40 @@ log_info "Config written to ${CONFIG_FILE}"
 # -------------------------------------------------------------------
 # 11. Start OpenClaw
 # -------------------------------------------------------------------
-log_info "Starting OpenClaw (port: ${PORT}, model: ${MODEL})..."
 
-# Try the openclaw binary first
-if command -v openclaw > /dev/null 2>&1; then
-    exec openclaw start
-fi
-
-# Fallback: try running from /opt/openclaw
-if [[ -d "/opt/openclaw" ]]; then
-    cd /opt/openclaw
-    if command -v pnpm > /dev/null 2>&1; then
-        exec pnpm start
-    elif command -v npm > /dev/null 2>&1; then
-        exec npm start
+# Consolidated function that tries each binary/method and exits 1 if all fail
+start_openclaw() {
+    # Try 1: openclaw binary in PATH
+    if command -v openclaw > /dev/null 2>&1; then
+        log_info "Found openclaw binary in PATH."
+        exec openclaw start
     fi
-fi
 
-# Fallback: try npx
-if command -v npx > /dev/null 2>&1; then
-    log_info "Falling back to npx openclaw..."
-    exec npx openclaw start
-fi
+    # Try 2: pnpm/npm from /opt/openclaw
+    if [[ -d "/opt/openclaw" ]]; then
+        cd /opt/openclaw
+        if command -v pnpm > /dev/null 2>&1; then
+            log_info "Starting via pnpm from /opt/openclaw."
+            exec pnpm start
+        elif command -v npm > /dev/null 2>&1; then
+            log_info "Starting via npm from /opt/openclaw."
+            exec npm start
+        fi
+    fi
 
-log_error "openclaw binary not found in PATH and no fallback available."
-log_error "Ensure OpenClaw is installed. Run: install-openclaw.sh"
-exit 1
+    # Try 3: npx fallback
+    if command -v npx > /dev/null 2>&1; then
+        log_info "Falling back to npx openclaw..."
+        exec npx openclaw start
+    fi
+
+    # All methods exhausted
+    log_error "OpenClaw could not be started. Tried: openclaw binary, /opt/openclaw (pnpm/npm), npx."
+    log_error "Ensure OpenClaw is installed. Run: install-openclaw.sh"
+    exit 1
+}
+
+log_info "Starting OpenClaw agent..."
+log_info "Port: ${PORT}, Model: ${MODEL}"
+
+start_openclaw

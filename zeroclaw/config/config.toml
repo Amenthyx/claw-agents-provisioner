@@ -1,0 +1,88 @@
+# =============================================================================
+# ZeroClaw Configuration Template
+# =============================================================================
+# This is a placeholder template that ships with the Docker image.
+# The entrypoint.sh script will OVERWRITE this file on container startup
+# with values derived from the unified .env and assessment results.
+#
+# If you need persistent overrides that survive container restarts,
+# use the ZEROCLAW_EXTRA_TOML environment variable instead of editing
+# this file directly.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# [model] — LLM provider and model selection
+# ---------------------------------------------------------------------------
+# Supported providers: anthropic, openai, openrouter, deepseek, gemini, groq
+# The entrypoint maps CLAW_LLM_PROVIDER and CLAW_LLM_MODEL to these fields.
+# Credential resolution order:
+#   explicit api_key > provider env var > ZEROCLAW_API_KEY > API_KEY
+# ---------------------------------------------------------------------------
+[model]
+provider = "anthropic"          # LLM provider identifier
+model = "claude-sonnet-4-6"     # Model name/ID sent to the provider
+api_key = "PLACEHOLDER"         # Replaced at runtime by entrypoint.sh
+# api_base = ""                 # Optional: override API endpoint (e.g. OpenRouter)
+
+# ---------------------------------------------------------------------------
+# [persona] — Agent personality and behavior tuning
+# ---------------------------------------------------------------------------
+# Assessment-derived values populate these fields. The industry and language
+# determine default greeting style, terminology, and response patterns.
+# ---------------------------------------------------------------------------
+[persona]
+industry = "general"            # Client industry (e.g. "real-estate", "healthcare")
+language = "en"                 # Primary language code (ISO 639-1)
+data_sensitivity = "medium"     # Data handling level: low, medium, high, critical
+compliance = "none"             # Regulatory framework: none, gdpr, hipaa, pci-dss
+# client_name = ""              # Optional: client/brand name for personalized greetings
+
+# ---------------------------------------------------------------------------
+# [skills] — Installed skill modules
+# ---------------------------------------------------------------------------
+# Skills are provisioned based on the assessment. Each skill key enables
+# a specific capability in the agent's tool belt.
+# ---------------------------------------------------------------------------
+[skills]
+# enabled = []                  # List of skill identifiers, e.g. ["crm-sync", "auto-reply"]
+# adapter_enabled = false       # Whether a LoRA adapter is loaded for domain specialization
+# adapter_path = ""             # Path to the adapter directory (if enabled)
+
+# ---------------------------------------------------------------------------
+# [security] — Access control and data protection
+# ---------------------------------------------------------------------------
+# Controls how the agent handles sensitive data, rate limiting, and
+# authentication for incoming channel connections.
+# ---------------------------------------------------------------------------
+[security]
+rate_limit_rpm = 60             # Max requests per minute per user
+max_context_tokens = 8192       # Maximum context window tokens to use
+redact_pii = false              # Automatically redact PII from logs
+# allowed_user_ids = []         # Optional: restrict to specific user IDs
+# ip_allowlist = []             # Optional: restrict inbound connections by IP
+
+# ---------------------------------------------------------------------------
+# [channels] — Chat channel connections
+# ---------------------------------------------------------------------------
+# Channel blocks are injected by entrypoint.sh when the corresponding
+# *_BOT_TOKEN environment variables are set. Uncommented examples below.
+# ---------------------------------------------------------------------------
+# [channels.telegram]
+# enabled = false
+# bot_token = "PLACEHOLDER"
+
+# [channels.discord]
+# enabled = false
+# bot_token = "PLACEHOLDER"
+
+# [channels.slack]
+# enabled = false
+# bot_token = "PLACEHOLDER"
+# app_token = ""
+
+# ---------------------------------------------------------------------------
+# [general] — Logging and server settings
+# ---------------------------------------------------------------------------
+[general]
+log_level = "info"              # Log verbosity: debug, info, warn, error
+port = 3100                     # HTTP server port
