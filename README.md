@@ -102,21 +102,30 @@ The resolver scores 15 deployment profiles using weighted factors:
 
 ### PDF Assessment Form
 
-Generate a fillable PDF for clients who prefer paper/PDF workflows:
+Generate fillable PDF forms for clients. Two tiers available:
+
+- **Private** — Simple, warm, non-technical. For small businesses and individual clients. Technical fields are auto-filled with safe defaults.
+- **Enterprise** — Complete and technical, split into Part A (client fills) and Part B (Amenthyx fills after consultation).
 
 ```bash
-# Generate blank form
-python assessment/generate_pdf_form.py -o assessment.pdf
+# Generate blank Private form (default)
+python assessment/generate_pdf_form.py --tier private
+
+# Generate blank Enterprise form
+python assessment/generate_pdf_form.py --tier enterprise
 
 # Generate pre-filled from existing JSON
-python assessment/generate_pdf_form.py --prefill assessment/client-assessment.example.json -o lucia.pdf
+python assessment/generate_pdf_form.py --tier private --prefill assessment/client-assessment.example.json
+python assessment/generate_pdf_form.py --tier enterprise --prefill assessment/client-assessment.example.json
 
-# Convert filled PDF back to JSON
+# Convert filled PDF back to JSON (auto-detects tier)
 python assessment/pdf_to_json.py filled-form.pdf -o client-assessment.json
 
 # Convert with validation
 python assessment/pdf_to_json.py filled-form.pdf -o client-assessment.json --validate
 ```
+
+The converter auto-detects the tier from the PDF fields. Private forms get safe defaults applied (tech_savvy=3, pii_handling="encrypt", fine-tuning disabled, etc.) so the output JSON validates against the full schema.
 
 Requirements: `pip install reportlab pypdf`
 
@@ -1037,6 +1046,268 @@ docker compose -p lucia --env-file .env.lucia --profile openclaw up -d
 
 Port environment variables: `CLAW_ZEROCLAW_PORT`, `CLAW_NANOCLAW_PORT`, `CLAW_PICOCLAW_PORT`, `CLAW_OPENCLAW_PORT`.
 
+## Monitoring & Reliability
+
+The Claw Watchdog is a zero-token reliability daemon that continuously monitors all deployed agents. It uses Docker inspect, TCP handshakes, and free API endpoints — no LLM tokens are consumed for monitoring.
+
+### What It Monitors
+
+| Check | Method | Cost |
+|-------|--------|------|
+| Container status | `docker inspect` | Free |
+| Port reachability | TCP socket connect | Free |
+| Health endpoints | HTTP GET to `/health` | Free |
+| Agent health commands | `zeroclaw doctor`, `picoclaw agent -m ping`, etc. | Free |
+| Telegram connectivity | `getMe` Bot API call | Free |
+| Discord connectivity | Public `/gateway` endpoint | Free |
+| LLM API reachability | TCP handshake only (no auth, no tokens) | Free |
+| Container resources | `docker stats --no-stream` | Free |
+
+### Installation
+
+The watchdog is a single Python file with zero dependencies (stdlib only, Python 3.8+):
+
+```bash
+# No pip install needed — runs on any Python 3.8+ installation
+python shared/claw_watchdog.py --help
+```
+
+### Setup
+
+#### 1. Generate a config file
+
+```bash
+python shared/claw_watchdog.py --init-config
+# Creates shared/watchdog.json with example configuration
+```
+
+#### 2. Edit the config
+
+Open `shared/watchdog.json` and configure your agents:
+
+```json
+{
+  "check_interval": 30,
+  "failure_threshold": 3,
+  "alert_cooldown": 300,
+  "auto_restart": true,
+  "dashboard_port": 9090,
+  "log_file": "watchdog.log",
+
+  "telegram_alerts": {
+    "enabled": true,
+    "bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+    "chat_id": "YOUR_CHAT_ID"
+  },
+
+  "agents": [
+    {
+      "name": "zeroclaw-lucia",
+      "container": "lucia-zeroclaw-1",
+      "port": 3100,
+      "health_url": null,
+      "health_cmd": "docker exec {container} zeroclaw doctor",
+      "auto_restart": true
+    },
+    {
+      "name": "nanoclaw-priya",
+      "container": "priya-nanoclaw-1",
+      "port": 3200,
+      "health_url": "http://localhost:3200/health",
+      "health_cmd": null,
+      "auto_restart": true
+    },
+    {
+      "name": "picoclaw-demo",
+      "container": "demo-picoclaw-1",
+      "port": 3300,
+      "health_url": null,
+      "health_cmd": "docker exec {container} picoclaw agent -m ping",
+      "auto_restart": true
+    }
+  ],
+
+  "connectivity": {
+    "telegram": {
+      "enabled": true,
+      "bot_token": "YOUR_TELEGRAM_BOT_TOKEN"
+    },
+    "discord": {
+      "enabled": false
+    },
+    "llm_endpoints": [
+      {"name": "anthropic", "host": "api.anthropic.com", "port": 443},
+      {"name": "deepseek", "host": "api.deepseek.com", "port": 443},
+      {"name": "openai", "host": "api.openai.com", "port": 443}
+    ]
+  }
+}
+```
+
+#### 3. Get your Telegram alert credentials
+
+1. Create a bot via [@BotFather](https://t.me/BotFather) and copy the bot token
+2. Send a message to your bot, then get your chat ID:
+   ```bash
+   curl https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates | jq '.result[0].message.chat.id'
+   ```
+3. Set both values in `watchdog.json` under `telegram_alerts`
+
+### Running the Watchdog
+
+```bash
+# Continuous monitoring (default)
+python shared/claw_watchdog.py -c shared/watchdog.json
+
+# Single check cycle (useful for cron jobs or CI)
+python shared/claw_watchdog.py -c shared/watchdog.json --once
+
+# Override config via environment variables
+WATCHDOG_TELEGRAM_TOKEN="bot123:ABC" \
+WATCHDOG_TELEGRAM_CHAT_ID="12345" \
+WATCHDOG_INTERVAL=60 \
+WATCHDOG_PORT=8080 \
+python shared/claw_watchdog.py
+```
+
+### Running as a Background Service
+
+#### systemd (Linux)
+
+```ini
+# /etc/systemd/system/claw-watchdog.service
+[Unit]
+Description=Claw Agents Watchdog
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/claw-agents-provisioner
+ExecStart=/usr/bin/python3 shared/claw_watchdog.py -c shared/watchdog.json
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl enable claw-watchdog
+sudo systemctl start claw-watchdog
+sudo journalctl -u claw-watchdog -f   # follow logs
+```
+
+#### Docker (alongside agents)
+
+```bash
+docker run -d \
+  --name claw-watchdog \
+  --restart unless-stopped \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v $(pwd)/shared:/app/shared \
+  -p 9090:9090 \
+  python:3.12-slim \
+  python /app/shared/claw_watchdog.py -c /app/shared/watchdog.json
+```
+
+#### Windows (Task Scheduler)
+
+```powershell
+# Create a scheduled task that runs at startup
+$action = New-ScheduledTaskAction -Execute "python" `
+  -Argument "shared/claw_watchdog.py -c shared/watchdog.json" `
+  -WorkingDirectory "C:\path\to\claw-agents-provisioner"
+$trigger = New-ScheduledTaskTrigger -AtStartup
+Register-ScheduledTask -TaskName "ClawWatchdog" -Action $action -Trigger $trigger -RunLevel Highest
+```
+
+### Status Dashboard
+
+The watchdog exposes a JSON status endpoint:
+
+```bash
+# Default: http://localhost:9090/status
+curl http://localhost:9090/status | jq .
+```
+
+Response:
+
+```json
+{
+  "overall": "healthy",
+  "started_at": "2026-02-26T10:00:00Z",
+  "last_check": "2026-02-26T10:05:30Z",
+  "check_interval": 30,
+  "agents": {
+    "zeroclaw-lucia": {
+      "status": "healthy",
+      "consecutive_failures": 0,
+      "last_check": "2026-02-26T10:05:30Z",
+      "last_healthy": "2026-02-26T10:05:30Z",
+      "restart_count": 0,
+      "checks": {
+        "container": {"ok": true, "detail": "running (health: healthy)"},
+        "port": {"ok": true, "detail": "localhost:3100 reachable"},
+        "health_cmd": {"ok": true, "detail": "all checks passed"}
+      },
+      "resources": {
+        "cpu_percent": "0.15%",
+        "mem_usage": "45MiB / 2GiB",
+        "mem_percent": "2.20%"
+      }
+    }
+  },
+  "connectivity": {
+    "telegram": {"ok": true, "detail": "HTTP 200"},
+    "llm:anthropic": {"ok": true, "detail": "api.anthropic.com:443 reachable"},
+    "llm:deepseek": {"ok": true, "detail": "api.deepseek.com:443 reachable"}
+  }
+}
+```
+
+### Alerting Behavior
+
+The watchdog sends Telegram alerts on state changes:
+
+| Event | Alert | Example |
+|-------|-------|---------|
+| Agent goes down | After `failure_threshold` consecutive failures (default: 3) | `ALERT zeroclaw-lucia is DOWN` |
+| Agent recovered | Immediately on first successful check | `RECOVERED zeroclaw-lucia is back up (Downtime: 2m 30s)` |
+| Auto-restart triggered | When threshold reached and `auto_restart: true` | `AUTO-RESTART zeroclaw-lucia — Success: yes` |
+| Repeated failures | Cooldown period between alerts (default: 300s) | No spam — one alert per cooldown window |
+
+### Agent Config Reference
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Display name for the agent |
+| `container` | string | No | Docker container name (for inspect/restart) |
+| `port` | integer | No | TCP port to check reachability |
+| `health_url` | string | No | HTTP health endpoint URL |
+| `health_cmd` | string | No | Shell command to run (`{container}` is replaced) |
+| `auto_restart` | boolean | No | Auto-restart on failure (default: global setting) |
+
+### Global Config Reference
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `check_interval` | `30` | Seconds between check cycles |
+| `failure_threshold` | `3` | Consecutive failures before alerting/restarting |
+| `alert_cooldown` | `300` | Seconds between repeated alerts for the same agent |
+| `auto_restart` | `true` | Global auto-restart default |
+| `dashboard_port` | `9090` | HTTP dashboard port (`0` to disable) |
+| `log_file` | `null` | Path to log file (also logs to stdout) |
+
+### Environment Variable Overrides
+
+| Variable | Overrides |
+|----------|-----------|
+| `WATCHDOG_TELEGRAM_TOKEN` | `telegram_alerts.bot_token` (also enables alerts) |
+| `WATCHDOG_TELEGRAM_CHAT_ID` | `telegram_alerts.chat_id` |
+| `WATCHDOG_INTERVAL` | `check_interval` |
+| `WATCHDOG_PORT` | `dashboard_port` |
+
 ## Troubleshooting
 
 ### Docker build fails
@@ -1085,6 +1356,36 @@ python finetune/train_qlora.py --adapter 01-customer-support --batch-size 2
 
 # Check VRAM estimate in adapter config
 cat finetune/adapters/01-customer-support/training_config.json
+```
+
+### Watchdog not detecting agents
+
+```bash
+# Verify Docker is accessible
+docker ps
+
+# Check container name matches config
+docker ps --format '{{.Names}}'
+
+# Test a single check cycle
+python shared/claw_watchdog.py -c shared/watchdog.json --once
+
+# Check if dashboard port is already in use
+# (change dashboard_port in config or set WATCHDOG_PORT)
+WATCHDOG_PORT=9091 python shared/claw_watchdog.py -c shared/watchdog.json --once
+```
+
+### Watchdog not sending Telegram alerts
+
+```bash
+# Test your bot token manually
+curl https://api.telegram.org/bot<YOUR_TOKEN>/getMe
+
+# Verify chat_id is correct
+curl https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
+
+# Run watchdog and check stderr for alert errors
+python shared/claw_watchdog.py -c shared/watchdog.json --once 2>&1 | grep -i alert
 ```
 
 ### Dataset issues
