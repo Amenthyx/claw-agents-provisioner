@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net" modified="2026-02-26T00:00:00.000Z" agent="5.0" version="24.0" type="device">
   <diagram name="Claw Agents Ecosystem" id="claw-ecosystem">
-    <mxGraphModel dx="2400" dy="3000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="3000" math="0" shadow="0">
+    <mxGraphModel dx="2900" dy="3500" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2900" pageHeight="3500" math="0" shadow="0">
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
@@ -345,6 +345,11 @@
         <!-- Credits -->
         <mxCell id="320" value="&lt;font style=&quot;font-size:12px&quot;&gt;&lt;i&gt;Created by &lt;b&gt;Mauro Tommasi&lt;/b&gt; — linkedin.com/in/maurotommasi · Apache 2.0 © 2026 Amenthyx&lt;/i&gt;&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontColor=#888;strokeColor=none;fillColor=none;" vertex="1" parent="1">
           <mxGeometry x="250" y="2220" width="1700" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- Invisible anchor to force full canvas export -->
+        <mxCell id="999" value="" style="shape=rectangle;fillColor=none;strokeColor=none;opacity=0;" vertex="1" parent="1">
+          <mxGeometry x="2850" y="3450" width="10" height="10" as="geometry"/>
         </mxCell>
 
       </root>
