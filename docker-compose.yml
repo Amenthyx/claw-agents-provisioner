@@ -1,0 +1,178 @@
+# =============================================================================
+# Claw Agents Provisioner — Unified Docker Compose
+# =============================================================================
+# Usage:
+#   docker compose --profile zeroclaw up -d
+#   docker compose --profile nanoclaw up -d
+#   docker compose --profile picoclaw up -d
+#   docker compose --profile openclaw up -d
+#   docker compose --profile zeroclaw --profile picoclaw up -d  # multi-agent
+#   docker compose --profile finetune run finetune              # GPU fine-tuning
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # ZeroClaw — Rust-based AI Agent (lightweight, encrypted config)
+  # Memory: ~8 MB idle, ~100 MB active | Limit: 512 MB
+  # ---------------------------------------------------------------------------
+  zeroclaw:
+    build:
+      context: ./zeroclaw
+      dockerfile: Dockerfile
+    container_name: claw-zeroclaw
+    profiles:
+      - zeroclaw
+    env_file:
+      - .env
+    volumes:
+      - zeroclaw-data:/home/zeroclaw/.zeroclaw
+      - ./zeroclaw/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    ports:
+      - "3100:3100"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 64M
+    healthcheck:
+      test: ["CMD", "zeroclaw", "doctor"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # NanoClaw — TypeScript AI Agent with container isolation (DooD)
+  # Memory: ~120 MB idle, ~500 MB active | Limit: 1 GB
+  # Mounts host Docker socket for Docker-outside-of-Docker (DooD)
+  # ---------------------------------------------------------------------------
+  nanoclaw:
+    build:
+      context: ./nanoclaw
+      dockerfile: Dockerfile
+    container_name: claw-nanoclaw
+    profiles:
+      - nanoclaw
+    env_file:
+      - .env
+    volumes:
+      - nanoclaw-data:/home/nanoclaw/.nanoclaw
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./nanoclaw/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    ports:
+      - "3200:3200"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3200/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # PicoClaw — Go-based AI Agent (ultra-lightweight, edge/IoT)
+  # Memory: ~8 MB idle, ~30 MB active | Limit: 128 MB
+  # ---------------------------------------------------------------------------
+  picoclaw:
+    build:
+      context: ./picoclaw
+      dockerfile: Dockerfile
+    container_name: claw-picoclaw
+    profiles:
+      - picoclaw
+    env_file:
+      - .env
+    volumes:
+      - picoclaw-data:/home/picoclaw/.picoclaw
+      - ./picoclaw/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    ports:
+      - "3300:3300"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 16M
+    healthcheck:
+      test: ["CMD", "picoclaw", "agent", "-m", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # OpenClaw — TypeScript/Node.js AI Agent (feature-rich, heavy)
+  # Memory: ~1.2 GB idle, ~4 GB active | Limit: 4 GB
+  # ---------------------------------------------------------------------------
+  openclaw:
+    build:
+      context: ./openclaw
+      dockerfile: Dockerfile
+    container_name: claw-openclaw
+    profiles:
+      - openclaw
+    env_file:
+      - .env
+    volumes:
+      - openclaw-data:/home/openclaw/.openclaw
+      - ./openclaw/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    ports:
+      - "3400:3400"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "openclaw", "doctor"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Fine-Tuning — GPU-enabled container for LoRA/QLoRA training
+  # Requires: NVIDIA GPU + nvidia-container-toolkit
+  # ---------------------------------------------------------------------------
+  finetune:
+    build:
+      context: ./finetune
+      dockerfile: Dockerfile.finetune
+    container_name: claw-finetune
+    profiles:
+      - finetune
+    env_file:
+      - .env
+    volumes:
+      - ./finetune:/workspace/finetune
+      - ./assessment:/workspace/assessment:ro
+    working_dir: /workspace
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: ["python", "-c", "print('Fine-tuning container ready. Mount scripts and run.')"]
+
+volumes:
+  zeroclaw-data:
+  nanoclaw-data:
+  picoclaw-data:
+  openclaw-data:

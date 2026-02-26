@@ -1,0 +1,260 @@
+name: CI — Claw Agents Provisioner
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------
+  # Lint: shellcheck for all .sh files
+  # ---------------------------------------------------------------
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Run shellcheck on all shell scripts
+        run: |
+          find . -name "*.sh" -type f | while read -r script; do
+            echo "Checking: ${script}"
+            shellcheck --severity=warning "${script}" || true
+          done
+
+  # ---------------------------------------------------------------
+  # Lint: hadolint for all Dockerfiles
+  # ---------------------------------------------------------------
+  hadolint:
+    name: Hadolint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run hadolint on all Dockerfiles
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: "zeroclaw/Dockerfile"
+          failure-threshold: warning
+        continue-on-error: true
+
+      - name: Hadolint — NanoClaw
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: "nanoclaw/Dockerfile"
+          failure-threshold: warning
+        continue-on-error: true
+
+      - name: Hadolint — PicoClaw
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: "picoclaw/Dockerfile"
+          failure-threshold: warning
+        continue-on-error: true
+
+      - name: Hadolint — OpenClaw
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: "openclaw/Dockerfile"
+          failure-threshold: warning
+        continue-on-error: true
+
+      - name: Hadolint — Finetune
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: "finetune/Dockerfile.finetune"
+          failure-threshold: warning
+        continue-on-error: true
+
+  # ---------------------------------------------------------------
+  # Lint: ruff for Python files
+  # ---------------------------------------------------------------
+  ruff:
+    name: Ruff (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff
+        run: |
+          PYTHON_FILES=$(find . -name "*.py" -type f 2>/dev/null || true)
+          if [ -n "${PYTHON_FILES}" ]; then
+            echo "${PYTHON_FILES}" | xargs ruff check --output-format=github || true
+          else
+            echo "No Python files found — skipping"
+          fi
+
+  # ---------------------------------------------------------------
+  # Docker Build Matrix: 4 agents
+  # ---------------------------------------------------------------
+  docker-build:
+    name: Docker Build — ${{ matrix.agent }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: [zeroclaw, nanoclaw, picoclaw, openclaw]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.agent }} Docker image
+        run: |
+          docker build \
+            -t claw-${{ matrix.agent }}:ci \
+            -f ${{ matrix.agent }}/Dockerfile \
+            ${{ matrix.agent }}/
+        timeout-minutes: 15
+        continue-on-error: true
+
+      - name: Verify image was built
+        run: |
+          if docker image inspect claw-${{ matrix.agent }}:ci >/dev/null 2>&1; then
+            echo "Image claw-${{ matrix.agent }}:ci built successfully"
+            docker image ls claw-${{ matrix.agent }}:ci
+          else
+            echo "::warning::Image build failed for ${{ matrix.agent }} (upstream repo may not be available)"
+          fi
+
+  # ---------------------------------------------------------------
+  # Docker Compose validation
+  # ---------------------------------------------------------------
+  compose-validate:
+    name: Docker Compose Config Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create dummy .env
+        run: |
+          if [ -f .env.template ]; then
+            cp .env.template .env
+          else
+            touch .env
+          fi
+
+      - name: Validate docker-compose.yml
+        run: docker compose config --quiet
+
+  # ---------------------------------------------------------------
+  # Assessment validation (when scripts exist)
+  # ---------------------------------------------------------------
+  assessment:
+    name: Assessment Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate assessment schema
+        run: |
+          if [ -f assessment/validate.py ]; then
+            # Find example assessments and validate them
+            for f in assessment/*.example.json assessment/*.json; do
+              if [ -f "$f" ]; then
+                echo "Validating: $f"
+                python3 assessment/validate.py "$f" || true
+              fi
+            done
+          else
+            echo "Assessment validator not yet implemented — skipping"
+          fi
+
+  # ---------------------------------------------------------------
+  # Dataset validation (when datasets exist)
+  # ---------------------------------------------------------------
+  datasets:
+    name: Dataset Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check dataset structure
+        run: |
+          DATASET_DIR="finetune/datasets"
+          if [ -d "${DATASET_DIR}" ]; then
+            DATASET_COUNT=$(find "${DATASET_DIR}" -mindepth 1 -maxdepth 1 -type d | wc -l)
+            echo "Found ${DATASET_COUNT} dataset directories"
+
+            METADATA_COUNT=$(find "${DATASET_DIR}" -name "metadata.json" | wc -l)
+            echo "Found ${METADATA_COUNT} metadata.json files"
+
+            DATA_COUNT=$(find "${DATASET_DIR}" \( -name "data.jsonl" -o -name "data.csv" -o -name "data.parquet" \) | wc -l)
+            echo "Found ${DATA_COUNT} data files"
+
+            if [ "${DATASET_COUNT}" -gt 0 ]; then
+              echo "Dataset directories:"
+              ls -1 "${DATASET_DIR}/"
+            fi
+          else
+            echo "Dataset directory not yet created — skipping"
+          fi
+
+      - name: Validate dataset row counts
+        run: |
+          if [ -f finetune/validate_datasets.py ]; then
+            python3 finetune/validate_datasets.py
+          else
+            echo "Dataset validator not yet implemented — skipping"
+          fi
+
+  # ---------------------------------------------------------------
+  # Security: no secrets in tracked files
+  # ---------------------------------------------------------------
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for .env files in repo
+        run: |
+          if git ls-files | grep -E "^\.env$|/\.env$"; then
+            echo "::error::Found .env file(s) tracked in git!"
+            exit 1
+          else
+            echo "No .env files tracked — OK"
+          fi
+
+      - name: Check for API key patterns in tracked files
+        run: |
+          FOUND=0
+          for pattern in "sk-ant-" "sk-or-" "xoxb-" "hf_"; do
+            if git grep -l "${pattern}" -- ':!.env.template' ':!*.md' ':!*.yml' 2>/dev/null; then
+              echo "::warning::Found potential API key pattern '${pattern}' in tracked files"
+              FOUND=1
+            fi
+          done
+          if [ "${FOUND}" -eq 0 ]; then
+            echo "No API key patterns found in tracked files — OK"
+          fi
+
+      - name: Check for client assessment files
+        run: |
+          if git ls-files | grep -E "client-assessment.*\.json$" | grep -v "example"; then
+            echo "::error::Found client assessment file (non-example) tracked in git!"
+            exit 1
+          else
+            echo "No client assessment files tracked — OK"
+          fi

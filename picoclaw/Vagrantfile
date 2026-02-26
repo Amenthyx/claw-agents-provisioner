@@ -1,0 +1,45 @@
+# =============================================================================
+# PicoClaw Vagrantfile — Ubuntu 24.04, Go-based ultra-lightweight agent
+# Usage: cd picoclaw && vagrant up
+# Memory: 512 MB (minimal — PicoClaw uses ~8 MB idle)
+# =============================================================================
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/noble64"
+  config.vm.hostname = "claw-picoclaw"
+
+  # Port forwarding
+  config.vm.network "forwarded_port", guest: 3300, host: 3300, auto_correct: true
+
+  # Private network for multi-agent communication
+  config.vm.network "private_network", ip: "192.168.56.12"
+
+  # VirtualBox provider settings
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "claw-picoclaw"
+    vb.memory = 512
+    vb.cpus = 1
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+  end
+
+  # Sync project files
+  config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
+  config.vm.synced_folder "../shared", "/shared", type: "virtualbox"
+
+  # Provision with shared base script
+  config.vm.provision "shell", path: "../shared/provision-base.sh", name: "base"
+
+  # Provision with agent-specific install script
+  config.vm.provision "shell", path: "install-picoclaw.sh", name: "picoclaw"
+
+  # Copy .env if it exists
+  if File.exist?("../.env")
+    config.vm.provision "file", source: "../.env", destination: "/home/vagrant/.env"
+    config.vm.provision "shell", inline: <<-SHELL
+      cp /home/vagrant/.env /home/vagrant/.picoclaw/.env 2>/dev/null || true
+    SHELL
+  end
+
+  # Run entrypoint on every boot
+  config.vm.provision "shell", path: "entrypoint.sh", run: "always", name: "entrypoint"
+end

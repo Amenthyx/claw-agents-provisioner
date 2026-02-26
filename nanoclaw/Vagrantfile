@@ -1,0 +1,53 @@
+# =============================================================================
+# NanoClaw Vagrantfile — Ubuntu 24.04, TypeScript AI Agent + Docker
+# Usage: cd nanoclaw && vagrant up
+# Memory: 2 GB (Node.js + Docker inside VM)
+# =============================================================================
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/noble64"
+  config.vm.hostname = "claw-nanoclaw"
+
+  # Port forwarding
+  config.vm.network "forwarded_port", guest: 3200, host: 3200, auto_correct: true
+
+  # Private network for multi-agent communication
+  config.vm.network "private_network", ip: "192.168.56.11"
+
+  # VirtualBox provider settings
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "claw-nanoclaw"
+    vb.memory = 2048
+    vb.cpus = 2
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+  end
+
+  # Sync project files
+  config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
+  config.vm.synced_folder "../shared", "/shared", type: "virtualbox"
+
+  # Provision with shared base script
+  config.vm.provision "shell", path: "../shared/provision-base.sh", name: "base"
+
+  # Install Docker inside the VM (NanoClaw needs container isolation)
+  config.vm.provision "shell", inline: <<-SHELL
+    if ! command -v docker &>/dev/null; then
+      curl -fsSL https://get.docker.com | bash
+      usermod -aG docker vagrant
+    fi
+  SHELL
+
+  # Provision with agent-specific install script
+  config.vm.provision "shell", path: "install-nanoclaw.sh", name: "nanoclaw"
+
+  # Copy .env if it exists
+  if File.exist?("../.env")
+    config.vm.provision "file", source: "../.env", destination: "/home/vagrant/.env"
+    config.vm.provision "shell", inline: <<-SHELL
+      cp /home/vagrant/.env /home/vagrant/.nanoclaw/.env 2>/dev/null || true
+    SHELL
+  end
+
+  # Run entrypoint on every boot
+  config.vm.provision "shell", path: "entrypoint.sh", run: "always", name: "entrypoint"
+end

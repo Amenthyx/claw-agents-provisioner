@@ -1,0 +1,45 @@
+# =============================================================================
+# ZeroClaw Vagrantfile — Ubuntu 24.04, Rust AI Agent
+# Usage: cd zeroclaw && vagrant up
+# Memory: 4 GB (Rust compilation needs RAM)
+# =============================================================================
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/noble64"
+  config.vm.hostname = "claw-zeroclaw"
+
+  # Port forwarding
+  config.vm.network "forwarded_port", guest: 3100, host: 3100, auto_correct: true
+
+  # Private network for multi-agent communication
+  config.vm.network "private_network", ip: "192.168.56.10"
+
+  # VirtualBox provider settings
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "claw-zeroclaw"
+    vb.memory = 4096
+    vb.cpus = 2
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+  end
+
+  # Sync project files
+  config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
+  config.vm.synced_folder "../shared", "/shared", type: "virtualbox"
+
+  # Provision with shared base script
+  config.vm.provision "shell", path: "../shared/provision-base.sh", name: "base"
+
+  # Provision with agent-specific install script
+  config.vm.provision "shell", path: "install-zeroclaw.sh", name: "zeroclaw"
+
+  # Copy .env if it exists
+  if File.exist?("../.env")
+    config.vm.provision "file", source: "../.env", destination: "/home/vagrant/.env"
+    config.vm.provision "shell", inline: <<-SHELL
+      cp /home/vagrant/.env /home/vagrant/.zeroclaw/.env 2>/dev/null || true
+    SHELL
+  end
+
+  # Run entrypoint on every boot
+  config.vm.provision "shell", path: "entrypoint.sh", run: "always", name: "entrypoint"
+end
