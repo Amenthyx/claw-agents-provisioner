@@ -1,0 +1,538 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Amenthyx/claw-agents-provisioner/assessment-schema.json",
+  "title": "Claw AI Agent Client Assessment",
+  "description": "JSON Schema for the client intake form used by the assessment-to-deployment pipeline. Contains 8 sections covering all aspects of client needs.",
+  "type": "object",
+  "required": [
+    "client_profile",
+    "use_cases",
+    "communication_preferences",
+    "data_privacy",
+    "performance_scale",
+    "budget",
+    "channels",
+    "compliance"
+  ],
+  "properties": {
+    "assessment_version": {
+      "type": "string",
+      "description": "Schema version for forward compatibility",
+      "const": "3.0"
+    },
+    "assessment_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the assessment was completed (ISO 8601)"
+    },
+    "consultant_id": {
+      "type": "string",
+      "description": "Amenthyx consultant who conducted the intake session"
+    },
+    "client_profile": {
+      "type": "object",
+      "description": "Section 1: Client identity, industry, and technical profile",
+      "required": [
+        "company_name",
+        "contact_name",
+        "industry",
+        "company_size",
+        "tech_savvy",
+        "primary_devices"
+      ],
+      "properties": {
+        "company_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Legal or trading name of the client's company"
+        },
+        "contact_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Primary contact person for the deployment"
+        },
+        "contact_email": {
+          "type": "string",
+          "format": "email",
+          "description": "Primary contact email"
+        },
+        "industry": {
+          "type": "string",
+          "enum": [
+            "real-estate",
+            "e-commerce",
+            "healthcare",
+            "legal",
+            "finance",
+            "technology",
+            "education",
+            "manufacturing",
+            "retail",
+            "hospitality",
+            "agriculture",
+            "energy",
+            "telecommunications",
+            "government",
+            "nonprofit",
+            "automotive",
+            "insurance",
+            "logistics",
+            "food-service",
+            "entertainment",
+            "cybersecurity",
+            "consulting",
+            "media",
+            "fitness",
+            "other"
+          ],
+          "description": "Client's primary industry vertical"
+        },
+        "industry_other": {
+          "type": "string",
+          "description": "Free-text industry if 'other' is selected"
+        },
+        "company_size": {
+          "type": "string",
+          "enum": ["solo", "2-10", "11-50", "51-200", "201-1000", "1000+"],
+          "description": "Number of employees"
+        },
+        "tech_savvy": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Technical sophistication (1=non-technical, 5=developer/sysadmin)"
+        },
+        "primary_devices": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["desktop", "laptop", "mobile", "tablet", "raspberry-pi", "server", "iot-device"]
+          },
+          "minItems": 1,
+          "description": "Primary devices the agent will run on or be accessed from"
+        },
+        "operating_system": {
+          "type": "string",
+          "enum": ["linux", "macos", "windows", "android", "ios", "embedded", "any"],
+          "description": "Primary OS for the agent host"
+        },
+        "service_package": {
+          "type": "string",
+          "enum": ["private", "enterprise", "managed", "ongoing"],
+          "description": "Amenthyx service package tier"
+        }
+      },
+      "additionalProperties": false
+    },
+    "use_cases": {
+      "type": "object",
+      "description": "Section 2: Selected use cases organized by category (8 categories, 60+ options)",
+      "required": ["primary_use_cases"],
+      "properties": {
+        "primary_use_cases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "customer-support",
+              "real-estate",
+              "e-commerce",
+              "healthcare",
+              "legal",
+              "personal-finance",
+              "code-review",
+              "email-management",
+              "calendar-scheduling",
+              "meeting-summarization",
+              "sales-crm",
+              "hr-recruitment",
+              "it-helpdesk",
+              "content-writing",
+              "social-media",
+              "translation-multilingual",
+              "education-tutoring",
+              "research-summarization",
+              "data-analysis",
+              "project-management",
+              "accounting-bookkeeping",
+              "insurance-claims",
+              "travel-hospitality",
+              "food-restaurant",
+              "fitness-wellness",
+              "automotive-vehicle",
+              "supply-chain-logistics",
+              "manufacturing-qa",
+              "agriculture-farming",
+              "energy-utilities",
+              "telecommunications",
+              "government-public-services",
+              "nonprofit-fundraising",
+              "event-planning",
+              "cybersecurity-threat-intel",
+              "devops-infrastructure",
+              "api-integration-webhooks",
+              "database-administration",
+              "iot-smart-home",
+              "chatbot-conversational",
+              "document-processing",
+              "knowledge-base-faq",
+              "compliance-regulatory",
+              "onboarding-training",
+              "sentiment-analysis",
+              "creative-writing",
+              "music-entertainment",
+              "gaming-virtual-worlds",
+              "mental-health-counseling",
+              "personal-finance-budgeting"
+            ]
+          },
+          "minItems": 1,
+          "description": "Primary use cases from the 50 supported categories"
+        },
+        "secondary_use_cases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional or custom use cases not in the primary list"
+        },
+        "use_case_priority": {
+          "type": "string",
+          "enum": ["single-focus", "multi-task", "generalist"],
+          "description": "Whether the agent focuses on one use case or handles many"
+        },
+        "complexity_level": {
+          "type": "string",
+          "enum": ["simple", "moderate", "complex", "expert"],
+          "description": "Expected task complexity: simple Q&A vs multi-step workflows"
+        },
+        "domain_specific_requirements": {
+          "type": "string",
+          "description": "Free-text field for domain-specific needs not captured by checkboxes"
+        }
+      },
+      "additionalProperties": false
+    },
+    "communication_preferences": {
+      "type": "object",
+      "description": "Section 3: How the agent should communicate",
+      "required": ["languages", "tone"],
+      "properties": {
+        "languages": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z]{2}(-[A-Z]{2})?$"
+          },
+          "minItems": 1,
+          "description": "ISO 639-1 language codes (e.g., 'en', 'de', 'es', 'pt-BR')"
+        },
+        "primary_language": {
+          "type": "string",
+          "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
+          "description": "Primary language for responses"
+        },
+        "tone": {
+          "type": "string",
+          "enum": ["formal", "professional", "casual", "friendly", "technical", "empathetic"],
+          "description": "Desired communication tone"
+        },
+        "verbosity": {
+          "type": "string",
+          "enum": ["concise", "balanced", "detailed", "verbose"],
+          "description": "How detailed responses should be"
+        },
+        "persona_name": {
+          "type": "string",
+          "description": "Custom name for the agent persona (e.g., 'Sara', 'Alex')"
+        },
+        "persona_description": {
+          "type": "string",
+          "description": "Free-text description of the desired agent personality"
+        },
+        "greeting_message": {
+          "type": "string",
+          "description": "Custom greeting when users first interact with the agent"
+        },
+        "response_format_preferences": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["plain-text", "markdown", "html", "bullet-points", "numbered-lists", "tables"]
+          },
+          "description": "Preferred response formatting"
+        }
+      },
+      "additionalProperties": false
+    },
+    "data_privacy": {
+      "type": "object",
+      "description": "Section 4: Data sensitivity, storage preferences, and privacy requirements",
+      "required": ["sensitivity", "storage_preference"],
+      "properties": {
+        "sensitivity": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"],
+          "description": "Data sensitivity level: low=public data, critical=PII/PHI/financial"
+        },
+        "storage_preference": {
+          "type": "string",
+          "enum": ["local-only", "private-cloud", "any-cloud"],
+          "description": "Where data may be stored"
+        },
+        "data_retention_days": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3650,
+          "description": "How long conversation/data is retained (0=no retention)"
+        },
+        "encryption_required": {
+          "type": "boolean",
+          "description": "Whether at-rest encryption is required"
+        },
+        "audit_logging_required": {
+          "type": "boolean",
+          "description": "Whether all agent actions must be audit-logged"
+        },
+        "pii_handling": {
+          "type": "string",
+          "enum": ["none", "anonymize", "encrypt", "no-store"],
+          "description": "How PII should be handled in conversations"
+        },
+        "data_residency": {
+          "type": "string",
+          "description": "Geographic region where data must stay (e.g., 'EU', 'US', 'any')"
+        }
+      },
+      "additionalProperties": false
+    },
+    "performance_scale": {
+      "type": "object",
+      "description": "Section 5: Expected load, response time, and availability requirements",
+      "required": ["daily_requests", "response_time_target"],
+      "properties": {
+        "daily_requests": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Expected number of agent interactions per day"
+        },
+        "peak_concurrent_users": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum simultaneous users at peak"
+        },
+        "response_time_target": {
+          "type": "string",
+          "enum": ["instant", "fast", "moderate", "relaxed"],
+          "description": "instant=<2s, fast=<5s, moderate=<15s, relaxed=<60s"
+        },
+        "availability_target": {
+          "type": "string",
+          "enum": ["best-effort", "business-hours", "24-7"],
+          "description": "Availability requirement"
+        },
+        "max_context_length": {
+          "type": "string",
+          "enum": ["short", "medium", "long", "maximum"],
+          "description": "short=4K, medium=32K, long=128K, maximum=1M+ tokens"
+        }
+      },
+      "additionalProperties": false
+    },
+    "budget": {
+      "type": "object",
+      "description": "Section 6: Monthly API budget and infrastructure cost tolerance",
+      "required": ["monthly_api_budget"],
+      "properties": {
+        "monthly_api_budget": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum monthly spend on LLM API calls in USD"
+        },
+        "infrastructure_budget": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Monthly infrastructure/hosting budget in USD"
+        },
+        "one_time_setup_budget": {
+          "type": "number",
+          "minimum": 0,
+          "description": "One-time setup budget (fine-tuning compute, etc.) in USD"
+        },
+        "cost_optimization_priority": {
+          "type": "string",
+          "enum": ["minimize-cost", "balance", "maximize-quality"],
+          "description": "Trade-off preference between cost and quality"
+        },
+        "fine_tuning_budget": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Budget allocated specifically for LoRA/QLoRA training runs"
+        }
+      },
+      "additionalProperties": false
+    },
+    "channels": {
+      "type": "object",
+      "description": "Section 7: Communication channels the agent should be accessible on",
+      "required": ["primary_channel"],
+      "properties": {
+        "primary_channel": {
+          "type": "string",
+          "enum": [
+            "telegram",
+            "whatsapp",
+            "discord",
+            "slack",
+            "web-chat",
+            "email",
+            "sms",
+            "api-only",
+            "cli"
+          ],
+          "description": "Main channel for agent interaction"
+        },
+        "secondary_channels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "telegram",
+              "whatsapp",
+              "discord",
+              "slack",
+              "web-chat",
+              "email",
+              "sms",
+              "api-only",
+              "cli"
+            ]
+          },
+          "description": "Additional channels"
+        },
+        "channel_specific_config": {
+          "type": "object",
+          "description": "Per-channel configuration overrides",
+          "properties": {
+            "telegram": {
+              "type": "object",
+              "properties": {
+                "bot_name": { "type": "string" },
+                "group_mode": { "type": "boolean" }
+              }
+            },
+            "whatsapp": {
+              "type": "object",
+              "properties": {
+                "business_account": { "type": "boolean" },
+                "phone_number": { "type": "string" }
+              }
+            },
+            "discord": {
+              "type": "object",
+              "properties": {
+                "server_id": { "type": "string" },
+                "allowed_channels": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            },
+            "slack": {
+              "type": "object",
+              "properties": {
+                "workspace_name": { "type": "string" },
+                "allowed_channels": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "compliance": {
+      "type": "object",
+      "description": "Section 8: Regulatory and compliance requirements",
+      "required": ["regulations"],
+      "properties": {
+        "regulations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["none", "gdpr", "hipaa", "soc2", "pci-dss", "ccpa", "ferpa", "iso27001"]
+          },
+          "description": "Applicable regulatory frameworks"
+        },
+        "data_processing_agreement_required": {
+          "type": "boolean",
+          "description": "Whether a DPA is needed between Amenthyx and the client"
+        },
+        "right_to_deletion": {
+          "type": "boolean",
+          "description": "Whether users can request deletion of their data from the agent"
+        },
+        "consent_management": {
+          "type": "boolean",
+          "description": "Whether the agent must obtain user consent before processing"
+        },
+        "audit_trail_required": {
+          "type": "boolean",
+          "description": "Whether a full audit trail of agent actions is needed"
+        },
+        "custom_compliance_notes": {
+          "type": "string",
+          "description": "Free-text field for industry-specific compliance requirements"
+        }
+      },
+      "additionalProperties": false
+    },
+    "fine_tuning": {
+      "type": "object",
+      "description": "Optional: Fine-tuning preferences for LoRA/QLoRA adapter creation",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether to trigger fine-tuning as part of deployment"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["lora", "qlora", "prompt-only"],
+          "description": "Fine-tuning method: lora (full precision), qlora (4-bit), prompt-only (no training)"
+        },
+        "base_model": {
+          "type": "string",
+          "description": "HuggingFace model ID for the base model (e.g., 'mistralai/Mistral-7B-v0.3')"
+        },
+        "use_pre_built_adapter": {
+          "type": "boolean",
+          "description": "Whether to use a pre-built adapter from finetune/adapters/ instead of training"
+        },
+        "adapter_use_case": {
+          "type": "string",
+          "description": "Use case ID for pre-built adapter (e.g., '02-real-estate')"
+        },
+        "custom_training_data_path": {
+          "type": "string",
+          "description": "Path to client-provided training data (optional)"
+        },
+        "lora_rank": {
+          "type": "integer",
+          "enum": [8, 16, 32, 64],
+          "description": "LoRA rank — higher = more capacity, more VRAM"
+        },
+        "training_epochs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Number of training epochs"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

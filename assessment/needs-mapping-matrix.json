@@ -1,0 +1,419 @@
+{
+  "$schema": "https://github.com/Amenthyx/claw-agents-provisioner/needs-mapping-matrix.json",
+  "version": "3.0",
+  "description": "Maps client needs (from assessment) to platform, LLM model, skills, and compliance configuration. Used by resolve.py for weighted scoring.",
+  "mappings": [
+    {
+      "id": "basic-personal-assistant",
+      "name": "Basic Personal Assistant",
+      "match_criteria": {
+        "use_cases": ["calendar-scheduling", "email-management"],
+        "complexity_level": ["simple", "moderate"],
+        "budget_range": [0, 10],
+        "sensitivity": ["low", "medium"],
+        "device_affinity": ["desktop", "laptop", "mobile"]
+      },
+      "resolution": {
+        "platform": "picoclaw",
+        "llm_provider": "deepseek",
+        "llm_model": "deepseek-chat",
+        "skills": ["calendar", "email", "web-search"],
+        "monthly_api_cost_estimate": [0, 5],
+        "compliance_flags": [],
+        "vram_requirement": null,
+        "recommended_adapter": "09-calendar-scheduling"
+      },
+      "weight": 1.0,
+      "description": "Budget-friendly personal assistant for basic scheduling and email tasks"
+    },
+    {
+      "id": "whatsapp-business-bot",
+      "name": "WhatsApp Business Bot",
+      "match_criteria": {
+        "use_cases": ["customer-support", "real-estate", "e-commerce", "sales-crm"],
+        "complexity_level": ["moderate", "complex"],
+        "budget_range": [25, 100],
+        "sensitivity": ["medium"],
+        "primary_channel": "whatsapp",
+        "device_affinity": ["server", "desktop"]
+      },
+      "resolution": {
+        "platform": "openclaw",
+        "llm_provider": "anthropic",
+        "llm_model": "claude-sonnet-4-6",
+        "skills": ["whatsapp-business", "crm-sync", "auto-reply", "lead-qualifier"],
+        "monthly_api_cost_estimate": [25, 50],
+        "compliance_flags": [],
+        "vram_requirement": null,
+        "recommended_adapter": "02-real-estate"
+      },
+      "weight": 1.2,
+      "description": "WhatsApp-based business assistant for customer-facing use cases"
+    },
+    {
+      "id": "secure-document-processing",
+      "name": "Secure Document Processing",
+      "match_criteria": {
+        "use_cases": ["document-processing", "legal", "compliance-regulatory"],
+        "complexity_level": ["complex", "expert"],
+        "budget_range": [50, 200],
+        "sensitivity": ["high", "critical"],
+        "storage_preference": ["local-only", "private-cloud"]
+      },
+      "resolution": {
+        "platform": "nanoclaw",
+        "llm_provider": "anthropic",
+        "llm_model": "claude-opus-4-6",
+        "skills": ["document-parser", "summarizer", "file-manager", "redactor"],
+        "monthly_api_cost_estimate": [50, 100],
+        "compliance_flags": ["encryption", "audit-logging", "container-isolation"],
+        "vram_requirement": null,
+        "recommended_adapter": "05-legal"
+      },
+      "weight": 1.5,
+      "description": "High-security document processing with container isolation"
+    },
+    {
+      "id": "developer-workflow",
+      "name": "Developer Workflow Automation",
+      "match_criteria": {
+        "use_cases": ["code-review", "devops-infrastructure", "api-integration-webhooks"],
+        "complexity_level": ["complex", "expert"],
+        "budget_range": [25, 150],
+        "sensitivity": ["medium", "high"],
+        "device_affinity": ["server", "desktop", "laptop"]
+      },
+      "resolution": {
+        "platform": "nanoclaw",
+        "llm_provider": "anthropic",
+        "llm_model": "claude-sonnet-4-6",
+        "skills": ["git-manager", "code-review", "ci-cd-monitor", "terminal"],
+        "monthly_api_cost_estimate": [25, 75],
+        "compliance_flags": ["container-isolation"],
+        "vram_requirement": null,
+        "recommended_adapter": "07-code-review"
+      },
+      "weight": 1.3,
+      "description": "Developer-focused agent for code review, CI/CD, and Git workflows"
+    },
+    {
+      "id": "smart-home-iot",
+      "name": "Smart Home & IoT Control",
+      "match_criteria": {
+        "use_cases": ["iot-smart-home"],
+        "complexity_level": ["simple", "moderate"],
+        "budget_range": [0, 10],
+        "sensitivity": ["low"],
+        "device_affinity": ["raspberry-pi", "iot-device"]
+      },
+      "resolution": {
+        "platform": "picoclaw",
+        "llm_provider": "deepseek",
+        "llm_model": "deepseek-chat",
+        "skills": ["hue-control", "thermostat", "routine-manager", "sensor-monitor"],
+        "monthly_api_cost_estimate": [0, 5],
+        "compliance_flags": [],
+        "vram_requirement": null,
+        "recommended_adapter": "39-iot-smart-home"
+      },
+      "weight": 1.0,
+      "description": "Lightweight IoT agent for Raspberry Pi and smart home devices"
+    },
+    {
+      "id": "marketing-content",
+      "name": "Marketing Content Creation",
+      "match_criteria": {
+        "use_cases": ["content-writing", "social-media", "creative-writing"],
+        "complexity_level": ["moderate", "complex"],
+        "budget_range": [50, 300],
+        "sensitivity": ["low", "medium"]
+      },
+      "resolution": {
+        "platform": "openclaw",
+        "llm_provider": "anthropic",
+        "llm_model": "claude-opus-4-6",
+        "skills": ["content-writer", "image-gen", "social-scheduler", "seo-optimizer"],
+        "monthly_api_cost_estimate": [100, 200],
+        "compliance_flags": [],
+        "vram_requirement": null,
+        "recommended_adapter": "14-content-writing"
+      },
+      "weight": 1.1,
+      "description": "Creative marketing assistant for content and social media management"
+    },
+    {
+      "id": "legal-document-review",
+      "name": "Legal Document Review",
+      "match_criteria": {
+        "use_cases": ["legal", "compliance-regulatory"],
+        "complexity_level": ["expert"],
+        "budget_range": [100, 500],
+        "sensitivity": ["high", "critical"],
+        "regulations": ["gdpr", "soc2"]
+      },
+      "resolution": {
+        "platform": "nanoclaw",
+        "llm_provider": "anthropic",
+        "llm_model": "claude-opus-4-6",
+        "skills": ["legal-parser", "compliance-check", "redactor", "contract-analyzer"],
+        "monthly_api_cost_estimate": [100, 200],
+        "compliance_flags": ["encryption", "audit-logging", "container-isolation", "gdpr"],
+        "vram_requirement": null,
+        "recommended_adapter": "05-legal"
+      },
+      "weight": 1.6,
+      "description": "Enterprise-grade legal agent with full compliance controls"
+    },
+    {
+      "id": "budget-rpi-assistant",
+      "name": "Budget Personal AI on Raspberry Pi",
+      "match_criteria": {
+        "use_cases": ["customer-support", "chatbot-conversational", "knowledge-base-faq"],
+        "complexity_level": ["simple"],
+        "budget_range": [0, 0],
+        "sensitivity": ["low"],
+        "device_affinity": ["raspberry-pi"]
+      },
+      "resolution": {
+        "platform": "picoclaw",
+        "llm_provider": "deepseek",
+        "llm_model": "deepseek-chat",
+        "skills": ["basic-assistant", "web-search", "reminder"],
+        "monthly_api_cost_estimate": [0, 0],
+        "compliance_flags": [],
+        "vram_requirement": null,
+        "recommended_adapter": "42-knowledge-base-faq"
+      },
+      "weight": 0.8,
+      "description": "Zero-cost AI assistant for Raspberry Pi with DeepSeek free tier"
+    },
+    {
+      "id": "multi-agent-research",
+      "name": "Multi-Agent Research Team",
+      "match_criteria": {
+        "use_cases": ["research-summarization", "data-analysis"],
+        "complexity_level": ["expert"],
+        "budget_range": [200, 1000],
+        "sensitivity": ["medium", "high"]
+      },
+      "resolution": {
+        "platform": "openclaw",
+        "llm_provider": "anthropic",
+        "llm_model": "claude-opus-4-6",
+        "skills": ["agent-swarm", "research-coordinator", "report-compiler", "web-search"],
+        "monthly_api_cost_estimate": [200, 500],
+        "compliance_flags": ["audit-logging"],
+        "vram_requirement": null,
+        "recommended_adapter": "18-research-summarization",
+        "multi_agent": true,
+        "secondary_platform": "nanoclaw"
+      },
+      "weight": 1.8,
+      "description": "Multi-agent research team combining OpenClaw orchestration with NanoClaw workers"
+    },
+    {
+      "id": "healthcare-triage",
+      "name": "Healthcare Triage & Patient Support",
+      "match_criteria": {
+        "use_cases": ["healthcare"],
+        "complexity_level": ["complex", "expert"],
+        "budget_range": [50, 300],
+        "sensitivity": ["critical"],
+        "regulations": ["hipaa"]
+      },
+      "resolution": {
+        "platform": "nanoclaw",
+        "llm_provider": "anthropic",
+        "llm_model": "claude-opus-4-6",
+        "skills": ["medical-qa", "symptom-checker", "appointment-scheduler", "patient-intake"],
+        "monthly_api_cost_estimate": [75, 200],
+        "compliance_flags": ["hipaa", "encryption", "audit-logging", "container-isolation", "no-store-pii"],
+        "vram_requirement": null,
+        "recommended_adapter": "04-healthcare"
+      },
+      "weight": 1.7,
+      "description": "HIPAA-compliant healthcare assistant with container isolation"
+    },
+    {
+      "id": "ecommerce-assistant",
+      "name": "E-Commerce Sales Assistant",
+      "match_criteria": {
+        "use_cases": ["e-commerce", "sales-crm", "customer-support"],
+        "complexity_level": ["moderate", "complex"],
+        "budget_range": [20, 100],
+        "sensitivity": ["medium"]
+      },
+      "resolution": {
+        "platform": "openclaw",
+        "llm_provider": "anthropic",
+        "llm_model": "claude-sonnet-4-6",
+        "skills": ["product-search", "order-tracker", "recommendation-engine", "crm-sync"],
+        "monthly_api_cost_estimate": [30, 75],
+        "compliance_flags": [],
+        "vram_requirement": null,
+        "recommended_adapter": "03-e-commerce"
+      },
+      "weight": 1.2,
+      "description": "E-commerce assistant handling product queries, orders, and CRM"
+    },
+    {
+      "id": "hr-recruitment-agent",
+      "name": "HR & Recruitment Assistant",
+      "match_criteria": {
+        "use_cases": ["hr-recruitment", "onboarding-training"],
+        "complexity_level": ["moderate", "complex"],
+        "budget_range": [25, 100],
+        "sensitivity": ["medium", "high"]
+      },
+      "resolution": {
+        "platform": "openclaw",
+        "llm_provider": "anthropic",
+        "llm_model": "claude-sonnet-4-6",
+        "skills": ["resume-parser", "interview-scheduler", "candidate-scorer", "onboarding-guide"],
+        "monthly_api_cost_estimate": [30, 60],
+        "compliance_flags": ["gdpr", "pii-handling"],
+        "vram_requirement": null,
+        "recommended_adapter": "12-hr-recruitment"
+      },
+      "weight": 1.2,
+      "description": "HR agent for recruitment pipeline and employee onboarding"
+    },
+    {
+      "id": "financial-advisor",
+      "name": "Personal Finance & Investment Advisor",
+      "match_criteria": {
+        "use_cases": ["personal-finance", "personal-finance-budgeting", "accounting-bookkeeping"],
+        "complexity_level": ["complex", "expert"],
+        "budget_range": [25, 150],
+        "sensitivity": ["high", "critical"]
+      },
+      "resolution": {
+        "platform": "zeroclaw",
+        "llm_provider": "anthropic",
+        "llm_model": "claude-sonnet-4-6",
+        "skills": ["budget-tracker", "investment-analyzer", "tax-calculator", "expense-categorizer"],
+        "monthly_api_cost_estimate": [30, 80],
+        "compliance_flags": ["encryption", "pci-dss"],
+        "vram_requirement": null,
+        "recommended_adapter": "06-personal-finance"
+      },
+      "weight": 1.4,
+      "description": "Encrypted financial assistant using ZeroClaw's security features"
+    },
+    {
+      "id": "education-tutoring",
+      "name": "Education & Tutoring Platform",
+      "match_criteria": {
+        "use_cases": ["education-tutoring", "knowledge-base-faq"],
+        "complexity_level": ["moderate", "complex"],
+        "budget_range": [10, 75],
+        "sensitivity": ["low", "medium"],
+        "regulations": ["ferpa"]
+      },
+      "resolution": {
+        "platform": "openclaw",
+        "llm_provider": "openai",
+        "llm_model": "gpt-4.1",
+        "skills": ["quiz-generator", "explanation-engine", "progress-tracker", "curriculum-mapper"],
+        "monthly_api_cost_estimate": [15, 50],
+        "compliance_flags": ["ferpa"],
+        "vram_requirement": null,
+        "recommended_adapter": "17-education-tutoring"
+      },
+      "weight": 1.1,
+      "description": "FERPA-aware educational assistant with long context for study materials"
+    },
+    {
+      "id": "cybersecurity-soc",
+      "name": "Cybersecurity SOC & Threat Intelligence",
+      "match_criteria": {
+        "use_cases": ["cybersecurity-threat-intel", "it-helpdesk"],
+        "complexity_level": ["expert"],
+        "budget_range": [50, 300],
+        "sensitivity": ["critical"],
+        "regulations": ["soc2", "iso27001"]
+      },
+      "resolution": {
+        "platform": "zeroclaw",
+        "llm_provider": "anthropic",
+        "llm_model": "claude-opus-4-6",
+        "skills": ["threat-detector", "cve-lookup", "incident-responder", "log-analyzer"],
+        "monthly_api_cost_estimate": [75, 200],
+        "compliance_flags": ["soc2", "iso27001", "encryption", "audit-logging"],
+        "vram_requirement": null,
+        "recommended_adapter": "35-cybersecurity-threat-intel"
+      },
+      "weight": 1.6,
+      "description": "High-security cybersecurity agent using ZeroClaw's encrypted config"
+    }
+  ],
+  "platform_scores": {
+    "description": "Base scoring weights for platform selection factors",
+    "security": {
+      "nanoclaw": 9,
+      "zeroclaw": 8,
+      "picoclaw": 8,
+      "openclaw": 6
+    },
+    "integrations": {
+      "openclaw": 10,
+      "nanoclaw": 7,
+      "zeroclaw": 8,
+      "picoclaw": 5
+    },
+    "resource_efficiency": {
+      "picoclaw": 10,
+      "zeroclaw": 9,
+      "nanoclaw": 7,
+      "openclaw": 4
+    },
+    "ease_of_setup": {
+      "picoclaw": 9,
+      "zeroclaw": 8,
+      "openclaw": 7,
+      "nanoclaw": 5
+    }
+  },
+  "llm_models": {
+    "deepseek-chat": {
+      "provider": "deepseek",
+      "cost_per_million_input": 0.14,
+      "cost_per_million_output": 0.28,
+      "context_window": 128000,
+      "quality_tier": "good",
+      "budget_tier": "free"
+    },
+    "claude-sonnet-4-6": {
+      "provider": "anthropic",
+      "cost_per_million_input": 3.0,
+      "cost_per_million_output": 15.0,
+      "context_window": 200000,
+      "quality_tier": "excellent",
+      "budget_tier": "moderate"
+    },
+    "claude-opus-4-6": {
+      "provider": "anthropic",
+      "cost_per_million_input": 15.0,
+      "cost_per_million_output": 75.0,
+      "context_window": 200000,
+      "quality_tier": "best",
+      "budget_tier": "premium"
+    },
+    "gpt-4.1": {
+      "provider": "openai",
+      "cost_per_million_input": 2.0,
+      "cost_per_million_output": 8.0,
+      "context_window": 1000000,
+      "quality_tier": "excellent",
+      "budget_tier": "moderate"
+    },
+    "grok-4.1": {
+      "provider": "xai",
+      "cost_per_million_input": 3.0,
+      "cost_per_million_output": 15.0,
+      "context_window": 2000000,
+      "quality_tier": "excellent",
+      "budget_tier": "moderate"
+    }
+  }
+}

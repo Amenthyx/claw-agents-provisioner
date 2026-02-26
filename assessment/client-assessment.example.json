@@ -1,0 +1,94 @@
+{
+  "assessment_version": "3.0",
+  "assessment_date": "2026-02-26",
+  "consultant_id": "marco-amenthyx",
+  "client_profile": {
+    "company_name": "Lucia Immobiliare S.r.l.",
+    "contact_name": "Lucia Rossi",
+    "contact_email": "lucia@luciaimmobiliare.it",
+    "industry": "real-estate",
+    "company_size": "2-10",
+    "tech_savvy": 2,
+    "primary_devices": ["mobile", "desktop"],
+    "operating_system": "any",
+    "service_package": "private"
+  },
+  "use_cases": {
+    "primary_use_cases": [
+      "real-estate",
+      "customer-support",
+      "sales-crm"
+    ],
+    "secondary_use_cases": [
+      "property-matching",
+      "lead-followup"
+    ],
+    "use_case_priority": "multi-task",
+    "complexity_level": "moderate",
+    "domain_specific_requirements": "Must handle property listings with prices in EUR, location in Milan and surroundings. Should auto-qualify leads based on budget and property type. Must respond in Italian by default but handle English-speaking clients."
+  },
+  "communication_preferences": {
+    "languages": ["it", "en"],
+    "primary_language": "it",
+    "tone": "friendly",
+    "verbosity": "balanced",
+    "persona_name": "Sara",
+    "persona_description": "Sara is a warm, knowledgeable real estate assistant who helps potential buyers and tenants find their perfect property in Milan. She speaks Italian natively and English fluently.",
+    "greeting_message": "Ciao! Sono Sara, la tua assistente immobiliare. Come posso aiutarti oggi?",
+    "response_format_preferences": ["plain-text", "bullet-points"]
+  },
+  "data_privacy": {
+    "sensitivity": "medium",
+    "storage_preference": "private-cloud",
+    "data_retention_days": 365,
+    "encryption_required": false,
+    "audit_logging_required": false,
+    "pii_handling": "encrypt",
+    "data_residency": "EU"
+  },
+  "performance_scale": {
+    "daily_requests": 150,
+    "peak_concurrent_users": 10,
+    "response_time_target": "fast",
+    "availability_target": "business-hours",
+    "max_context_length": "medium"
+  },
+  "budget": {
+    "monthly_api_budget": 35,
+    "infrastructure_budget": 0,
+    "one_time_setup_budget": 1000,
+    "cost_optimization_priority": "balance",
+    "fine_tuning_budget": 15
+  },
+  "channels": {
+    "primary_channel": "whatsapp",
+    "secondary_channels": ["telegram", "web-chat"],
+    "channel_specific_config": {
+      "whatsapp": {
+        "business_account": true,
+        "phone_number": "+39-02-XXXXXXXX"
+      },
+      "telegram": {
+        "bot_name": "SaraImmobiliareBot",
+        "group_mode": false
+      }
+    }
+  },
+  "compliance": {
+    "regulations": ["gdpr"],
+    "data_processing_agreement_required": true,
+    "right_to_deletion": true,
+    "consent_management": true,
+    "audit_trail_required": false,
+    "custom_compliance_notes": "All personal data must be stored within EU data centers. Client communications must be deletable upon request per GDPR Article 17."
+  },
+  "fine_tuning": {
+    "enabled": true,
+    "method": "qlora",
+    "base_model": "mistralai/Mistral-7B-v0.3",
+    "use_pre_built_adapter": false,
+    "adapter_use_case": "02-real-estate",
+    "lora_rank": 32,
+    "training_epochs": 3
+  }
+}
