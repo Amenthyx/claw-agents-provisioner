@@ -1,0 +1,21 @@
+{
+  "use_case_id": "18-research-summarization",
+  "use_case_name": "Research & Summarization",
+  "source_url": "https://huggingface.co/datasets/scientific_papers",
+  "source_name": "Scientific Papers",
+  "license": "CC-BY-4.0",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "research",
+    "academic",
+    "paper-summarization"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

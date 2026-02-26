@@ -1,0 +1,21 @@
+{
+  "use_case_id": "23-travel-hospitality",
+  "use_case_name": "Travel & Hospitality",
+  "source_url": "https://huggingface.co/datasets/nampdn-ai/travel-qa",
+  "source_name": "Travel Q&A Dataset",
+  "license": "CC-BY-4.0",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "travel",
+    "booking",
+    "hospitality"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

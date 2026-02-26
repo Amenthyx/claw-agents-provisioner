@@ -1,0 +1,21 @@
+{
+  "use_case_id": "49-mental-health-counseling",
+  "use_case_name": "Mental Health & Counseling",
+  "source_url": "https://huggingface.co/datasets/nbertagnolli/counsel-chat",
+  "source_name": "Counsel Chat Dataset",
+  "license": "CC-BY-4.0",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "mental-health",
+    "counseling",
+    "wellness"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

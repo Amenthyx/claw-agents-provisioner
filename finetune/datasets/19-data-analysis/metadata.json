@@ -1,0 +1,21 @@
+{
+  "use_case_id": "19-data-analysis",
+  "use_case_name": "Data Analysis & Reporting",
+  "source_url": "https://huggingface.co/datasets/wikisql",
+  "source_name": "WikiSQL Dataset",
+  "license": "CC-BY-SA-4.0",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "data-analysis",
+    "SQL",
+    "reporting"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

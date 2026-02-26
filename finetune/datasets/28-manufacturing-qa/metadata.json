@@ -1,0 +1,21 @@
+{
+  "use_case_id": "28-manufacturing-qa",
+  "use_case_name": "Manufacturing & QA",
+  "source_url": "https://github.com/Amenthyx/claw-agents-provisioner",
+  "source_name": "Synthetic Manufacturing Dataset",
+  "license": "MIT",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "manufacturing",
+    "quality-control",
+    "process"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

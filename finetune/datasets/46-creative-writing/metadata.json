@@ -1,0 +1,21 @@
+{
+  "use_case_id": "46-creative-writing",
+  "use_case_name": "Creative Writing & Storytelling",
+  "source_url": "https://huggingface.co/datasets/euclaise/writingprompts",
+  "source_name": "WritingPrompts",
+  "license": "CC-BY-4.0",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "creative-writing",
+    "storytelling",
+    "fiction"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

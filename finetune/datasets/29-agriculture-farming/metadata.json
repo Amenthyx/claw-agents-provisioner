@@ -1,0 +1,21 @@
+{
+  "use_case_id": "29-agriculture-farming",
+  "use_case_name": "Agriculture & Farming",
+  "source_url": "https://github.com/Amenthyx/claw-agents-provisioner",
+  "source_name": "Synthetic Agriculture Dataset",
+  "license": "MIT",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "agriculture",
+    "farming",
+    "crop-management"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

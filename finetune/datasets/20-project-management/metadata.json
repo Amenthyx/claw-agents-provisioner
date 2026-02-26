@@ -1,0 +1,21 @@
+{
+  "use_case_id": "20-project-management",
+  "use_case_name": "Project Management",
+  "source_url": "https://github.com/Amenthyx/claw-agents-provisioner",
+  "source_name": "Synthetic PM Dataset",
+  "license": "MIT",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "project-management",
+    "agile",
+    "task-tracking"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

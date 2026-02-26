@@ -1,0 +1,21 @@
+{
+  "use_case_id": "35-cybersecurity-threat-intel",
+  "use_case_name": "Cybersecurity & Threat Intel",
+  "source_url": "https://huggingface.co/datasets/CyberNative/CyberSecurityQA",
+  "source_name": "CyberSecurity QA",
+  "license": "CC-BY-4.0",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "cybersecurity",
+    "threats",
+    "incident-response"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

@@ -1,0 +1,21 @@
+{
+  "use_case_id": "21-accounting-bookkeeping",
+  "use_case_name": "Accounting & Bookkeeping",
+  "source_url": "https://github.com/Amenthyx/claw-agents-provisioner",
+  "source_name": "Synthetic Accounting Dataset",
+  "license": "MIT",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "accounting",
+    "bookkeeping",
+    "tax"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}
