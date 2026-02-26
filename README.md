@@ -1636,25 +1636,9 @@ A config-driven optimization layer between agents and LLM APIs. Implements 14 ru
 
 ## Ecosystem Diagram
 
+> **Open [`ecosystem-diagram.drawio`](ecosystem-diagram.drawio) in [draw.io](https://app.diagrams.net) for the full interactive diagram (700 x 1300 px, colored, zoomable).**
+
 ```mermaid
----
-config:
-  theme: base
-  themeVariables:
-    fontSize: 16px
-    primaryColor: "#4A90D9"
-    primaryTextColor: "#ffffff"
-    primaryBorderColor: "#2E6BA6"
-    lineColor: "#5C6BC0"
-    secondaryColor: "#7E57C2"
-    tertiaryColor: "#26A69A"
-  flowchart:
-    rankSpacing: 80
-    nodeSpacing: 40
-    padding: 20
-    htmlLabels: true
-    curve: basis
----
 flowchart TD
 
     %% ── CLIENT INTAKE ──────────────────────────────────
