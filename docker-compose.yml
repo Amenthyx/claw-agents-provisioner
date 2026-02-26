@@ -1,13 +1,53 @@
 # =============================================================================
 # Claw Agents Provisioner — Unified Docker Compose
 # =============================================================================
-# Usage:
+#
+# SINGLE INSTANCE (default):
 #   docker compose --profile zeroclaw up -d
 #   docker compose --profile nanoclaw up -d
 #   docker compose --profile picoclaw up -d
 #   docker compose --profile openclaw up -d
-#   docker compose --profile zeroclaw --profile picoclaw up -d  # multi-agent
-#   docker compose --profile finetune run finetune              # GPU fine-tuning
+#   docker compose --profile zeroclaw --profile picoclaw up -d    # multi-agent
+#
+# MULTIPLE NAMED INSTANCES (each gets unique containers, volumes, networks):
+#
+#   # Instance 1: Lucia (real estate agent on OpenClaw, port 3401)
+#   CLAW_OPENCLAW_PORT=3401 docker compose -p lucia --profile openclaw up -d
+#
+#   # Instance 2: Priya (IoT monitor on PicoClaw, port 3301)
+#   CLAW_PICOCLAW_PORT=3301 docker compose -p priya --profile picoclaw up -d
+#
+#   # Instance 3: Kai (DevSecOps on NanoClaw, port 3201)
+#   CLAW_NANOCLAW_PORT=3201 docker compose -p kai --profile nanoclaw up -d
+#
+#   # Instance 4: Another OpenClaw on a different port
+#   CLAW_OPENCLAW_PORT=3402 docker compose -p demo --profile openclaw up -d
+#
+# Each "-p <name>" creates fully isolated:
+#   - Containers:  <name>-openclaw-1, <name>-picoclaw-1, etc.
+#   - Volumes:     <name>_openclaw-data, <name>_picoclaw-data, etc.
+#   - Networks:    <name>_default
+#
+# Override host ports with CLAW_<AGENT>_PORT to avoid conflicts between instances.
+#
+# MANAGE INSTANCES:
+#   docker compose -p lucia ps              # status
+#   docker compose -p lucia logs -f         # follow logs
+#   docker compose -p lucia --profile openclaw down   # stop
+#   docker compose -p lucia --profile openclaw down -v  # stop + remove volumes
+#
+# PER-INSTANCE ENV FILES:
+#   To give each instance its own API keys / config, create separate .env files:
+#     cp .env .env.lucia    # edit with Lucia's keys
+#     docker compose -p lucia --env-file .env.lucia --profile openclaw up -d
+#
+# FINE-TUNING:
+#   docker compose --profile finetune run finetune
+#
+# LIST ALL RUNNING CLAW INSTANCES:
+#   docker ps --filter "label=com.docker.compose.project" --format \
+#     "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+#
 # =============================================================================
 
 services:
@@ -19,7 +59,6 @@ services:
     build:
       context: ./zeroclaw
       dockerfile: Dockerfile
-    container_name: claw-zeroclaw
     profiles:
       - zeroclaw
     env_file:
@@ -29,7 +68,7 @@ services:
       - ./zeroclaw/entrypoint.sh:/entrypoint.sh:ro
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     ports:
-      - "3100:3100"
+      - "${CLAW_ZEROCLAW_PORT:-3100}:3100"
     deploy:
       resources:
         limits:
@@ -53,7 +92,6 @@ services:
     build:
       context: ./nanoclaw
       dockerfile: Dockerfile
-    container_name: claw-nanoclaw
     profiles:
       - nanoclaw
     env_file:
@@ -64,7 +102,7 @@ services:
       - ./nanoclaw/entrypoint.sh:/entrypoint.sh:ro
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     ports:
-      - "3200:3200"
+      - "${CLAW_NANOCLAW_PORT:-3200}:3200"
     deploy:
       resources:
         limits:
@@ -87,7 +125,6 @@ services:
     build:
       context: ./picoclaw
       dockerfile: Dockerfile
-    container_name: claw-picoclaw
     profiles:
       - picoclaw
     env_file:
@@ -97,7 +134,7 @@ services:
       - ./picoclaw/entrypoint.sh:/entrypoint.sh:ro
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     ports:
-      - "3300:3300"
+      - "${CLAW_PICOCLAW_PORT:-3300}:3300"
     deploy:
       resources:
         limits:
@@ -120,7 +157,6 @@ services:
     build:
       context: ./openclaw
       dockerfile: Dockerfile
-    container_name: claw-openclaw
     profiles:
       - openclaw
     env_file:
@@ -130,7 +166,7 @@ services:
       - ./openclaw/entrypoint.sh:/entrypoint.sh:ro
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     ports:
-      - "3400:3400"
+      - "${CLAW_OPENCLAW_PORT:-3400}:3400"
     deploy:
       resources:
         limits:
@@ -153,7 +189,6 @@ services:
     build:
       context: ./finetune
       dockerfile: Dockerfile.finetune
-    container_name: claw-finetune
     profiles:
       - finetune
     env_file:
