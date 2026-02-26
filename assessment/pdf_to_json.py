@@ -19,6 +19,7 @@ import argparse
 import json
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 try:
@@ -390,6 +391,54 @@ def fields_to_json(fields: dict) -> dict:
     return result
 
 
+def detect_tier(fields: dict) -> str:
+    """Detect assessment tier from PDF fields.
+
+    Enterprise PDFs contain a ft_enabled checkbox field; Private PDFs do not.
+    """
+    return "enterprise" if "ft_enabled" in fields else "private"
+
+
+def apply_private_defaults(result: dict) -> dict:
+    """Apply sensible defaults for fields not present in Private tier PDFs.
+
+    Private forms omit technical fields (fine-tuning, PII handling, context
+    length, etc.).  This function fills them with safe defaults so the output
+    JSON validates against the full assessment schema.
+    """
+    # Meta
+    result.setdefault("assessment_date", date.today().isoformat())
+    result.setdefault("consultant_id", "auto")
+
+    # Client profile
+    cp = result.setdefault("client_profile", {})
+    cp.setdefault("service_package", "private")
+    cp.setdefault("tech_savvy", 3)
+    cp.setdefault("operating_system", "any")
+
+    # Communication
+    comm = result.setdefault("communication_preferences", {})
+    comm.setdefault("response_format_preferences", ["plain-text", "markdown"])
+
+    # Data privacy
+    dp = result.setdefault("data_privacy", {})
+    dp.setdefault("pii_handling", "encrypt")
+    dp.setdefault("data_retention_days", 365)
+    dp.setdefault("encryption_required", True)
+    if "audit_logging_required" not in dp:
+        dp["audit_logging_required"] = False
+
+    # Performance
+    ps = result.setdefault("performance_scale", {})
+    ps.setdefault("max_context_length", "medium")
+
+    # Fine-tuning
+    if "fine_tuning" not in result:
+        result["fine_tuning"] = {"enabled": False}
+
+    return result
+
+
 def validate_output(assessment: dict) -> list:
     """Run basic validation on the generated JSON."""
     errors = []
@@ -512,6 +561,12 @@ def main():
 
     # Convert to JSON
     assessment = fields_to_json(fields)
+
+    # Detect tier and apply defaults for Private
+    tier = detect_tier(fields)
+    if tier == "private":
+        assessment = apply_private_defaults(assessment)
+    print(f"Detected tier: {tier}", file=sys.stderr)
 
     # Validate if requested
     if args.validate:
