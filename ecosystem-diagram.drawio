@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net" modified="2026-02-26T00:00:00.000Z" agent="5.0" version="24.0" type="device">
   <diagram name="Claw Agents Ecosystem" id="claw-ecosystem">
-    <mxGraphModel dx="2100" dy="2800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2100" pageHeight="2800" math="0" shadow="0">
+    <mxGraphModel dx="2400" dy="3000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="3000" math="0" shadow="0">
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
@@ -9,14 +9,14 @@
         <!-- TITLE                                                         -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <mxCell id="2" value="&lt;font style=&quot;font-size:22px&quot;&gt;&lt;b&gt;CLAW AGENTS PROVISIONER — ECOSYSTEM&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px;color:#666&quot;&gt;Created by Mauro Tommasi — linkedin.com/in/maurotommasi&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=0;strokeColor=none;fillColor=none;fontColor=#222;" vertex="1" parent="1">
-          <mxGeometry x="250" y="10" width="1300" height="55" as="geometry"/>
+          <mxGeometry x="450" y="110" width="1300" height="55" as="geometry"/>
         </mxCell>
 
         <!-- ══════════════════════════════════════════════════════════════ -->
-        <!-- ROW 1 — CLIENT INTAKE &amp; VALIDATION (green)                    -->
+        <!-- ROW 1 — CLIENT INTAKE & VALIDATION (green)                    -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <mxCell id="10" value="CLIENT INTAKE &amp; VALIDATION" style="swimlane;startSize=30;fillColor=#1B5E20;fontColor=#E8F5E9;strokeColor=#2E7D32;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="50" y="75" width="1700" height="155" as="geometry"/>
+          <mxGeometry x="250" y="175" width="1700" height="155" as="geometry"/>
         </mxCell>
         <mxCell id="11" value="&lt;b&gt;Client Assessment&lt;/b&gt;&lt;br&gt;&lt;i&gt;PDF / JSON input&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2E7D32;fontColor=#fff;strokeColor=#1B5E20;fontSize=12;arcSize=10;" vertex="1" parent="10">
           <mxGeometry x="15" y="42" width="305" height="80" as="geometry"/>
@@ -45,7 +45,7 @@
 
         <!-- CLI & INSTALLER -->
         <mxCell id="20" value="CLI &amp; INSTALLER" style="swimlane;startSize=30;fillColor=#0D47A1;fontColor=#E3F2FD;strokeColor=#1565C0;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="50" y="270" width="380" height="200" as="geometry"/>
+          <mxGeometry x="250" y="370" width="380" height="200" as="geometry"/>
         </mxCell>
         <mxCell id="21" value="&lt;b&gt;claw.sh&lt;/b&gt;&lt;br&gt;&lt;i&gt;CLI Launcher&lt;/i&gt;&lt;br&gt;&lt;i&gt;vault · security · optimizer&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1565C0;fontColor=#fff;strokeColor=#0D47A1;fontSize=12;arcSize=10;" vertex="1" parent="20">
           <mxGeometry x="15" y="40" width="350" height="65" as="geometry"/>
@@ -56,7 +56,7 @@
 
         <!-- SECURITY LAYER -->
         <mxCell id="30" value="🔒 SECURITY LAYER" style="swimlane;startSize=30;fillColor=#B71C1C;fontColor=#FFEBEE;strokeColor=#C62828;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="460" y="270" width="560" height="200" as="geometry"/>
+          <mxGeometry x="660" y="370" width="560" height="200" as="geometry"/>
         </mxCell>
         <mxCell id="31" value="&lt;b&gt;claw_vault.py&lt;/b&gt;&lt;br&gt;&lt;i&gt;AES-128 / Fernet Vault&lt;/i&gt;&lt;br&gt;&lt;i&gt;PBKDF2 · 480K iterations&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C62828;fontColor=#fff;strokeColor=#B71C1C;fontSize=11;arcSize=10;" vertex="1" parent="30">
           <mxGeometry x="15" y="40" width="250" height="65" as="geometry"/>
@@ -71,7 +71,7 @@
 
         <!-- DOCKER ORCHESTRATION -->
         <mxCell id="40" value="🐳 DOCKER ORCHESTRATION" style="swimlane;startSize=30;fillColor=#01579B;fontColor=#E1F5FE;strokeColor=#0277BD;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="1050" y="270" width="700" height="200" as="geometry"/>
+          <mxGeometry x="1250" y="370" width="700" height="200" as="geometry"/>
         </mxCell>
         <mxCell id="41" value="&lt;b&gt;docker-compose.yml&lt;/b&gt;&lt;br&gt;&lt;i&gt;5 service profiles&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0277BD;fontColor=#fff;strokeColor=#01579B;fontSize=12;arcSize=10;" vertex="1" parent="40">
           <mxGeometry x="15" y="40" width="310" height="65" as="geometry"/>
@@ -89,7 +89,7 @@
 
         <!-- CHAT CHANNELS -->
         <mxCell id="50" value="💬 CHAT CHANNELS" style="swimlane;startSize=30;fillColor=#006064;fontColor=#E0F7FA;strokeColor=#00838F;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="50" y="510" width="230" height="330" as="geometry"/>
+          <mxGeometry x="250" y="610" width="230" height="330" as="geometry"/>
         </mxCell>
         <mxCell id="51" value="&lt;b&gt;Telegram&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0288D1;fontColor=#fff;strokeColor=#01579B;fontSize=12;fontStyle=1;arcSize=10;" vertex="1" parent="50">
           <mxGeometry x="15" y="38" width="200" height="42" as="geometry"/>
@@ -109,7 +109,7 @@
 
         <!-- AGENT PLATFORMS -->
         <mxCell id="60" value="🤖 AGENT PLATFORMS" style="swimlane;startSize=30;fillColor=#1A237E;fontColor=#E8EAF6;strokeColor=#283593;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="310" y="510" width="900" height="300" as="geometry"/>
+          <mxGeometry x="510" y="610" width="900" height="300" as="geometry"/>
         </mxCell>
         <mxCell id="61" value="&lt;b style=&quot;font-size:14px&quot;&gt;ZeroClaw&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;Rust&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;512 MB · :3100&lt;/i&gt;&lt;br&gt;&lt;i&gt;TOML config&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D84315;fontColor=#fff;strokeColor=#BF360C;fontSize=11;arcSize=10;" vertex="1" parent="60">
           <mxGeometry x="15" y="45" width="200" height="210" as="geometry"/>
@@ -126,7 +126,7 @@
 
         <!-- FINE-TUNING -->
         <mxCell id="70" value="🎯 FINE-TUNING" style="swimlane;startSize=28;fillColor=#3E2723;fontColor=#EFEBE9;strokeColor=#4E342E;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="1240" y="510" width="510" height="310" as="geometry"/>
+          <mxGeometry x="1440" y="610" width="510" height="310" as="geometry"/>
         </mxCell>
         <mxCell id="71" value="&lt;b&gt;50 LoRA / QLoRA Adapters&lt;/b&gt;&lt;br&gt;&lt;i&gt;Pre-built adapter library&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5D4037;fontColor=#fff;strokeColor=#3E2723;fontSize=12;arcSize=10;" vertex="1" parent="70">
           <mxGeometry x="15" y="38" width="480" height="65" as="geometry"/>
@@ -144,7 +144,7 @@
         <!-- ROW 4 — SHARED INFRASTRUCTURE (purple)                        -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <mxCell id="80" value="SHARED INFRASTRUCTURE" style="swimlane;startSize=30;fillColor=#4A148C;fontColor=#F3E5F5;strokeColor=#6A1B9A;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="50" y="860" width="1700" height="120" as="geometry"/>
+          <mxGeometry x="250" y="960" width="1700" height="120" as="geometry"/>
         </mxCell>
         <mxCell id="81" value="&lt;b&gt;claw_watchdog.py&lt;/b&gt;&lt;br&gt;&lt;i&gt;Monitoring Dashboard :9090 · Health · Alerts · Auto-restart&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6A1B9A;fontColor=#fff;strokeColor=#4A148C;fontSize=12;arcSize=10;" vertex="1" parent="80">
           <mxGeometry x="15" y="38" width="510" height="65" as="geometry"/>
@@ -160,7 +160,7 @@
         <!-- ROW 5 LEFT — OPTIMIZATION PIPELINE (orange)                   -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <mxCell id="90" value="⚡ OPTIMIZATION PIPELINE" style="swimlane;startSize=30;fillColor=#E65100;fontColor=#FFF3E0;strokeColor=#EF6C00;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="50" y="1020" width="700" height="870" as="geometry"/>
+          <mxGeometry x="250" y="1120" width="700" height="870" as="geometry"/>
         </mxCell>
         <mxCell id="91" value="&lt;b&gt;1. Conversation Dedup&lt;/b&gt; — &lt;i&gt;60s duplicate window&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E65100;fontColor=#fff;strokeColor=#BF360C;fontSize=12;arcSize=8;" vertex="1" parent="90">
           <mxGeometry x="20" y="42" width="660" height="48" as="geometry"/>
@@ -219,7 +219,7 @@
         <!-- ROW 5 RIGHT — LLM PROVIDERS (deep purple)                     -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <mxCell id="120" value="🧠 LLM PROVIDERS" style="swimlane;startSize=30;fillColor=#311B92;fontColor=#EDE7F6;strokeColor=#4527A0;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="800" y="1020" width="950" height="300" as="geometry"/>
+          <mxGeometry x="1000" y="1120" width="950" height="300" as="geometry"/>
         </mxCell>
         <mxCell id="121" value="&lt;b&gt;Anthropic&lt;/b&gt;&lt;br&gt;&lt;i&gt;Claude&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D84315;fontColor=#fff;strokeColor=#BF360C;fontSize=13;arcSize=10;" vertex="1" parent="120">
           <mxGeometry x="15" y="42" width="280" height="85" as="geometry"/>
@@ -241,10 +241,10 @@
         </mxCell>
 
         <!-- ══════════════════════════════════════════════════════════════ -->
-        <!-- ROW 6 — INTERNET (dark blue) — full width                     -->
+        <!-- ROW 6 — INTERNET (dark blue)                                  -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <mxCell id="130" value="🌍 INTERNET &amp; EXTERNAL RESOURCES" style="swimlane;startSize=30;fillColor=#0D47A1;fontColor=#C5CAE9;strokeColor=#1565C0;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="800" y="1360" width="950" height="240" as="geometry"/>
+          <mxGeometry x="1000" y="1460" width="950" height="240" as="geometry"/>
         </mxCell>
         <mxCell id="131" value="&lt;b&gt;Web Browsing&lt;/b&gt;&lt;br&gt;&lt;i&gt;HTTP/HTTPS requests&lt;/i&gt;&lt;br&gt;&lt;i&gt;URL fetching · Scraping&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1565C0;fontColor=#fff;strokeColor=#0D47A1;fontSize=11;arcSize=10;" vertex="1" parent="130">
           <mxGeometry x="15" y="40" width="280" height="75" as="geometry"/>
@@ -263,10 +263,10 @@
         </mxCell>
 
         <!-- ══════════════════════════════════════════════════════════════ -->
-        <!-- ROW 7 — DEVICE (grey) — full width                            -->
+        <!-- ROW 7 — DEVICE (grey)                                         -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <mxCell id="140" value="💻 DEVICE &amp; LOCAL RESOURCES" style="swimlane;startSize=30;fillColor=#37474F;fontColor=#CFD8DC;strokeColor=#455A64;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="800" y="1640" width="950" height="250" as="geometry"/>
+          <mxGeometry x="1000" y="1740" width="950" height="250" as="geometry"/>
         </mxCell>
         <mxCell id="141" value="&lt;b&gt;File System&lt;/b&gt;&lt;br&gt;&lt;i&gt;Config · Logs · Data&lt;/i&gt;&lt;br&gt;&lt;i&gt;Persistent Docker volumes&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#455A64;fontColor=#fff;strokeColor=#37474F;fontSize=11;arcSize=10;" vertex="1" parent="140">
           <mxGeometry x="15" y="40" width="280" height="75" as="geometry"/>
@@ -336,7 +336,7 @@
         <!-- LEGEND                                                        -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <mxCell id="310" value="LEGEND" style="swimlane;startSize=25;fillColor=#F5F5F5;fontColor=#333;strokeColor=#CCC;rounded=1;arcSize=6;fontSize=12;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;" vertex="1" parent="1">
-          <mxGeometry x="50" y="1960" width="1700" height="120" as="geometry"/>
+          <mxGeometry x="250" y="2060" width="1700" height="120" as="geometry"/>
         </mxCell>
         <mxCell id="311" value="&lt;b&gt;Thick solid line&lt;/b&gt; = primary data flow &amp;nbsp;&amp;nbsp; &lt;b&gt;Thin solid line&lt;/b&gt; = secondary flow &amp;nbsp;&amp;nbsp; &lt;b&gt;Dashed line&lt;/b&gt; = optional / background&lt;br&gt;&lt;br&gt;WhatsApp &amp;amp; Signal are &lt;b&gt;OpenClaw only&lt;/b&gt; · NanoClaw has exclusive &lt;b&gt;Docker socket&lt;/b&gt; access (DooD)&lt;br&gt;NanoClaw + OpenClaw can execute shell commands and install packages · All agents access web, search, and external APIs" style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#333;strokeColor=none;fillColor=none;" vertex="1" parent="310">
           <mxGeometry x="10" y="30" width="1680" height="72" as="geometry"/>
@@ -344,7 +344,7 @@
 
         <!-- Credits -->
         <mxCell id="320" value="&lt;font style=&quot;font-size:12px&quot;&gt;&lt;i&gt;Created by &lt;b&gt;Mauro Tommasi&lt;/b&gt; — linkedin.com/in/maurotommasi · Apache 2.0 © 2026 Amenthyx&lt;/i&gt;&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontColor=#888;strokeColor=none;fillColor=none;" vertex="1" parent="1">
-          <mxGeometry x="50" y="2120" width="1700" height="30" as="geometry"/>
+          <mxGeometry x="250" y="2220" width="1700" height="30" as="geometry"/>
         </mxCell>
 
       </root>
