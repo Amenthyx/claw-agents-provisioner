@@ -1,0 +1,21 @@
+{
+  "use_case_id": "07-code-review",
+  "use_case_name": "Code Review & Dev Workflow",
+  "source_url": "https://huggingface.co/datasets/mhassanen/code-review-instruction-dataset",
+  "source_name": "CodeReviewer Dataset",
+  "license": "Apache-2.0",
+  "original_rows": 20000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "code-review",
+    "git",
+    "CI-CD"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

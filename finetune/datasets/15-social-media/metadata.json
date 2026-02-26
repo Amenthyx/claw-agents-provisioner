@@ -1,0 +1,21 @@
+{
+  "use_case_id": "15-social-media",
+  "use_case_name": "Social Media Management",
+  "source_url": "https://huggingface.co/datasets/tweet_eval",
+  "source_name": "TweetEval Dataset",
+  "license": "Apache-2.0",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "social-media",
+    "scheduling",
+    "engagement"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

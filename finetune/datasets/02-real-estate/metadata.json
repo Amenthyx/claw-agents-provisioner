@@ -1,0 +1,22 @@
+{
+  "use_case_id": "02-real-estate",
+  "use_case_name": "Real Estate Agent",
+  "source_url": "https://www.kaggle.com/datasets/promptcloud/real-estate-question-and-answer-data",
+  "source_name": "Real Estate Question and Answer Data",
+  "license": "CC0-1.0",
+  "original_rows": 15000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "real-estate",
+    "property",
+    "lead-qualification",
+    "housing"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

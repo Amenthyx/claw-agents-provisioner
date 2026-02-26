@@ -1,0 +1,21 @@
+{
+  "use_case_id": "08-email-management",
+  "use_case_name": "Email Management & Drafting",
+  "source_url": "https://huggingface.co/datasets/ChrisHaydworkaround/enron-email-corpus",
+  "source_name": "Enron Email Cleaned Subset",
+  "license": "CC0-1.0",
+  "original_rows": 18000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "email",
+    "drafting",
+    "classification"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

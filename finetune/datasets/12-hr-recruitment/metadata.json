@@ -1,0 +1,21 @@
+{
+  "use_case_id": "12-hr-recruitment",
+  "use_case_name": "HR & Recruitment",
+  "source_url": "https://www.kaggle.com/datasets/ravindrasinghrana/job-description-dataset",
+  "source_name": "Kaggle Job Descriptions Dataset",
+  "license": "CC0-1.0",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "HR",
+    "recruitment",
+    "job-matching"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

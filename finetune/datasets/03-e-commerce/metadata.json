@@ -1,0 +1,22 @@
+{
+  "use_case_id": "03-e-commerce",
+  "use_case_name": "E-Commerce Assistant",
+  "source_url": "https://huggingface.co/datasets/AmazonScience/amazon-product-qa",
+  "source_name": "Amazon Product Q&A Dataset",
+  "license": "Apache-2.0",
+  "original_rows": 50000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "e-commerce",
+    "product-search",
+    "recommendations",
+    "shopping"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

@@ -1,0 +1,21 @@
+{
+  "use_case_id": "10-meeting-summarization",
+  "use_case_name": "Meeting Summarization",
+  "source_url": "https://huggingface.co/datasets/edinburghcstr/ami",
+  "source_name": "AMI Meeting Corpus",
+  "license": "CC-BY-4.0",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "meetings",
+    "summarization",
+    "action-items"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

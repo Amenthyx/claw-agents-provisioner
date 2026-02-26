@@ -1,0 +1,22 @@
+{
+  "use_case_id": "05-legal",
+  "use_case_name": "Legal Document Review",
+  "source_url": "https://huggingface.co/datasets/casehold/casehold",
+  "source_name": "CaseHOLD Legal Q&A",
+  "license": "CC-BY-4.0",
+  "original_rows": 53137,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "legal",
+    "contracts",
+    "compliance",
+    "case-law"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 64
+}

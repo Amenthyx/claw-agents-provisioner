@@ -1,0 +1,21 @@
+{
+  "use_case_id": "09-calendar-scheduling",
+  "use_case_name": "Calendar & Scheduling",
+  "source_url": "https://huggingface.co/datasets/claw-agents/synthetic-scheduling-intents",
+  "source_name": "Synthetic Scheduling Intents",
+  "license": "CC0-1.0",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "calendar",
+    "scheduling",
+    "time-management"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

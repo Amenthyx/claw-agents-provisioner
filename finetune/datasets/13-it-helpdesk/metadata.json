@@ -1,0 +1,21 @@
+{
+  "use_case_id": "13-it-helpdesk",
+  "use_case_name": "IT Helpdesk & Troubleshooting",
+  "source_url": "https://huggingface.co/datasets/embedding-data/AskUbuntu",
+  "source_name": "AskUbuntu IT Support",
+  "license": "CC-BY-SA-3.0",
+  "original_rows": 10000,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "IT-support",
+    "troubleshooting",
+    "sysadmin"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}

@@ -1,0 +1,22 @@
+{
+  "use_case_id": "04-healthcare",
+  "use_case_name": "Healthcare Triage",
+  "source_url": "https://huggingface.co/datasets/keivalya/MedQuad-MedicalQnADataset",
+  "source_name": "MedQuAD Medical Q&A",
+  "license": "CC0-1.0",
+  "original_rows": 47457,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "healthcare",
+    "medical-qa",
+    "symptom-check",
+    "triage"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 64
+}

@@ -1,0 +1,22 @@
+{
+  "use_case_id": "01-customer-support",
+  "use_case_name": "Customer Support & Helpdesk",
+  "source_url": "https://huggingface.co/datasets/bitext/Bitext-customer-support-llm-chatbot-training-dataset",
+  "source_name": "Bitext Customer Support Dataset",
+  "license": "Apache-2.0",
+  "original_rows": 26872,
+  "sampled_rows": 5,
+  "format": "jsonl",
+  "columns": [
+    "messages"
+  ],
+  "language": "en",
+  "domain_tags": [
+    "customer-service",
+    "helpdesk",
+    "FAQ",
+    "intent-detection"
+  ],
+  "recommended_base_model": "mistralai/Mistral-7B-v0.3",
+  "recommended_lora_rank": 32
+}
