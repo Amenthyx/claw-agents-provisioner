@@ -4,7 +4,7 @@
 
 ## Project Overview
 
-**Claw Agents Provisioner** is a one-command deployment system for 4 AI agent platforms (ZeroClaw, NanoClaw, PicoClaw, OpenClaw). It transforms a client needs assessment (JSON) into a fully configured, running AI agent with domain-specific fine-tuning.
+**Claw Agents Provisioner** is a one-command deployment system for 5 AI agent platforms (ZeroClaw, NanoClaw, PicoClaw, OpenClaw, Parlant). It transforms a client needs assessment (JSON) into a fully configured, running AI agent with domain-specific fine-tuning. Includes a Model Strategy Engine for optimal local+cloud model routing.
 
 **Repository**: `Amenthyx/claw-agents-provisioner`
 **License**: Apache-2.0
@@ -81,9 +81,18 @@ claw-agents-provisioner/
 │   ├── Vagrantfile
 │   ├── install-openclaw.sh
 │   └── entrypoint.sh
+├── parlant/                 # Parlant agent (Python, guidelines+MCP)
+│   ├── Dockerfile
+│   ├── Vagrantfile
+│   ├── install-parlant.sh
+│   ├── entrypoint.sh
+│   └── config/parlant.env
 ├── shared/                   # Shared provisioning scripts
 │   ├── provision-base.sh
 │   ├── healthcheck.sh
+│   ├── install-ollama.sh     # Ollama installer
+│   ├── ollama-models.json    # Local model registry
+│   ├── claw_strategy.py      # Model strategy engine
 │   └── skills-installer.sh
 ├── .team/                    # Project management artifacts
 ├── .github/workflows/ci.yml # GitHub Actions CI
@@ -95,16 +104,23 @@ claw-agents-provisioner/
 
 ## Key Concepts
 
-### 4 Claw Platforms
+### 5 Claw Platforms
 | Platform | Language | Strengths | Use When |
 |----------|----------|-----------|----------|
 | ZeroClaw | Rust | 7.8 MB binary, encrypted, multi-provider | Efficiency + encryption needed |
 | NanoClaw | TypeScript | Container isolation, Claude-native | Security-critical workloads |
 | PicoClaw | Go | 8 MB RAM, edge-ready | Budget/IoT/Raspberry Pi |
 | OpenClaw | TypeScript | 50+ integrations, channels | Maximum integrations needed |
+| Parlant | Python | Behavioral guidelines, journeys, MCP tools | Guideline-driven conversational AI |
 
 ### Assessment Pipeline
-The resolver uses weighted scoring across 8 factors (use case overlap, budget, complexity, sensitivity, channel, device, regulation, storage) to match a client assessment to one of 15 deployment profiles in the needs-mapping-matrix.
+The resolver uses weighted scoring across 8 factors (use case overlap, budget, complexity, sensitivity, channel, device, regulation, storage) to match a client assessment to one of 16 deployment profiles in the needs-mapping-matrix.
+
+### Local LLM Support
+Supports 4 local LLM runtimes (Ollama, vLLM, SGLang, Docker Model Runner) with automatic model discovery. The Model Strategy Engine (`claw_strategy.py`) scans all available models and generates per-task-type routing recommendations.
+
+### Model Strategy Engine
+Auto-discovers local + cloud models and generates `strategy.json` with optimal routing per task type (reasoning, coding, creative, chat, translation, summarization, data analysis). Prefers free local models when quality is comparable to cloud.
 
 ### Fine-Tuning
 - **LoRA**: Full-precision, 24+ GB VRAM, PEFT library
@@ -148,6 +164,15 @@ Each adapter directory contains:
 ./claw.sh nanoclaw docker
 ./claw.sh picoclaw docker
 ./claw.sh openclaw docker
+./claw.sh parlant docker
+```
+
+### Local LLM management
+```bash
+./claw.sh ollama install
+./claw.sh ollama pull llama3.2 qwen2.5
+./claw.sh strategy scan
+./claw.sh strategy generate
 ```
 
 ## Important Constraints

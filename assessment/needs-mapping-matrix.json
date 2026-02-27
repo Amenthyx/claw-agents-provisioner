@@ -345,6 +345,29 @@
       },
       "weight": 1.6,
       "description": "High-security cybersecurity agent using ZeroClaw's encrypted config"
+    },
+    {
+      "id": "guideline-driven-conversational",
+      "name": "Guideline-Driven Conversational Agent",
+      "match_criteria": {
+        "use_cases": ["chatbot-conversational", "customer-support", "knowledge-base-faq", "onboarding-training"],
+        "complexity_level": ["moderate", "complex"],
+        "budget_range": [10, 100],
+        "sensitivity": ["low", "medium"],
+        "device_affinity": ["server", "desktop"]
+      },
+      "resolution": {
+        "platform": "parlant",
+        "llm_provider": "anthropic",
+        "llm_model": "claude-sonnet-4-6",
+        "skills": ["behavioral-guidelines", "journey-manager", "mcp-tools", "conversation-tracker"],
+        "monthly_api_cost_estimate": [15, 60],
+        "compliance_flags": [],
+        "vram_requirement": null,
+        "recommended_adapter": "01-customer-support"
+      },
+      "weight": 1.3,
+      "description": "Parlant-based agent with behavioral guidelines, journeys, and MCP tool integration"
     }
   ],
   "platform_scores": {
@@ -353,10 +376,12 @@
       "nanoclaw": 9,
       "zeroclaw": 8,
       "picoclaw": 8,
+      "parlant": 7,
       "openclaw": 6
     },
     "integrations": {
       "openclaw": 10,
+      "parlant": 8,
       "nanoclaw": 7,
       "zeroclaw": 8,
       "picoclaw": 5
@@ -365,10 +390,12 @@
       "picoclaw": 10,
       "zeroclaw": 9,
       "nanoclaw": 7,
+      "parlant": 6,
       "openclaw": 4
     },
     "ease_of_setup": {
       "picoclaw": 9,
+      "parlant": 8,
       "zeroclaw": 8,
       "openclaw": 7,
       "nanoclaw": 5

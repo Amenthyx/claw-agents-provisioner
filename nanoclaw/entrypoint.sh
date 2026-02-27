@@ -137,6 +137,13 @@ case "$PROVIDER" in
             export DEEPSEEK_API_KEY="${API_KEY}"
         fi
         ;;
+    local)
+        API_KEY="local"
+        LOCAL_ENDPOINT=$(env_or_default "CLAW_LOCAL_LLM_ENDPOINT" "http://host.docker.internal:11434/v1")
+        export OPENAI_API_KEY="local"
+        export OPENAI_API_BASE="${LOCAL_ENDPOINT}"
+        log_info "Using local LLM provider at ${LOCAL_ENDPOINT}"
+        ;;
     *)
         API_KEY=$(read_secret "ANTHROPIC_API_KEY" "")
         if [[ -n "$API_KEY" ]]; then
@@ -146,7 +153,7 @@ case "$PROVIDER" in
         ;;
 esac
 
-if [[ -z "${API_KEY:-}" ]]; then
+if [[ -z "${API_KEY:-}" ]] && [[ "$PROVIDER" != "local" ]]; then
     log_error "No API key found for provider '${PROVIDER}'. Set the appropriate *_API_KEY env var."
     exit 1
 fi

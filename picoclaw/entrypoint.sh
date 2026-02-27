@@ -140,6 +140,12 @@ case "$PROVIDER" in
         [[ -n "$API_KEY" ]] && export PICOCLAW_GROQ_KEY="${API_KEY}"
         API_BASE="https://api.groq.com/openai/v1"
         ;;
+    local)
+        API_KEY="local"
+        API_BASE=$(env_or_default "CLAW_LOCAL_LLM_ENDPOINT" "http://host.docker.internal:11434/v1")
+        export PICOCLAW_API_KEY="local"
+        log_info "Using local LLM provider at ${API_BASE}"
+        ;;
     *)
         API_KEY=$(read_secret "DEEPSEEK_API_KEY" "")
         [[ -n "$API_KEY" ]] && export PICOCLAW_API_KEY="${API_KEY}"
@@ -148,7 +154,7 @@ case "$PROVIDER" in
         ;;
 esac
 
-if [[ -z "${API_KEY:-}" ]]; then
+if [[ -z "${API_KEY:-}" ]] && [[ "$PROVIDER" != "local" ]]; then
     log_error "No API key found for provider '${PROVIDER}'. Set the appropriate *_API_KEY env var."
     exit 1
 fi

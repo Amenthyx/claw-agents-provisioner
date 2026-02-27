@@ -111,17 +111,20 @@
         <mxCell id="60" value="🤖 AGENT PLATFORMS" style="swimlane;startSize=30;fillColor=#1A237E;fontColor=#E8EAF6;strokeColor=#283593;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
           <mxGeometry x="510" y="610" width="900" height="300" as="geometry"/>
         </mxCell>
-        <mxCell id="61" value="&lt;b style=&quot;font-size:14px&quot;&gt;ZeroClaw&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;Rust&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;512 MB · :3100&lt;/i&gt;&lt;br&gt;&lt;i&gt;TOML config&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D84315;fontColor=#fff;strokeColor=#BF360C;fontSize=11;arcSize=10;" vertex="1" parent="60">
-          <mxGeometry x="15" y="45" width="200" height="210" as="geometry"/>
+        <mxCell id="61" value="&lt;b style=&quot;font-size:13px&quot;&gt;ZeroClaw&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Rust&lt;/font&gt;&lt;br&gt;&lt;i&gt;512 MB · :3100&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D84315;fontColor=#fff;strokeColor=#BF360C;fontSize=11;arcSize=10;" vertex="1" parent="60">
+          <mxGeometry x="10" y="45" width="162" height="210" as="geometry"/>
         </mxCell>
-        <mxCell id="62" value="&lt;b style=&quot;font-size:14px&quot;&gt;NanoClaw&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;TypeScript&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;1 GB · :3200&lt;/i&gt;&lt;br&gt;&lt;i&gt;CLAUDE.md config&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1565C0;fontColor=#fff;strokeColor=#0D47A1;fontSize=11;arcSize=10;" vertex="1" parent="60">
-          <mxGeometry x="237" y="45" width="200" height="210" as="geometry"/>
+        <mxCell id="62" value="&lt;b style=&quot;font-size:13px&quot;&gt;NanoClaw&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;TypeScript&lt;/font&gt;&lt;br&gt;&lt;i&gt;1 GB · :3200&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1565C0;fontColor=#fff;strokeColor=#0D47A1;fontSize=11;arcSize=10;" vertex="1" parent="60">
+          <mxGeometry x="185" y="45" width="162" height="210" as="geometry"/>
         </mxCell>
-        <mxCell id="63" value="&lt;b style=&quot;font-size:14px&quot;&gt;PicoClaw&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;Go&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;128 MB · :3300&lt;/i&gt;&lt;br&gt;&lt;i&gt;JSON config&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00838F;fontColor=#fff;strokeColor=#006064;fontSize=11;arcSize=10;" vertex="1" parent="60">
-          <mxGeometry x="460" y="45" width="200" height="210" as="geometry"/>
+        <mxCell id="63" value="&lt;b style=&quot;font-size:13px&quot;&gt;PicoClaw&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Go&lt;/font&gt;&lt;br&gt;&lt;i&gt;128 MB · :3300&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00838F;fontColor=#fff;strokeColor=#006064;fontSize=11;arcSize=10;" vertex="1" parent="60">
+          <mxGeometry x="360" y="45" width="162" height="210" as="geometry"/>
         </mxCell>
-        <mxCell id="64" value="&lt;b style=&quot;font-size:14px&quot;&gt;OpenClaw&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;Node.js&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;4 GB · :3400&lt;/i&gt;&lt;br&gt;&lt;i&gt;JSON5 config&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2E7D32;fontColor=#fff;strokeColor=#1B5E20;fontSize=11;arcSize=10;" vertex="1" parent="60">
-          <mxGeometry x="683" y="45" width="200" height="210" as="geometry"/>
+        <mxCell id="64" value="&lt;b style=&quot;font-size:13px&quot;&gt;OpenClaw&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Node.js&lt;/font&gt;&lt;br&gt;&lt;i&gt;4 GB · :3400&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2E7D32;fontColor=#fff;strokeColor=#1B5E20;fontSize=11;arcSize=10;" vertex="1" parent="60">
+          <mxGeometry x="535" y="45" width="162" height="210" as="geometry"/>
+        </mxCell>
+        <mxCell id="65" value="&lt;b style=&quot;font-size:13px&quot;&gt;Parlant&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Python&lt;/font&gt;&lt;br&gt;&lt;i&gt;2 GB · :8800&lt;/i&gt;&lt;br&gt;&lt;i&gt;Guidelines+MCP&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#AD1457;fontColor=#fff;strokeColor=#880E4F;fontSize=11;arcSize=10;" vertex="1" parent="60">
+          <mxGeometry x="710" y="45" width="175" height="210" as="geometry"/>
         </mxCell>
 
         <!-- FINE-TUNING -->
@@ -144,23 +147,29 @@
         <!-- ROW 4 — SHARED INFRASTRUCTURE (purple)                        -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <mxCell id="80" value="SHARED INFRASTRUCTURE" style="swimlane;startSize=30;fillColor=#4A148C;fontColor=#F3E5F5;strokeColor=#6A1B9A;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="250" y="960" width="1700" height="120" as="geometry"/>
+          <mxGeometry x="250" y="960" width="1700" height="200" as="geometry"/>
         </mxCell>
         <mxCell id="81" value="&lt;b&gt;claw_watchdog.py&lt;/b&gt;&lt;br&gt;&lt;i&gt;Monitoring Dashboard :9090 · Health · Alerts · Auto-restart&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6A1B9A;fontColor=#fff;strokeColor=#4A148C;fontSize=12;arcSize=10;" vertex="1" parent="80">
-          <mxGeometry x="15" y="38" width="510" height="65" as="geometry"/>
+          <mxGeometry x="15" y="38" width="395" height="65" as="geometry"/>
         </mxCell>
         <mxCell id="82" value="&lt;b&gt;claw_optimizer.py&lt;/b&gt;&lt;br&gt;&lt;i&gt;14-Rule Optimization Engine :9091 · Cache · Route · Budget&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7B1FA2;fontColor=#fff;strokeColor=#6A1B9A;fontSize=12;arcSize=10;" vertex="1" parent="80">
-          <mxGeometry x="560" y="38" width="560" height="65" as="geometry"/>
+          <mxGeometry x="430" y="38" width="420" height="65" as="geometry"/>
         </mxCell>
         <mxCell id="83" value="&lt;b&gt;healthcheck.sh&lt;/b&gt;&lt;br&gt;&lt;i&gt;Container Health Probes&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#8E24AA;fontColor=#fff;strokeColor=#7B1FA2;fontSize=12;arcSize=10;" vertex="1" parent="80">
-          <mxGeometry x="1155" y="38" width="510" height="65" as="geometry"/>
+          <mxGeometry x="870" y="38" width="395" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="84" value="&lt;b&gt;claw_strategy.py&lt;/b&gt;&lt;br&gt;&lt;i&gt;Model Strategy Engine · Auto-discover local+cloud models · Per-task routing&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#9C27B0;fontColor=#fff;strokeColor=#8E24AA;fontSize=12;arcSize=10;" vertex="1" parent="80">
+          <mxGeometry x="1285" y="38" width="395" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="85" value="&lt;b&gt;install-ollama.sh&lt;/b&gt;&lt;br&gt;&lt;i&gt;Local LLM Runtime Installer · Ollama · vLLM · SGLang · Docker Model Runner&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#AB47BC;fontColor=#fff;strokeColor=#9C27B0;fontSize=12;arcSize=10;" vertex="1" parent="80">
+          <mxGeometry x="15" y="118" width="830" height="65" as="geometry"/>
         </mxCell>
 
         <!-- ══════════════════════════════════════════════════════════════ -->
         <!-- ROW 5 LEFT — OPTIMIZATION PIPELINE (orange)                   -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <mxCell id="90" value="⚡ OPTIMIZATION PIPELINE" style="swimlane;startSize=30;fillColor=#E65100;fontColor=#FFF3E0;strokeColor=#EF6C00;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="250" y="1120" width="700" height="870" as="geometry"/>
+          <mxGeometry x="250" y="1200" width="700" height="870" as="geometry"/>
         </mxCell>
         <mxCell id="91" value="&lt;b&gt;1. Conversation Dedup&lt;/b&gt; — &lt;i&gt;60s duplicate window&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E65100;fontColor=#fff;strokeColor=#BF360C;fontSize=12;arcSize=8;" vertex="1" parent="90">
           <mxGeometry x="20" y="42" width="660" height="48" as="geometry"/>
@@ -219,7 +228,7 @@
         <!-- ROW 5 RIGHT — LLM PROVIDERS (deep purple)                     -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <mxCell id="120" value="🧠 LLM PROVIDERS" style="swimlane;startSize=30;fillColor=#311B92;fontColor=#EDE7F6;strokeColor=#4527A0;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="1000" y="1120" width="950" height="400" as="geometry"/>
+          <mxGeometry x="1000" y="1200" width="950" height="410" as="geometry"/>
         </mxCell>
         <mxCell id="121" value="&lt;b&gt;Anthropic&lt;/b&gt;&lt;br&gt;&lt;i&gt;Claude&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D84315;fontColor=#fff;strokeColor=#BF360C;fontSize=13;arcSize=10;" vertex="1" parent="120">
           <mxGeometry x="15" y="42" width="280" height="85" as="geometry"/>
@@ -239,15 +248,15 @@
         <mxCell id="126" value="&lt;b&gt;Groq&lt;/b&gt;&lt;br&gt;&lt;i&gt;Fast inference&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6A1B9A;fontColor=#fff;strokeColor=#4A148C;fontSize=13;arcSize=10;" vertex="1" parent="120">
           <mxGeometry x="635" y="150" width="280" height="85" as="geometry"/>
         </mxCell>
-        <mxCell id="127" value="&lt;b&gt;Local LLM&lt;/b&gt;&lt;br&gt;&lt;i&gt;Ollama · vLLM · llama.cpp&lt;/i&gt;&lt;br&gt;&lt;i&gt;No API key · OpenAI-compatible endpoint&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#424242;fontColor=#fff;strokeColor=#212121;fontSize=12;arcSize=10;dashed=1;dashPattern=8 4;" vertex="1" parent="120">
-          <mxGeometry x="15" y="258" width="900" height="85" as="geometry"/>
+        <mxCell id="127" value="&lt;b&gt;Local LLM Runtimes&lt;/b&gt;&lt;br&gt;&lt;i&gt;Ollama :11434 · vLLM :8000 · SGLang :30000 · Docker Model Runner :12434&lt;/i&gt;&lt;br&gt;&lt;i&gt;No API key · OpenAI-compatible endpoint · Free inference&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#424242;fontColor=#fff;strokeColor=#212121;fontSize=12;arcSize=10;dashed=1;dashPattern=8 4;" vertex="1" parent="120">
+          <mxGeometry x="15" y="258" width="900" height="95" as="geometry"/>
         </mxCell>
 
         <!-- ══════════════════════════════════════════════════════════════ -->
         <!-- ROW 6 — INTERNET (dark blue)                                  -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <mxCell id="130" value="🌍 INTERNET &amp; EXTERNAL RESOURCES" style="swimlane;startSize=30;fillColor=#0D47A1;fontColor=#C5CAE9;strokeColor=#1565C0;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="1000" y="1560" width="950" height="240" as="geometry"/>
+          <mxGeometry x="1000" y="1650" width="950" height="240" as="geometry"/>
         </mxCell>
         <mxCell id="131" value="&lt;b&gt;Web Browsing&lt;/b&gt;&lt;br&gt;&lt;i&gt;HTTP/HTTPS requests&lt;/i&gt;&lt;br&gt;&lt;i&gt;URL fetching · Scraping&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1565C0;fontColor=#fff;strokeColor=#0D47A1;fontSize=11;arcSize=10;" vertex="1" parent="130">
           <mxGeometry x="15" y="40" width="280" height="75" as="geometry"/>
@@ -269,7 +278,7 @@
         <!-- ROW 7 — DEVICE (grey)                                         -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <mxCell id="140" value="💻 DEVICE &amp; LOCAL RESOURCES" style="swimlane;startSize=30;fillColor=#37474F;fontColor=#CFD8DC;strokeColor=#455A64;rounded=1;arcSize=8;fontSize=14;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;shadow=1;" vertex="1" parent="1">
-          <mxGeometry x="1000" y="1840" width="950" height="250" as="geometry"/>
+          <mxGeometry x="1000" y="1930" width="950" height="250" as="geometry"/>
         </mxCell>
         <mxCell id="141" value="&lt;b&gt;File System&lt;/b&gt;&lt;br&gt;&lt;i&gt;Config · Logs · Data&lt;/i&gt;&lt;br&gt;&lt;i&gt;Persistent Docker volumes&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#455A64;fontColor=#fff;strokeColor=#37474F;fontSize=11;arcSize=10;" vertex="1" parent="140">
           <mxGeometry x="15" y="40" width="280" height="75" as="geometry"/>
@@ -283,7 +292,7 @@
         <mxCell id="144" value="&lt;b&gt;Docker Socket&lt;/b&gt;&lt;br&gt;&lt;i&gt;/var/run/docker.sock&lt;/i&gt;&lt;br&gt;&lt;font color=&quot;#FFCDD2&quot;&gt;&lt;b&gt;NanoClaw only (DooD)&lt;/b&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#78909C;fontColor=#fff;strokeColor=#607D8B;fontSize=11;arcSize=10;" vertex="1" parent="140">
           <mxGeometry x="15" y="135" width="280" height="75" as="geometry"/>
         </mxCell>
-        <mxCell id="145" value="&lt;b&gt;Network Ports&lt;/b&gt;&lt;br&gt;&lt;i&gt;:3100 · :3200 · :3300 · :3400&lt;/i&gt;&lt;br&gt;&lt;i&gt;:9090 · :9091 dashboards&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#90A4AE;fontColor=#000;strokeColor=#78909C;fontSize=11;arcSize=10;" vertex="1" parent="140">
+        <mxCell id="145" value="&lt;b&gt;Network Ports&lt;/b&gt;&lt;br&gt;&lt;i&gt;:3100 · :3200 · :3300 · :3400 · :8800 · :8181&lt;/i&gt;&lt;br&gt;&lt;i&gt;:9090 · :9091 · :11434 · :8000 · :30000 · :12434&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#90A4AE;fontColor=#000;strokeColor=#78909C;fontSize=11;arcSize=10;" vertex="1" parent="140">
           <mxGeometry x="325" y="135" width="280" height="75" as="geometry"/>
         </mxCell>
         <mxCell id="146" value="&lt;b&gt;RAM / tmpfs&lt;/b&gt;&lt;br&gt;&lt;i&gt;Ephemeral secret storage&lt;/i&gt;&lt;br&gt;&lt;i&gt;In-memory caches&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B0BEC5;fontColor=#000;strokeColor=#90A4AE;fontSize=11;arcSize=10;" vertex="1" parent="140">
@@ -335,19 +344,22 @@
         <!-- Optimizer → DB -->
         <mxCell id="E15" value="cost tracking" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=1;strokeColor=#607D8B;strokeWidth=2;fontSize=10;fontColor=#666;labelBackgroundColor=#fff;dashed=1;" edge="1" source="82" target="143" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
 
+        <!-- Strategy Engine → LLM Providers -->
+        <mxCell id="E16" value="model routing" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=1;strokeColor=#9C27B0;strokeWidth=2;fontSize=10;fontColor=#333;labelBackgroundColor=#fff;dashed=1;dashPattern=8 4;" edge="1" source="84" target="120" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
         <!-- ══════════════════════════════════════════════════════════════ -->
         <!-- LEGEND                                                        -->
         <!-- ══════════════════════════════════════════════════════════════ -->
         <mxCell id="310" value="LEGEND" style="swimlane;startSize=25;fillColor=#F5F5F5;fontColor=#333;strokeColor=#CCC;rounded=1;arcSize=6;fontSize=12;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;" vertex="1" parent="1">
-          <mxGeometry x="250" y="2160" width="1700" height="120" as="geometry"/>
+          <mxGeometry x="250" y="2250" width="1700" height="120" as="geometry"/>
         </mxCell>
-        <mxCell id="311" value="&lt;b&gt;Thick solid line&lt;/b&gt; = primary data flow &amp;nbsp;&amp;nbsp; &lt;b&gt;Thin solid line&lt;/b&gt; = secondary flow &amp;nbsp;&amp;nbsp; &lt;b&gt;Dashed line&lt;/b&gt; = optional / background&lt;br&gt;&lt;br&gt;WhatsApp &amp;amp; Signal are &lt;b&gt;OpenClaw only&lt;/b&gt; · NanoClaw has exclusive &lt;b&gt;Docker socket&lt;/b&gt; access (DooD)&lt;br&gt;NanoClaw + OpenClaw can execute shell commands and install packages · All agents access web, search, and external APIs" style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#333;strokeColor=none;fillColor=none;" vertex="1" parent="310">
+        <mxCell id="311" value="&lt;b&gt;Thick solid line&lt;/b&gt; = primary data flow &amp;nbsp;&amp;nbsp; &lt;b&gt;Thin solid line&lt;/b&gt; = secondary flow &amp;nbsp;&amp;nbsp; &lt;b&gt;Dashed line&lt;/b&gt; = optional / background&lt;br&gt;&lt;br&gt;WhatsApp &amp;amp; Signal are &lt;b&gt;OpenClaw only&lt;/b&gt; · NanoClaw has exclusive &lt;b&gt;Docker socket&lt;/b&gt; access (DooD) · Parlant uses &lt;b&gt;MCP tools&lt;/b&gt; + behavioral guidelines&lt;br&gt;Strategy Engine auto-routes to optimal local + cloud models per task type · All agents support local LLM via &lt;b&gt;host.docker.internal&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#333;strokeColor=none;fillColor=none;" vertex="1" parent="310">
           <mxGeometry x="10" y="30" width="1680" height="72" as="geometry"/>
         </mxCell>
 
         <!-- Credits -->
         <mxCell id="320" value="&lt;font style=&quot;font-size:12px&quot;&gt;&lt;i&gt;Created by &lt;b&gt;Mauro Tommasi&lt;/b&gt; — linkedin.com/in/maurotommasi · Apache 2.0 © 2026 Amenthyx&lt;/i&gt;&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontColor=#888;strokeColor=none;fillColor=none;" vertex="1" parent="1">
-          <mxGeometry x="250" y="2320" width="1700" height="30" as="geometry"/>
+          <mxGeometry x="250" y="2410" width="1700" height="30" as="geometry"/>
         </mxCell>
 
         <!-- Invisible anchor to force full canvas export -->

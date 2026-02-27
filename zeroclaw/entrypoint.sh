@@ -124,6 +124,12 @@ case "$PROVIDER" in
         API_KEY=$(read_secret "GROQ_API_KEY" "")
         API_BASE=""
         ;;
+    local)
+        PROVIDER_KEY="local"
+        API_KEY="local"
+        API_BASE=$(env_or_default "CLAW_LOCAL_LLM_ENDPOINT" "http://host.docker.internal:11434/v1")
+        log_info "Using local LLM provider at ${API_BASE}"
+        ;;
     *)
         log_warn "Unknown provider '${PROVIDER}', defaulting to anthropic."
         PROVIDER_KEY="anthropic"
@@ -132,7 +138,7 @@ case "$PROVIDER" in
         ;;
 esac
 
-if [[ -z "$API_KEY" ]]; then
+if [[ -z "$API_KEY" ]] && [[ "$PROVIDER" != "local" ]]; then
     log_error "No API key found for provider '${PROVIDER}'. Set the appropriate *_API_KEY env var."
     exit 1
 fi

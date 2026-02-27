@@ -69,6 +69,8 @@ services:
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     ports:
       - "${CLAW_ZEROCLAW_PORT:-3100}:3100"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     deploy:
       resources:
         limits:
@@ -103,6 +105,8 @@ services:
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     ports:
       - "${CLAW_NANOCLAW_PORT:-3200}:3200"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     deploy:
       resources:
         limits:
@@ -135,6 +139,8 @@ services:
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     ports:
       - "${CLAW_PICOCLAW_PORT:-3300}:3300"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     deploy:
       resources:
         limits:
@@ -167,6 +173,8 @@ services:
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     ports:
       - "${CLAW_OPENCLAW_PORT:-3400}:3400"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     deploy:
       resources:
         limits:
@@ -179,6 +187,41 @@ services:
       timeout: 10s
       retries: 3
       start_period: 45s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Parlant — Python-based Guideline-Driven Conversational AI
+  # Memory: ~200 MB idle, ~2 GB active | Limit: 2 GB
+  # ---------------------------------------------------------------------------
+  parlant:
+    build:
+      context: ./parlant
+      dockerfile: Dockerfile
+    profiles:
+      - parlant
+    env_file:
+      - .env
+    volumes:
+      - parlant-data:/home/parlant/.parlant
+      - ./parlant/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/usr/bin/tini", "--", "/entrypoint.sh"]
+    ports:
+      - "${CLAW_PARLANT_PORT:-8800}:8800"
+      - "${CLAW_PARLANT_MCP_PORT:-8181}:8181"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8800/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
@@ -211,3 +254,4 @@ volumes:
   nanoclaw-data:
   picoclaw-data:
   openclaw-data:
+  parlant-data:

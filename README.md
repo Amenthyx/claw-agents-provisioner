@@ -21,13 +21,14 @@ One-command deployment of personalized AI agents. Transform a client needs asses
 | **NanoClaw** | TypeScript | Security-critical, container isolation | Claude-native |
 | **PicoClaw** | Go | Edge/IoT, Raspberry Pi, budget | 8 MB RAM |
 | **OpenClaw** | TypeScript | Maximum integrations, 50+ channels | Full-featured |
+| **Parlant** | Python | Guideline-driven conversational AI, MCP tools | 2 GB limit |
 
 ## Quick Start
 
 ### Prerequisites
 
 - Docker + Docker Compose (or Vagrant + VirtualBox)
-- Python 3.11+ (for assessment pipeline)
+- Python 3.11+ (for assessment pipeline; Python 3.10+ for Parlant)
 - Git
 
 ### Interactive Installer (Recommended)
@@ -63,6 +64,10 @@ This opens an interactive menu that walks you through every step:
   7) Watchdog monitoring          (alerts, auto-restart, dashboard)
   8) Health check                 (verify running agents)
   9) Multi-instance setup         (named instances, separate ports)
+  10) Vault management            (encrypted secrets)
+  11) Optimization engine         (cost reports, routing proxy)
+  12) Security rules              (content policies, compliance)
+  13) Model strategy engine       (scan models, generate routing)
 
   f) Full setup (steps 1-7 sequentially)
   q) Quit
@@ -91,6 +96,7 @@ For non-interactive setup (CI/CD or scripted deployments):
 | **10 — Vault management** | Create/import/rotate/export encrypted secrets vault. Requires `pip install cryptography` |
 | **11 — Optimization engine** | Generate config, view cost reports, start optimization proxy with 14 rules |
 | **12 — Security rules** | Forbidden URLs, content rules, data handling, network policies, compliance modules |
+| **13 — Model strategy engine** | Scan all local + cloud models, generate optimal per-task routing, view report, benchmark |
 
 ### Manual Setup
 
@@ -113,10 +119,12 @@ cp .env.template .env
 ./claw.sh nanoclaw docker
 ./claw.sh picoclaw docker
 ./claw.sh openclaw docker
+./claw.sh parlant docker
 
 # Via Vagrant
 ./claw.sh zeroclaw vagrant
 ./claw.sh nanoclaw vagrant
+./claw.sh parlant vagrant
 ```
 
 #### 3. Deploy from assessment
@@ -144,7 +152,7 @@ client-assessment.json
 
 ### Resolution Algorithm
 
-The resolver scores 15 deployment profiles using weighted factors:
+The resolver scores 16 deployment profiles using weighted factors:
 
 | Factor | Weight | Description |
 |--------|--------|-------------|
@@ -997,7 +1005,7 @@ See [finetune/datasets/README.md](finetune/datasets/README.md) for the full data
 ## CLI Reference
 
 ```bash
-# Agent deployment
+# Agent deployment (agents: zeroclaw, nanoclaw, picoclaw, openclaw, parlant)
 ./claw.sh <agent> docker          # Start agent via Docker
 ./claw.sh <agent> vagrant         # Start agent via Vagrant
 ./claw.sh <agent> destroy         # Teardown agent
@@ -1016,6 +1024,19 @@ See [finetune/datasets/README.md](finetune/datasets/README.md) for the full data
 ./claw.sh datasets --validate           # Validate datasets
 ./claw.sh datasets --download-all       # Re-download from HuggingFace
 ./claw.sh datasets --stats              # Show dataset statistics
+
+# Ollama / Local LLM
+./claw.sh ollama install                # Install Ollama runtime
+./claw.sh ollama pull <model> [model2]  # Pull models (e.g., llama3.2 qwen2.5)
+./claw.sh ollama list                   # List installed models
+./claw.sh ollama status                 # Check Ollama service status
+
+# Model Strategy Engine
+./claw.sh strategy scan                 # Discover all local + cloud models
+./claw.sh strategy generate             # Generate optimal routing (strategy.json)
+./claw.sh strategy report               # View routing recommendations
+./claw.sh strategy init                 # Create strategy config file
+./claw.sh strategy benchmark            # Benchmark available models
 
 # Health
 ./claw.sh health <agent>                # Run health check
@@ -1044,7 +1065,11 @@ claw-agents-provisioner/
 ├── nanoclaw/                 # NanoClaw provisioning
 ├── picoclaw/                 # PicoClaw provisioning
 ├── openclaw/                 # OpenClaw provisioning
+├── parlant/                  # Parlant provisioning (guidelines + MCP)
 ├── shared/                   # Shared provisioning scripts
+│   ├── claw_strategy.py      # Model Strategy Engine
+│   ├── install-ollama.sh     # Local LLM runtime installer
+│   └── ollama-models.json    # Free model registry
 ├── claw.sh                   # Unified CLI launcher
 ├── docker-compose.yml        # Multi-agent Docker Compose
 └── .env.template             # Environment variable template
@@ -1062,10 +1087,13 @@ cp .env.template .env
 
 Key sections in `.env`:
 - **LLM Provider Keys**: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`
-- **Local LLM Endpoint**: `CLAW_LOCAL_LLM_ENDPOINT` — for Ollama, vLLM, llama.cpp (no API key required)
+- **Local LLM Endpoint**: `CLAW_LOCAL_LLM_ENDPOINT` — for Ollama, vLLM, SGLang, Docker Model Runner (no API key required)
+- **Ollama Models**: `CLAW_OLLAMA_MODELS` — comma-separated list of models to pull
 - **Channel Tokens**: `WHATSAPP_TOKEN`, `TELEGRAM_BOT_TOKEN`, `SLACK_BOT_TOKEN`
-- **Agent Selection**: `CLAW_PLATFORM`, `CLAW_MODEL`
-- **Fine-Tuning**: `FINETUNE_METHOD`, `FINETUNE_BASE_MODEL`, `FINETUNE_LORA_RANK`
+- **Agent Selection**: `CLAW_AGENT` — `zeroclaw | nanoclaw | picoclaw | openclaw | parlant`
+- **Fine-Tuning**: `CLAW_FINETUNE_METHOD`, `CLAW_FINETUNE_BASE_MODEL`, `CLAW_FINETUNE_RANK`
+- **Parlant**: `PARLANT_PORT`, `PARLANT_MCP_PORT`, `PARLANT_VERSION`
+- **Strategy Engine**: `CLAW_STRATEGY_ENABLED`, `CLAW_STRATEGY_PREFER_LOCAL`, `CLAW_STRATEGY_BUDGET`
 
 ### Docker Compose Profiles
 
@@ -1079,7 +1107,7 @@ docker compose --profile zeroclaw up -d
 docker compose --profile zeroclaw --profile picoclaw up -d
 
 # All agents
-docker compose --profile zeroclaw --profile nanoclaw --profile picoclaw --profile openclaw up -d
+docker compose --profile zeroclaw --profile nanoclaw --profile picoclaw --profile openclaw --profile parlant up -d
 ```
 
 ### Multiple Named Instances
@@ -1111,7 +1139,7 @@ cp .env .env.lucia
 docker compose -p lucia --env-file .env.lucia --profile openclaw up -d
 ```
 
-Port environment variables: `CLAW_ZEROCLAW_PORT`, `CLAW_NANOCLAW_PORT`, `CLAW_PICOCLAW_PORT`, `CLAW_OPENCLAW_PORT`.
+Port environment variables: `CLAW_ZEROCLAW_PORT`, `CLAW_NANOCLAW_PORT`, `CLAW_PICOCLAW_PORT`, `CLAW_OPENCLAW_PORT`, `CLAW_PARLANT_PORT`.
 
 ## Monitoring & Reliability
 
@@ -1641,25 +1669,26 @@ Run agents with self-hosted models — no API key, no external calls, zero cost 
 
 ### Supported Runtimes
 
-| Runtime | Endpoint Example | Notes |
-|---------|-----------------|-------|
-| **Ollama** | `http://localhost:11434/v1` | Easiest setup, auto-downloads models |
-| **vLLM** | `http://localhost:8000/v1` | Production-grade, GPU optimized, high throughput |
-| **llama.cpp** | `http://localhost:8080/v1` | Minimal footprint, CPU + GPU |
-| **LM Studio** | `http://localhost:1234/v1` | Desktop GUI with server mode |
-| **LocalAI** | `http://localhost:8080/v1` | Drop-in OpenAI replacement |
-| **Text Generation WebUI** | `http://localhost:5000/v1` | Oobabooga with OpenAI extension |
+| Runtime | Port | Endpoint Example | Notes |
+|---------|------|-----------------|-------|
+| **Ollama** | 11434 | `http://localhost:11434/v1` | Easiest setup, auto-downloads models |
+| **vLLM** | 8000 | `http://localhost:8000/v1` | Production-grade, GPU optimized, high throughput |
+| **SGLang** | 30000 | `http://localhost:30000/v1` | High-performance serving, RadixAttention |
+| **Docker Model Runner** | 12434 | `http://localhost:12434/engines/llama.cpp/v1` | Docker-native, integrated model management |
+| **llama.cpp** | 8080 | `http://localhost:8080/v1` | Minimal footprint, CPU + GPU |
+| **LM Studio** | 1234 | `http://localhost:1234/v1` | Desktop GUI with server mode |
 
 ### Recommended Local Models
 
 | Model | Size | Best For |
 |-------|------|----------|
 | `llama3.2` | 3B / 8B | General purpose, conversation |
+| `qwen2.5` | 7B / 14B | Multilingual, tool use |
+| `deepseek-r1` | 7B / 14B | Complex reasoning, chain-of-thought |
 | `mistral` | 7B | Fast responses, reasoning |
 | `codellama` | 7B / 13B | Code generation, debugging |
-| `deepseek-r1` | 7B / 14B | Complex reasoning, chain-of-thought |
-| `qwen2.5` | 7B / 14B | Multilingual, tool use |
 | `phi3` | 3.8B | Lightweight, resource-constrained devices |
+| `gemma2` | 9B / 27B | High quality, Google research |
 
 ### Configuration
 
@@ -1668,8 +1697,8 @@ Run agents with self-hosted models — no API key, no external calls, zero cost 
 ```bash
 ./install.sh
 # Select option 3 (Environment config)
-# Choose "Local LLM (Ollama / vLLM / llama.cpp — no API key)"
-# Enter your endpoint URL and pick a model
+# Choose "Local LLM (Ollama / vLLM / SGLang / Docker Model Runner — no API key)"
+# Select your runtime, then pick models to pull
 ```
 
 **Option B — Manual `.env` setup:**
@@ -1680,14 +1709,12 @@ CLAW_LLM_MODEL=llama3.2
 CLAW_LOCAL_LLM_ENDPOINT=http://localhost:11434/v1
 ```
 
-**Option C — Quick start with Ollama:**
+**Option C — Quick start with Ollama via claw CLI:**
 
 ```bash
-# Install Ollama (macOS/Linux)
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Pull a model
-ollama pull llama3.2
+# Install Ollama and pull models in one go
+./claw.sh ollama install
+./claw.sh ollama pull llama3.2 qwen2.5 deepseek-r1
 
 # Set in .env
 CLAW_LLM_PROVIDER=local
@@ -1696,6 +1723,19 @@ CLAW_LOCAL_LLM_ENDPOINT=http://localhost:11434/v1
 
 # Deploy
 ./claw.sh deploy
+```
+
+**Option D — Model Strategy Engine (auto-routing):**
+
+```bash
+# Scan all available models (local + cloud)
+./claw.sh strategy scan
+
+# Generate optimal routing per task type
+./claw.sh strategy generate
+
+# View recommendations
+./claw.sh strategy report
 ```
 
 ### How It Works
@@ -1717,6 +1757,102 @@ Local LLM endpoints are treated as OpenAI-compatible providers:
 | Docker network (Ollama in compose) | `http://ollama:11434/v1` |
 
 > **Note:** When running agents in Docker, `localhost` inside the container refers to the container itself. Use `host.docker.internal` to reach the Docker host, or add the LLM service to `docker-compose.yml`.
+
+## Parlant — Guideline-Driven Conversational AI
+
+Parlant is a Python framework for building conversational AI agents controlled by behavioral guidelines rather than static prompts. It uses customer journeys, behavioral rules, and MCP (Model Context Protocol) tool integrations.
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Behavioral Guidelines** | Define how the agent behaves in specific situations (e.g., "When customer asks about pricing, always mention the free trial first") |
+| **Customer Journeys** | Multi-step conversation flows with branching logic and state tracking |
+| **MCP Tools** | Model Context Protocol integrations for external services (databases, APIs, file systems) |
+| **Multi-Provider** | Works with any OpenAI-compatible LLM (cloud or local) |
+
+### Quick Start
+
+```bash
+# Via Docker
+./claw.sh parlant docker
+
+# Via Vagrant
+./claw.sh parlant vagrant
+
+# Health check
+./claw.sh health parlant
+```
+
+### Ports
+
+| Port | Purpose |
+|------|---------|
+| 8800 | Parlant API server |
+| 8181 | Parlant MCP server |
+
+### Configuration
+
+Set Parlant-specific variables in `.env`:
+
+```bash
+CLAW_AGENT=parlant
+PARLANT_VERSION=latest
+PARLANT_PORT=8800
+PARLANT_MCP_PORT=8181
+PARLANT_LOG_LEVEL=info
+```
+
+## Model Strategy Engine
+
+The Model Strategy Engine auto-discovers all available models (local runtimes + cloud APIs) and generates optimal per-task-type routing recommendations.
+
+### How It Works
+
+1. **Scan** — Queries Ollama (`/api/tags`), vLLM, SGLang, Docker Model Runner (`/v1/models`) for local models. Checks environment variables for cloud API keys (Anthropic, OpenAI, DeepSeek, Gemini, Groq).
+2. **Score** — Each model is scored per task type on quality, speed, cost, and specialization.
+3. **Route** — Generates `strategy.json` with primary + fallback model for each task type.
+
+### Task Types
+
+| Task Type | Example Use |
+|-----------|------------|
+| `reasoning` | Complex logic, analysis, decision-making |
+| `coding` | Code generation, debugging, reviews |
+| `creative` | Content writing, marketing copy |
+| `simple_chat` | Casual conversation, FAQs |
+| `translation` | Multilingual text conversion |
+| `summarization` | Document/meeting summaries |
+| `data_analysis` | SQL, data interpretation, reporting |
+
+### Commands
+
+```bash
+./claw.sh strategy scan       # Discover all available models
+./claw.sh strategy generate   # Generate strategy.json routing
+./claw.sh strategy report     # View routing recommendations
+./claw.sh strategy init       # Create strategy config file
+./claw.sh strategy benchmark  # Benchmark available models
+```
+
+### Configuration
+
+```bash
+CLAW_STRATEGY_ENABLED=true        # Enable strategy-based routing
+CLAW_STRATEGY_PREFER_LOCAL=true   # Prefer free local models when quality is comparable
+CLAW_STRATEGY_BUDGET=50           # Monthly budget cap in USD (blank = unlimited)
+```
+
+### Local LLM Runtime Ports
+
+All runtimes use distinct ports to avoid conflicts:
+
+| Runtime | Port | Default Endpoint |
+|---------|------|-----------------|
+| Ollama | 11434 | `http://localhost:11434/v1` |
+| vLLM | 8000 | `http://localhost:8000/v1` |
+| SGLang | 30000 | `http://localhost:30000/v1` |
+| Docker Model Runner | 12434 | `http://localhost:12434/engines/llama.cpp/v1` |
 
 ## Ecosystem Diagram
 

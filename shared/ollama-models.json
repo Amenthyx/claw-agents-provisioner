@@ -1,0 +1,100 @@
+{
+  "$schema": "https://github.com/Amenthyx/claw-agents-provisioner/ollama-models.json",
+  "version": "1.0",
+  "description": "Registry of recommended free local models for Ollama. Used by install.sh and claw_strategy.py for model selection.",
+  "models": [
+    {
+      "name": "llama3.2",
+      "display_name": "Llama 3.2",
+      "vendor": "Meta",
+      "parameters": "3B",
+      "size_gb": 2.0,
+      "vram_gb": 4,
+      "specialization": ["general", "chat", "reasoning"],
+      "quality_tier": "good",
+      "speed_tier": "fast",
+      "description": "Meta's latest compact model — great general-purpose assistant"
+    },
+    {
+      "name": "qwen2.5",
+      "display_name": "Qwen 2.5",
+      "vendor": "Alibaba",
+      "parameters": "7B",
+      "size_gb": 4.4,
+      "vram_gb": 8,
+      "specialization": ["general", "multilingual", "coding", "reasoning"],
+      "quality_tier": "excellent",
+      "speed_tier": "medium",
+      "description": "Top-tier open model — strong multilingual and coding capabilities"
+    },
+    {
+      "name": "deepseek-r1",
+      "display_name": "DeepSeek R1",
+      "vendor": "DeepSeek",
+      "parameters": "7B",
+      "size_gb": 4.7,
+      "vram_gb": 8,
+      "specialization": ["reasoning", "math", "coding", "analysis"],
+      "quality_tier": "excellent",
+      "speed_tier": "medium",
+      "description": "Reasoning-focused model — excels at math, logic, and code"
+    },
+    {
+      "name": "phi3",
+      "display_name": "Phi-3 Mini",
+      "vendor": "Microsoft",
+      "parameters": "3.8B",
+      "size_gb": 2.2,
+      "vram_gb": 4,
+      "specialization": ["general", "reasoning", "coding"],
+      "quality_tier": "good",
+      "speed_tier": "fast",
+      "description": "Microsoft's compact powerhouse — surprisingly capable for its size"
+    },
+    {
+      "name": "mistral",
+      "display_name": "Mistral 7B",
+      "vendor": "Mistral AI",
+      "parameters": "7B",
+      "size_gb": 4.1,
+      "vram_gb": 8,
+      "specialization": ["general", "chat", "creative"],
+      "quality_tier": "good",
+      "speed_tier": "fast",
+      "description": "Fast and versatile — good balance of quality and speed"
+    },
+    {
+      "name": "codellama",
+      "display_name": "Code Llama",
+      "vendor": "Meta",
+      "parameters": "7B",
+      "size_gb": 3.8,
+      "vram_gb": 8,
+      "specialization": ["coding", "code-review", "debugging"],
+      "quality_tier": "good",
+      "speed_tier": "medium",
+      "description": "Code-specialized model — trained on code generation and review"
+    },
+    {
+      "name": "gemma2",
+      "display_name": "Gemma 2",
+      "vendor": "Google",
+      "parameters": "9B",
+      "size_gb": 5.4,
+      "vram_gb": 10,
+      "specialization": ["general", "reasoning", "summarization"],
+      "quality_tier": "excellent",
+      "speed_tier": "medium",
+      "description": "Google's open model — strong reasoning and text understanding"
+    }
+  ],
+  "task_model_mapping": {
+    "reasoning": ["deepseek-r1", "qwen2.5", "gemma2"],
+    "coding": ["deepseek-r1", "qwen2.5", "codellama"],
+    "creative": ["mistral", "qwen2.5", "llama3.2"],
+    "simple_chat": ["llama3.2", "phi3", "mistral"],
+    "translation": ["qwen2.5", "gemma2", "llama3.2"],
+    "summarization": ["gemma2", "qwen2.5", "mistral"],
+    "data_analysis": ["deepseek-r1", "qwen2.5", "gemma2"]
+  }
+}

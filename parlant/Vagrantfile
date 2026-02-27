@@ -1,0 +1,62 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+# ===================================================================
+# CLAW AGENTS PROVISIONER — Parlant Vagrantfile
+# ===================================================================
+# Provisions a Vagrant VM for running Parlant bare-metal.
+#
+# Usage:
+#   cd parlant && vagrant up
+#   vagrant ssh
+#   vagrant destroy -f
+#
+# Requirements: VirtualBox or libvirt
+# ===================================================================
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-24.04"
+  config.vm.hostname = "claw-parlant"
+
+  # Port forwarding
+  config.vm.network "forwarded_port", guest: 8800, host: 8800, auto_correct: true
+  config.vm.network "forwarded_port", guest: 8181, host: 8181, auto_correct: true
+
+  # Private network for multi-agent communication
+  config.vm.network "private_network", ip: "192.168.56.50"
+
+  # Resources
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "claw-parlant"
+    vb.memory = "2048"
+    vb.cpus = 2
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+  end
+
+  config.vm.provider "libvirt" do |lv|
+    lv.memory = 2048
+    lv.cpus = 2
+  end
+
+  # Provisioning
+  config.vm.provision "shell", inline: <<-SHELL
+    set -euo pipefail
+
+    echo "=== Claw Parlant VM Provisioning ==="
+
+    # System updates
+    apt-get update -qq
+    apt-get install -y -qq python3 python3-pip python3-venv curl jq git
+
+    # Create parlant user
+    if ! id -u parlant &>/dev/null; then
+      useradd -m -s /bin/bash parlant
+    fi
+
+    # Install Parlant via pip
+    su - parlant -c "python3 -m venv ~/.parlant-venv"
+    su - parlant -c "~/.parlant-venv/bin/pip install parlant"
+
+    echo "=== Parlant VM provisioning complete ==="
+    echo "SSH in and run: ~/.parlant-venv/bin/parlant-server"
+  SHELL
+end

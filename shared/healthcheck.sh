@@ -54,6 +54,7 @@ print_usage() {
     echo "  nanoclaw   — Run NanoClaw health check (container status)"
     echo "  picoclaw   — Run PicoClaw health check (picoclaw agent -m ping)"
     echo "  openclaw   — Run OpenClaw health check (openclaw doctor)"
+    echo "  parlant    — Run Parlant health check (HTTP /health)"
     echo "  all        — Run health checks for all agents"
     echo ""
     echo "Exit codes:"
@@ -223,6 +224,53 @@ check_openclaw() {
     [[ "$status" == "pass" ]]
 }
 
+check_parlant() {
+    log_info "Checking Parlant..."
+    local status="fail"
+    local details=""
+
+    # Check 1: HTTP health endpoint
+    local parlant_port="${PARLANT_PORT:-8800}"
+    if curl -sf "http://localhost:${parlant_port}/health" > /dev/null 2>&1; then
+        status="pass"
+        details="HTTP health check passed (port ${parlant_port})"
+        log_pass "Parlant: ${details}"
+    else
+        # Check 2: Docker container status
+        if command -v docker > /dev/null 2>&1; then
+            local container_status
+            container_status=$(docker ps --filter "name=parlant" --format "{{.Status}}" 2>/dev/null || echo "")
+            if [[ -n "$container_status" ]] && echo "$container_status" | grep -qi "up"; then
+                status="pass"
+                details="container running: ${container_status}"
+                log_pass "Parlant: ${details}"
+            else
+                # Check 3: Native process
+                if pgrep -f "parlant" > /dev/null 2>&1; then
+                    status="pass"
+                    details="process running (native)"
+                    log_pass "Parlant: ${details}"
+                else
+                    details="no HTTP endpoint, container, or process found"
+                    log_fail "Parlant: ${details}"
+                fi
+            fi
+        else
+            if pgrep -f "parlant" > /dev/null 2>&1; then
+                status="pass"
+                details="process running (native, no Docker)"
+                log_pass "Parlant: ${details}"
+            else
+                details="HTTP health check failed and no process found"
+                log_fail "Parlant: ${details}"
+            fi
+        fi
+    fi
+
+    echo "  {\"agent\": \"parlant\", \"status\": \"${status}\", \"details\": \"${details}\", \"timestamp\": \"$(timestamp)\"}"
+    [[ "$status" == "pass" ]]
+}
+
 # -------------------------------------------------------------------
 # Main
 # -------------------------------------------------------------------
@@ -254,6 +302,9 @@ case "$AGENT" in
     openclaw)
         check_openclaw || OVERALL_STATUS=1
         ;;
+    parlant)
+        check_parlant || OVERALL_STATUS=1
+        ;;
     all)
         echo "{"
         echo "  \"healthcheck\": ["
@@ -264,6 +315,8 @@ case "$AGENT" in
         check_picoclaw || OVERALL_STATUS=1
         echo ","
         check_openclaw || OVERALL_STATUS=1
+        echo ","
+        check_parlant || OVERALL_STATUS=1
         echo ""
         echo "  ],"
         echo "  \"overall\": \"$( [[ $OVERALL_STATUS -eq 0 ]] && echo 'pass' || echo 'fail' )\","

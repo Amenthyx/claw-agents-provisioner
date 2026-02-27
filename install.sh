@@ -321,36 +321,101 @@ configure_env() {
         7)
             info "No API key required for local LLM."
             echo ""
+
+            # Offer local LLM runtime selection
+            local runtime
+            runtime=$(prompt_choice "Which local LLM runtime?" \
+                "Ollama       — easiest setup, CPU + GPU  (port 11434)" \
+                "vLLM         — high-throughput GPU server (port 8000)" \
+                "SGLang       — fast serving, RadixAttention (port 30000)" \
+                "Docker Model Runner — Docker-native model serving (port 12434)" \
+                "Already running — just configure the endpoint")
+
+            local default_endpoint="http://localhost:11434/v1"
+            case "$runtime" in
+                1)
+                    if command_exists ollama; then
+                        log "Ollama is already installed: $(ollama --version 2>/dev/null || echo 'detected')"
+                    else
+                        if prompt_yn "Install Ollama now?" "y"; then
+                            bash "${SCRIPT_DIR}/shared/install-ollama.sh" install
+                        fi
+                    fi
+                    default_endpoint="http://localhost:11434/v1"
+                    ;;
+                2)
+                    info "vLLM requires a GPU. Install with: pip install vllm"
+                    info "Start with: vllm serve <model> --port 8000"
+                    default_endpoint="http://localhost:8000/v1"
+                    ;;
+                3)
+                    info "SGLang requires a GPU. Install with: pip install sglang[all]"
+                    info "Start with: python -m sglang.launch_server --model <model> --port 30000"
+                    default_endpoint="http://localhost:30000/v1"
+                    ;;
+                4)
+                    info "Docker Model Runner runs via Docker Desktop."
+                    info "Enable in Docker Desktop > Settings > Features in Development > Model Runner"
+                    default_endpoint="http://localhost:12434/v1"
+                    ;;
+                *)
+                    default_endpoint="http://localhost:11434/v1"
+                    ;;
+            esac
+
             local endpoint
-            endpoint=$(prompt_input "Local LLM endpoint URL" "http://localhost:11434/v1")
+            endpoint=$(prompt_input "Local LLM endpoint URL" "$default_endpoint")
             sed -i "s|CLAW_LOCAL_LLM_ENDPOINT=|CLAW_LOCAL_LLM_ENDPOINT=$endpoint|" "$env_file"
             sed -i "s|CLAW_LLM_PROVIDER=anthropic|CLAW_LLM_PROVIDER=local|" "$env_file"
 
-            local local_model
-            local_model=$(prompt_choice "Which local model are you running?" \
-                "llama3.2 (Meta — general purpose)" \
-                "mistral (Mistral AI — fast)" \
-                "codellama (Meta — coding)" \
-                "deepseek-r1 (DeepSeek — reasoning)" \
-                "qwen2.5 (Alibaba — multilingual)" \
-                "phi3 (Microsoft — lightweight)" \
-                "Custom — enter model name")
-            case "$local_model" in
-                1) sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=llama3.2|" "$env_file" ;;
-                2) sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=mistral|" "$env_file" ;;
-                3) sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=codellama|" "$env_file" ;;
-                4) sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=deepseek-r1|" "$env_file" ;;
-                5) sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=qwen2.5|" "$env_file" ;;
-                6) sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=phi3|" "$env_file" ;;
-                7)
-                    local custom_model
-                    custom_model=$(prompt_input "Enter the model name (as shown in 'ollama list')" "")
-                    if [[ -n "$custom_model" ]]; then
-                        sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=$custom_model|" "$env_file"
-                    fi
-                    ;;
-            esac
-            success "Local LLM configured: $endpoint"
+            # Model selection with multi-select for pulling
+            echo ""
+            echo -e "${BOLD}Select models to pull (multi-select with space-separated numbers):${NC}"
+            echo -e "  ${BOLD}1)${NC} llama3.2    — Meta, 3B, general purpose ${DIM}(2 GB)${NC}"
+            echo -e "  ${BOLD}2)${NC} qwen2.5     — Alibaba, 7B, multilingual + coding ${DIM}(4.4 GB)${NC}"
+            echo -e "  ${BOLD}3)${NC} deepseek-r1 — DeepSeek, 7B, reasoning + math ${DIM}(4.7 GB)${NC}"
+            echo -e "  ${BOLD}4)${NC} phi3        — Microsoft, 3.8B, lightweight ${DIM}(2.2 GB)${NC}"
+            echo -e "  ${BOLD}5)${NC} mistral     — Mistral AI, 7B, fast + versatile ${DIM}(4.1 GB)${NC}"
+            echo -e "  ${BOLD}6)${NC} codellama   — Meta, 7B, code-specialized ${DIM}(3.8 GB)${NC}"
+            echo -e "  ${BOLD}7)${NC} gemma2      — Google, 9B, reasoning ${DIM}(5.4 GB)${NC}"
+            echo ""
+            echo -ne "${CYAN}Enter model numbers (e.g., 1 2 3) or 'skip':${NC} "
+            read -r model_choices
+
+            local selected_models=()
+            local primary_model=""
+
+            for choice in $model_choices; do
+                case "$choice" in
+                    1) selected_models+=("llama3.2"); [[ -z "$primary_model" ]] && primary_model="llama3.2" ;;
+                    2) selected_models+=("qwen2.5"); [[ -z "$primary_model" ]] && primary_model="qwen2.5" ;;
+                    3) selected_models+=("deepseek-r1"); [[ -z "$primary_model" ]] && primary_model="deepseek-r1" ;;
+                    4) selected_models+=("phi3"); [[ -z "$primary_model" ]] && primary_model="phi3" ;;
+                    5) selected_models+=("mistral"); [[ -z "$primary_model" ]] && primary_model="mistral" ;;
+                    6) selected_models+=("codellama"); [[ -z "$primary_model" ]] && primary_model="codellama" ;;
+                    7) selected_models+=("gemma2"); [[ -z "$primary_model" ]] && primary_model="gemma2" ;;
+                    skip|s) break ;;
+                esac
+            done
+
+            # Pull selected models if Ollama is available
+            if [[ ${#selected_models[@]} -gt 0 ]] && command_exists ollama; then
+                local models_csv
+                models_csv=$(IFS=,; echo "${selected_models[*]}")
+                sed -i "s|CLAW_OLLAMA_MODELS=|CLAW_OLLAMA_MODELS=$models_csv|" "$env_file"
+                bash "${SCRIPT_DIR}/shared/install-ollama.sh" pull "${selected_models[@]}"
+            fi
+
+            # Set primary model
+            if [[ -n "$primary_model" ]]; then
+                sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=$primary_model|" "$env_file"
+            else
+                local custom_model
+                custom_model=$(prompt_input "Enter model name (as shown in 'ollama list')" "llama3.2")
+                sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=$custom_model|" "$env_file"
+            fi
+
+            log "Local LLM configured: $endpoint"
             ;;
         *) info "Skipped — edit .env manually later." ;;
     esac
@@ -399,6 +464,7 @@ configure_env() {
         "NanoClaw  — TypeScript, container isolation, Claude-native" \
         "PicoClaw  — Go, 8 MB RAM, edge/IoT, budget" \
         "OpenClaw  — TypeScript, 50+ channels, full-featured" \
+        "Parlant   — Python, behavioral AI, guidelines + MCP" \
         "Skip — decide later")
 
     case "$agent" in
@@ -406,6 +472,7 @@ configure_env() {
         2) sed -i "s|CLAW_AGENT=zeroclaw|CLAW_AGENT=nanoclaw|" "$env_file" ;;
         3) sed -i "s|CLAW_AGENT=zeroclaw|CLAW_AGENT=picoclaw|" "$env_file" ;;
         4) sed -i "s|CLAW_AGENT=zeroclaw|CLAW_AGENT=openclaw|" "$env_file" ;;
+        5) sed -i "s|CLAW_AGENT=zeroclaw|CLAW_AGENT=parlant|" "$env_file" ;;
         *) info "Skipped." ;;
     esac
 
@@ -536,10 +603,11 @@ deploy_agent() {
     echo -e "  ${BOLD}3)${NC} Deploy NanoClaw via Docker"
     echo -e "  ${BOLD}4)${NC} Deploy PicoClaw via Docker"
     echo -e "  ${BOLD}5)${NC} Deploy OpenClaw via Docker"
-    echo -e "  ${BOLD}6)${NC} Deploy via Vagrant (choose agent next)"
-    echo -e "  ${BOLD}7)${NC} Install agent bare-metal (no Docker)"
-    echo -e "  ${BOLD}8)${NC} Skip"
-    echo -ne "\n${CYAN}Choose [1-8]:${NC} "
+    echo -e "  ${BOLD}6)${NC} Deploy Parlant via Docker"
+    echo -e "  ${BOLD}7)${NC} Deploy via Vagrant (choose agent next)"
+    echo -e "  ${BOLD}8)${NC} Install agent bare-metal (no Docker)"
+    echo -e "  ${BOLD}9)${NC} Skip"
+    echo -ne "\n${CYAN}Choose [1-9]:${NC} "
     read -r depchoice
 
     case "$depchoice" in
@@ -570,28 +638,35 @@ deploy_agent() {
             bash "${SCRIPT_DIR}/claw.sh" openclaw docker
             ;;
         6)
+            log "Deploying Parlant via Docker..."
+            bash "${SCRIPT_DIR}/claw.sh" parlant docker
+            ;;
+        7)
             local vagent
             vagent=$(prompt_choice "Which agent via Vagrant?" \
-                "ZeroClaw" "NanoClaw" "PicoClaw" "OpenClaw")
+                "ZeroClaw" "NanoClaw" "PicoClaw" "OpenClaw" "Parlant")
             case "$vagent" in
                 1) bash "${SCRIPT_DIR}/claw.sh" zeroclaw vagrant ;;
                 2) bash "${SCRIPT_DIR}/claw.sh" nanoclaw vagrant ;;
                 3) bash "${SCRIPT_DIR}/claw.sh" picoclaw vagrant ;;
                 4) bash "${SCRIPT_DIR}/claw.sh" openclaw vagrant ;;
+                5) bash "${SCRIPT_DIR}/claw.sh" parlant vagrant ;;
             esac
             ;;
-        7)
+        8)
             local bagent
             bagent=$(prompt_choice "Which agent to install bare-metal?" \
                 "ZeroClaw (Rust binary)" \
                 "NanoClaw (Node.js clone + npm)" \
                 "PicoClaw (Go build from source)" \
-                "OpenClaw (Node.js + pnpm)")
+                "OpenClaw (Node.js + pnpm)" \
+                "Parlant  (Python 3.10+ + pip)")
             case "$bagent" in
                 1) bash "${SCRIPT_DIR}/zeroclaw/install-zeroclaw.sh" ;;
                 2) bash "${SCRIPT_DIR}/nanoclaw/install-nanoclaw.sh" ;;
                 3) bash "${SCRIPT_DIR}/picoclaw/install-picoclaw.sh" ;;
                 4) bash "${SCRIPT_DIR}/openclaw/install-openclaw.sh" ;;
+                5) bash "${SCRIPT_DIR}/parlant/install-parlant.sh" ;;
             esac
             ;;
         *)
@@ -834,10 +909,11 @@ run_healthcheck() {
     echo -e "  ${BOLD}3)${NC} Check NanoClaw"
     echo -e "  ${BOLD}4)${NC} Check PicoClaw"
     echo -e "  ${BOLD}5)${NC} Check OpenClaw"
-    echo -e "  ${BOLD}6)${NC} Show Docker container status"
-    echo -e "  ${BOLD}7)${NC} Show agent logs"
-    echo -e "  ${BOLD}8)${NC} Skip"
-    echo -ne "\n${CYAN}Choose [1-8]:${NC} "
+    echo -e "  ${BOLD}6)${NC} Check Parlant"
+    echo -e "  ${BOLD}7)${NC} Show Docker container status"
+    echo -e "  ${BOLD}8)${NC} Show agent logs"
+    echo -e "  ${BOLD}9)${NC} Skip"
+    echo -ne "\n${CYAN}Choose [1-9]:${NC} "
     read -r hcchoice
 
     case "$hcchoice" in
@@ -846,21 +922,23 @@ run_healthcheck() {
         3) bash "${SCRIPT_DIR}/claw.sh" health nanoclaw ;;
         4) bash "${SCRIPT_DIR}/claw.sh" health picoclaw ;;
         5) bash "${SCRIPT_DIR}/claw.sh" health openclaw ;;
-        6)
+        6) bash "${SCRIPT_DIR}/claw.sh" health parlant ;;
+        7)
             info "Running Docker container status..."
             docker compose -f "${SCRIPT_DIR}/docker-compose.yml" ps 2>/dev/null || \
                 docker ps --filter "name=claw" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || \
                 warn "No Docker containers found."
             ;;
-        7)
+        8)
             local lagent
             lagent=$(prompt_choice "Which agent's logs?" \
-                "ZeroClaw" "NanoClaw" "PicoClaw" "OpenClaw")
+                "ZeroClaw" "NanoClaw" "PicoClaw" "OpenClaw" "Parlant")
             case "$lagent" in
                 1) bash "${SCRIPT_DIR}/claw.sh" logs zeroclaw ;;
                 2) bash "${SCRIPT_DIR}/claw.sh" logs nanoclaw ;;
                 3) bash "${SCRIPT_DIR}/claw.sh" logs picoclaw ;;
                 4) bash "${SCRIPT_DIR}/claw.sh" logs openclaw ;;
+                5) bash "${SCRIPT_DIR}/claw.sh" logs parlant ;;
             esac
             ;;
         *)
@@ -893,7 +971,7 @@ setup_multi_instance() {
     fi
 
     inst_agent=$(prompt_choice "Agent platform for '$inst_name'?" \
-        "ZeroClaw" "NanoClaw" "PicoClaw" "OpenClaw")
+        "ZeroClaw" "NanoClaw" "PicoClaw" "OpenClaw" "Parlant")
 
     local profile port_var
     case "$inst_agent" in
@@ -901,6 +979,7 @@ setup_multi_instance() {
         2) profile="nanoclaw"; port_var="CLAW_NANOCLAW_PORT" ;;
         3) profile="picoclaw"; port_var="CLAW_PICOCLAW_PORT" ;;
         4) profile="openclaw"; port_var="CLAW_OPENCLAW_PORT" ;;
+        5) profile="parlant"; port_var="CLAW_PARLANT_PORT" ;;
         *) return 0 ;;
     esac
 
@@ -1159,6 +1238,58 @@ setup_security() {
 }
 
 # =============================================================================
+#  Step 13: Model Strategy Engine
+# =============================================================================
+
+setup_strategy() {
+    step "Step 13: Model Strategy Engine"
+
+    local strategy_py="${SCRIPT_DIR}/shared/claw_strategy.py"
+
+    if [[ ! -f "$strategy_py" ]]; then
+        err "shared/claw_strategy.py not found!"
+        return 1
+    fi
+
+    info "The strategy engine auto-discovers all available models (local + cloud)"
+    info "and generates optimal routing recommendations per task type."
+    echo ""
+    info "Supported local runtimes: Ollama, vLLM, SGLang, Docker Model Runner"
+    info "Supported cloud providers: Anthropic, OpenAI, DeepSeek, Gemini, Groq"
+    echo ""
+
+    echo -e "  ${BOLD}1)${NC} Scan for available models"
+    echo -e "  ${BOLD}2)${NC} Generate routing strategy"
+    echo -e "  ${BOLD}3)${NC} View current strategy report"
+    echo -e "  ${BOLD}4)${NC} Run latency benchmark"
+    echo -e "  ${BOLD}5)${NC} Generate strategy config template"
+    echo -e "  ${BOLD}6)${NC} Skip"
+    echo -ne "\n${CYAN}Choose [1-6]:${NC} "
+    read -r stratchoice
+
+    case "$stratchoice" in
+        1)
+            python3 "$strategy_py" --scan
+            ;;
+        2)
+            python3 "$strategy_py" --generate
+            ;;
+        3)
+            python3 "$strategy_py" --report
+            ;;
+        4)
+            python3 "$strategy_py" --benchmark
+            ;;
+        5)
+            python3 "$strategy_py" --init-config
+            ;;
+        *)
+            info "Skipped."
+            ;;
+    esac
+}
+
+# =============================================================================
 #  Main Menu
 # =============================================================================
 
@@ -1194,11 +1325,12 @@ show_menu() {
     echo -e "  ${BOLD}10)${NC} Vault management              ${DIM}(encrypted secrets, rotate, import)${NC}"
     echo -e "  ${BOLD}11)${NC} Optimization engine            ${DIM}(cost routing, caching, budgets)${NC}"
     echo -e "  ${BOLD}12)${NC} Security rules                 ${DIM}(forbidden URLs, content, data, network)${NC}"
+    echo -e "  ${BOLD}13)${NC} Model strategy engine          ${DIM}(auto-routing, local + cloud models)${NC}"
     echo ""
     echo -e "  ${BOLD}f)${NC}  Full setup (steps 1-7 sequentially)"
     echo -e "  ${BOLD}q)${NC}  Quit"
     echo ""
-    echo -ne "${CYAN}Choose [0-11/f/q]:${NC} "
+    echo -ne "${CYAN}Choose [0-13/f/q]:${NC} "
 }
 
 run_full_setup() {
@@ -1259,6 +1391,7 @@ main() {
             10) manage_vault; wait_key ;;
             11) setup_optimizer; wait_key ;;
             12) setup_security; wait_key ;;
+            13) setup_strategy; wait_key ;;
             f|F) run_full_setup; wait_key ;;
             q|Q)
                 echo ""

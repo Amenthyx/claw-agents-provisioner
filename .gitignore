@@ -25,6 +25,10 @@ budget_tracking.sqlite3
 cost_log.jsonl
 optimizer.log
 
+# Strategy engine outputs
+strategy.json
+strategy_config.json
+
 # Client assessment files (contain PII)
 client-assessment*.json
 !client-assessment.example.json

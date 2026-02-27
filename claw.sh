@@ -24,7 +24,7 @@ set -euo pipefail
 # Constants
 # -------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VALID_AGENTS=("zeroclaw" "nanoclaw" "picoclaw" "openclaw")
+VALID_AGENTS=("zeroclaw" "nanoclaw" "picoclaw" "openclaw" "parlant")
 VALID_METHODS=("docker" "vagrant")
 
 # -------------------------------------------------------------------
@@ -136,6 +136,19 @@ print_help() {
     echo -e "  ${GREEN}optimizer report${NC}             Show cost optimization report"
     echo -e "  ${GREEN}optimizer start${NC}              Start optimization proxy service"
     echo ""
+    echo -e "${BOLD}LOCAL LLM:${NC}"
+    echo -e "  ${GREEN}ollama install${NC}               Install Ollama runtime"
+    echo -e "  ${GREEN}ollama pull <model>${NC}           Pull a model (e.g., llama3.2, qwen2.5)"
+    echo -e "  ${GREEN}ollama list${NC}                  List installed local models"
+    echo -e "  ${GREEN}ollama status${NC}                Check Ollama service status"
+    echo ""
+    echo -e "${BOLD}STRATEGY ENGINE:${NC}"
+    echo -e "  ${GREEN}strategy scan${NC}                Discover available models (local + cloud)"
+    echo -e "  ${GREEN}strategy generate${NC}            Generate optimal routing strategy"
+    echo -e "  ${GREEN}strategy report${NC}              Print current strategy report"
+    echo -e "  ${GREEN}strategy init${NC}                Generate strategy config template"
+    echo -e "  ${GREEN}strategy benchmark${NC}           Quick latency benchmark"
+    echo ""
     echo -e "${BOLD}OPERATIONS:${NC}"
     echo -e "  ${GREEN}health <agent|all>${NC}           Run agent health check"
     echo -e "  ${GREEN}logs <agent>${NC}                 Tail agent logs (Docker)"
@@ -147,14 +160,17 @@ print_help() {
     echo -e "  ${BLUE}nanoclaw${NC}   TypeScript+DooD | 1 GB limit   | Port 3200"
     echo -e "  ${BLUE}picoclaw${NC}   Go agent       | 128 MB limit | Port 3300"
     echo -e "  ${BLUE}openclaw${NC}   Node.js 22     | 4 GB limit   | Port 3400"
+    echo -e "  ${BLUE}parlant${NC}    Python+MCP     | 2 GB limit   | Port 8800"
     echo ""
     echo -e "${BOLD}EXAMPLES:${NC}"
     echo "  ./claw.sh zeroclaw docker                          # Start ZeroClaw in Docker"
+    echo "  ./claw.sh parlant docker                           # Start Parlant in Docker"
     echo "  ./claw.sh picoclaw vagrant                         # Start PicoClaw in Vagrant VM"
     echo "  ./claw.sh zeroclaw destroy                         # Remove ZeroClaw container"
     echo "  ./claw.sh deploy --assessment client-assessment.json"
     echo "  ./claw.sh finetune --adapter 01-customer-support"
     echo "  ./claw.sh datasets --list"
+    echo "  ./claw.sh ollama install                           # Install Ollama + pull models"
     echo "  ./claw.sh health all                               # Check all agents"
     echo ""
     echo -e "${BOLD}MULTI-AGENT:${NC}"
@@ -724,7 +740,74 @@ case "${COMMAND}" in
         esac
         ;;
 
-    zeroclaw|nanoclaw|picoclaw|openclaw)
+    strategy)
+        # Model strategy engine
+        local strategy_py="${SCRIPT_DIR}/shared/claw_strategy.py"
+        if [ ! -f "${strategy_py}" ]; then
+            err "shared/claw_strategy.py not found!"
+            exit 1
+        fi
+        local strat_action="${1:-report}"
+        shift 2>/dev/null || true
+        case "${strat_action}" in
+            scan)
+                python3 "${strategy_py}" --scan
+                ;;
+            generate)
+                python3 "${strategy_py}" --generate
+                ;;
+            report)
+                python3 "${strategy_py}" --report
+                ;;
+            init)
+                python3 "${strategy_py}" --init-config
+                ;;
+            benchmark)
+                python3 "${strategy_py}" --benchmark
+                ;;
+            *)
+                err "Unknown strategy action: ${strat_action}"
+                echo "Usage: ./claw.sh strategy [scan|generate|report|init|benchmark]"
+                exit 1
+                ;;
+        esac
+        ;;
+
+    ollama)
+        # Ollama local LLM management
+        local ollama_script="${SCRIPT_DIR}/shared/install-ollama.sh"
+        if [ ! -f "${ollama_script}" ]; then
+            err "shared/install-ollama.sh not found!"
+            exit 1
+        fi
+        local oll_action="${1:-status}"
+        shift 2>/dev/null || true
+        case "${oll_action}" in
+            install)
+                bash "${ollama_script}" install "$@"
+                ;;
+            pull)
+                if [[ $# -eq 0 ]]; then
+                    err "Usage: ./claw.sh ollama pull <model> [model2] ..."
+                    exit 1
+                fi
+                bash "${ollama_script}" pull "$@"
+                ;;
+            list)
+                bash "${ollama_script}" list
+                ;;
+            status)
+                bash "${ollama_script}" status
+                ;;
+            *)
+                err "Unknown ollama action: ${oll_action}"
+                echo "Usage: ./claw.sh ollama [install|pull|list|status]"
+                exit 1
+                ;;
+        esac
+        ;;
+
+    zeroclaw|nanoclaw|picoclaw|openclaw|parlant)
         AGENT="${COMMAND}"
         METHOD="${1:-docker}"
 
