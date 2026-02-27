@@ -114,6 +114,7 @@ def generate_env(
         "openai_key": "sk-YOUR_KEY_HERE" if result.llm_provider == "openai" else "",
         "openrouter_key": "sk-or-YOUR_KEY_HERE" if result.llm_provider == "openrouter" else "",
         "deepseek_key": "sk-YOUR_KEY_HERE" if result.llm_provider == "deepseek" else "",
+        "local_llm_endpoint": assessment.get("infrastructure", {}).get("local_llm_endpoint", "") if result.llm_provider == "local" else "",
     }
 
     # Determine channel tokens to highlight
@@ -133,6 +134,9 @@ def generate_env(
 
     # Prompt enrichment is for API-only models
     prompt_enrichment = "true" if result.llm_provider in ("anthropic", "openai", "openrouter") else "false"
+
+    # Local LLM uses no API key — only needs endpoint URL
+    is_local = result.llm_provider == "local"
 
     # NanoClaw channel mapping
     nanoclaw_channel = primary_channel if primary_channel in (

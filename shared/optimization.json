@@ -8,6 +8,14 @@
   "cost_log_jsonl": "cost_log.jsonl",
   "models": {
     "tiers": {
+      "local": [
+        "llama3.2",
+        "mistral",
+        "codellama",
+        "deepseek-r1",
+        "qwen2.5",
+        "phi3"
+      ],
       "budget": [
         "deepseek-chat",
         "gemini-2.0-flash"
@@ -46,6 +54,30 @@
       "gpt-4.1-mini": {
         "input": 0.0004,
         "output": 0.0016
+      },
+      "llama3.2": {
+        "input": 0.0,
+        "output": 0.0
+      },
+      "mistral": {
+        "input": 0.0,
+        "output": 0.0
+      },
+      "codellama": {
+        "input": 0.0,
+        "output": 0.0
+      },
+      "deepseek-r1": {
+        "input": 0.0,
+        "output": 0.0
+      },
+      "qwen2.5": {
+        "input": 0.0,
+        "output": 0.0
+      },
+      "phi3": {
+        "input": 0.0,
+        "output": 0.0
       }
     }
   },
@@ -105,7 +137,8 @@
         "anthropic": 50,
         "openai": 60,
         "deepseek": 100,
-        "gemini": 60
+        "gemini": 60,
+        "local": 999
       }
     },
     "fallback_chain": {

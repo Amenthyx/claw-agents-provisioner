@@ -204,6 +204,12 @@ def select_llm_model(
     complexity = assessment.get("use_cases", {}).get("complexity_level", "moderate")
     max_context = assessment.get("performance_scale", {}).get("max_context_length", "medium")
 
+    # Local LLM — zero cost, no API key required
+    local_endpoint = assessment.get("infrastructure", {}).get("local_llm_endpoint", "")
+    if local_endpoint:
+        local_model = assessment.get("infrastructure", {}).get("local_llm_model", "llama3.2")
+        return "local", local_model
+
     # Budget-first selection
     if monthly_budget == 0:
         return "deepseek", "deepseek-chat"

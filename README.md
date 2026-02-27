@@ -1062,6 +1062,7 @@ cp .env.template .env
 
 Key sections in `.env`:
 - **LLM Provider Keys**: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`
+- **Local LLM Endpoint**: `CLAW_LOCAL_LLM_ENDPOINT` — for Ollama, vLLM, llama.cpp (no API key required)
 - **Channel Tokens**: `WHATSAPP_TOKEN`, `TELEGRAM_BOT_TOKEN`, `SLACK_BOT_TOKEN`
 - **Agent Selection**: `CLAW_PLATFORM`, `CLAW_MODEL`
 - **Fine-Tuning**: `FINETUNE_METHOD`, `FINETUNE_BASE_MODEL`, `FINETUNE_LORA_RANK`

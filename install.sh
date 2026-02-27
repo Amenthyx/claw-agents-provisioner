@@ -252,6 +252,7 @@ configure_env() {
         "OpenRouter (multi-provider)" \
         "Gemini (Google)" \
         "Groq (fast inference)" \
+        "Local LLM (Ollama / vLLM / llama.cpp — no API key)" \
         "Skip — configure later")
 
     case "$provider" in
@@ -316,6 +317,40 @@ configure_env() {
                 sed -i "s|GROQ_API_KEY=gsk_REPLACE_ME|GROQ_API_KEY=$key|" "$env_file"
             fi
             sed -i "s|CLAW_LLM_PROVIDER=anthropic|CLAW_LLM_PROVIDER=groq|" "$env_file"
+            ;;
+        7)
+            info "No API key required for local LLM."
+            echo ""
+            local endpoint
+            endpoint=$(prompt_input "Local LLM endpoint URL" "http://localhost:11434/v1")
+            sed -i "s|CLAW_LOCAL_LLM_ENDPOINT=|CLAW_LOCAL_LLM_ENDPOINT=$endpoint|" "$env_file"
+            sed -i "s|CLAW_LLM_PROVIDER=anthropic|CLAW_LLM_PROVIDER=local|" "$env_file"
+
+            local local_model
+            local_model=$(prompt_choice "Which local model are you running?" \
+                "llama3.2 (Meta — general purpose)" \
+                "mistral (Mistral AI — fast)" \
+                "codellama (Meta — coding)" \
+                "deepseek-r1 (DeepSeek — reasoning)" \
+                "qwen2.5 (Alibaba — multilingual)" \
+                "phi3 (Microsoft — lightweight)" \
+                "Custom — enter model name")
+            case "$local_model" in
+                1) sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=llama3.2|" "$env_file" ;;
+                2) sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=mistral|" "$env_file" ;;
+                3) sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=codellama|" "$env_file" ;;
+                4) sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=deepseek-r1|" "$env_file" ;;
+                5) sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=qwen2.5|" "$env_file" ;;
+                6) sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=phi3|" "$env_file" ;;
+                7)
+                    local custom_model
+                    custom_model=$(prompt_input "Enter the model name (as shown in 'ollama list')" "")
+                    if [[ -n "$custom_model" ]]; then
+                        sed -i "s|CLAW_LLM_MODEL=claude-sonnet-4-6|CLAW_LLM_MODEL=$custom_model|" "$env_file"
+                    fi
+                    ;;
+            esac
+            success "Local LLM configured: $endpoint"
             ;;
         *) info "Skipped — edit .env manually later." ;;
     esac

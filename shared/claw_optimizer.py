@@ -184,6 +184,8 @@ def _provider_from_model(model: str) -> str:
         return "deepseek"
     if "gemini" in m:
         return "gemini"
+    if any(name in m for name in ("llama", "mistral", "codellama", "phi", "qwen", "deepseek-r1")):
+        return "local"
     return "unknown"
 
 

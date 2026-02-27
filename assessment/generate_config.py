@@ -37,6 +37,7 @@ def generate_zeroclaw_config(
         "openai": "openai",
         "deepseek": "openai-compatible",
         "openrouter": "openrouter",
+        "local": "openai-compatible",
     }
 
     model_provider = provider_map.get(result.llm_provider, "anthropic")
