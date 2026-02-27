@@ -86,6 +86,30 @@
       "quality_tier": "excellent",
       "speed_tier": "medium",
       "description": "Google's open model — strong reasoning and text understanding"
+    },
+    {
+      "name": "deepseek-r1:14b",
+      "display_name": "DeepSeek R1 14B",
+      "vendor": "DeepSeek",
+      "parameters": "14B",
+      "size_gb": 8.9,
+      "vram_gb": 16,
+      "specialization": ["reasoning", "math", "coding", "analysis"],
+      "quality_tier": "premium",
+      "speed_tier": "slow",
+      "description": "Larger reasoning model — significantly stronger math and logic than 7B"
+    },
+    {
+      "name": "qwen2.5:14b",
+      "display_name": "Qwen 2.5 14B",
+      "vendor": "Alibaba",
+      "parameters": "14B",
+      "size_gb": 8.5,
+      "vram_gb": 16,
+      "specialization": ["general", "multilingual", "coding", "reasoning"],
+      "quality_tier": "premium",
+      "speed_tier": "slow",
+      "description": "Larger Qwen model — premium quality multilingual and coding capabilities"
     }
   ],
   "task_model_mapping": {

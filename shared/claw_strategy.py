@@ -9,6 +9,8 @@ routing strategy based on task type, quality, cost, and latency.
 Supports local runtimes:
   - Ollama       (http://localhost:11434)
   - vLLM         (http://localhost:8000)
+  - llama.cpp    (http://localhost:8080)
+  - ipex-llm     (http://localhost:8010)
   - SGLang       (http://localhost:30000)
   - Docker Model Runner (http://localhost:12434)
 
@@ -40,6 +42,15 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
 # -------------------------------------------------------------------------
+# Hardware detection (soft dependency — works without claw_hardware.py)
+# -------------------------------------------------------------------------
+try:
+    from claw_hardware import HardwareDetector, RuntimeRecommender
+    HAS_HARDWARE = True
+except ImportError:
+    HAS_HARDWARE = False
+
+# -------------------------------------------------------------------------
 # Constants
 # -------------------------------------------------------------------------
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -47,6 +58,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 STRATEGY_FILE = PROJECT_ROOT / "strategy.json"
 STRATEGY_CONFIG = PROJECT_ROOT / "strategy_config.json"
 OLLAMA_MODELS_FILE = SCRIPT_DIR / "ollama-models.json"
+HARDWARE_PROFILE_FILE = PROJECT_ROOT / "hardware_profile.json"
 
 # Local runtime endpoints (default ports — no conflicts between services)
 LOCAL_RUNTIMES = {
@@ -65,6 +77,22 @@ LOCAL_RUNTIMES = {
         "health_endpoint": "/health",
         "openai_base": "http://localhost:8000/v1",
         "default_port": 8000,
+    },
+    "llamacpp": {
+        "name": "llama.cpp",
+        "api_base": "http://localhost:8080",
+        "models_endpoint": "/v1/models",
+        "health_endpoint": "/health",
+        "openai_base": "http://localhost:8080/v1",
+        "default_port": 8080,
+    },
+    "ipexllm": {
+        "name": "ipex-llm",
+        "api_base": "http://localhost:8010",
+        "models_endpoint": "/v1/models",
+        "health_endpoint": "/health",
+        "openai_base": "http://localhost:8010/v1",
+        "default_port": 8010,
     },
     "sglang": {
         "name": "SGLang",
@@ -150,6 +178,8 @@ LOCAL_MODEL_SPECS = {
     "mistral": {"quality": 7, "speed": 7, "specialization": ["general", "chat", "creative"]},
     "codellama": {"quality": 7, "speed": 6, "specialization": ["coding"]},
     "gemma2": {"quality": 8, "speed": 6, "specialization": ["general", "reasoning", "summarization"]},
+    "deepseek-r1:14b": {"quality": 9, "speed": 4, "specialization": ["reasoning", "math", "coding"]},
+    "qwen2.5:14b": {"quality": 9, "speed": 4, "specialization": ["general", "multilingual", "coding"]},
 }
 
 # -------------------------------------------------------------------------
@@ -318,11 +348,24 @@ class ModelScanner:
 class StrategyGenerator:
     """Generates a model routing strategy based on available models."""
 
-    def __init__(self, scan_results: Dict, config: Optional[Dict] = None):
+    def __init__(self, scan_results: Dict, config: Optional[Dict] = None,
+                 hardware_profile: Optional[Dict] = None):
         self.config = config or {}
         self.all_models = scan_results.get("local_models", []) + scan_results.get("cloud_models", [])
         self.prefer_local = self.config.get("prefer_local", True)
         self.monthly_budget = self.config.get("monthly_budget", None)
+        self.hardware_profile = hardware_profile
+        self.recommended_runtime = None
+        self.max_vram_gb = 0
+
+        # Extract hardware-aware info
+        if hardware_profile:
+            gpu_summary = hardware_profile.get("gpu_summary", {})
+            self.max_vram_gb = gpu_summary.get("max_vram_gb", 0)
+            if HAS_HARDWARE:
+                recommender = RuntimeRecommender(hardware_profile)
+                rec = recommender.recommend()
+                self.recommended_runtime = rec.get("primary", {}).get("id")
 
     def score_model(self, model: Dict, task_config: Dict) -> float:
         """Score a model for a specific task type."""
@@ -355,6 +398,30 @@ class StrategyGenerator:
         # Quality floor
         if model["quality"] < task_config["min_quality"]:
             base_score -= 30
+
+        # Hardware-aware scoring
+        if self.hardware_profile and model["provider"] == "local":
+            # Bonus for models running on the recommended runtime
+            if self.recommended_runtime and model.get("runtime") == self.recommended_runtime:
+                base_score += 10
+
+            # Penalty for models that exceed available VRAM
+            if self.max_vram_gb > 0:
+                model_name = model.get("id", "")
+                model_spec = LOCAL_MODEL_SPECS.get(model_name, {})
+                # Check ollama-models.json vram_gb via loaded registry
+                if OLLAMA_MODELS_FILE.exists():
+                    try:
+                        with open(OLLAMA_MODELS_FILE) as f:
+                            registry = json.load(f)
+                        for m in registry.get("models", []):
+                            if m.get("name") == model_name:
+                                required_vram = m.get("vram_gb", 0)
+                                if required_vram > self.max_vram_gb:
+                                    base_score -= 50
+                                break
+                    except (json.JSONDecodeError, IOError):
+                        pass
 
         return round(base_score, 2)
 
@@ -438,6 +505,21 @@ class StrategyGenerator:
             "note": "Estimate based on ~100K tokens/month per task type",
         }
 
+        # Include hardware profile if available
+        if self.hardware_profile:
+            gpu_summary = self.hardware_profile.get("gpu_summary", {})
+            strategy["hardware"] = {
+                "detected": True,
+                "os": self.hardware_profile.get("os", {}),
+                "cpu": self.hardware_profile.get("cpu", {}).get("brand", "unknown"),
+                "ram_gb": self.hardware_profile.get("ram_gb", 0),
+                "gpu": gpu_summary.get("primary_vendor") if gpu_summary.get("has_gpu") else None,
+                "vram_gb": gpu_summary.get("max_vram_gb", 0),
+                "recommended_runtime": self.recommended_runtime,
+            }
+        else:
+            strategy["hardware"] = {"detected": False}
+
         return strategy
 
 
@@ -467,7 +549,7 @@ def print_scan_report(scan_results: Dict) -> None:
             speed = specs.get("speed", "?")
             print(f"  {m['id']:.<20} via {m['runtime_name']:<20} quality={quality}/10  speed={speed}/10  cost=$0")
     else:
-        print(f"{DIM}No local models found. Install Ollama, vLLM, SGLang, or Docker Model Runner.{NC}")
+        print(f"{DIM}No local models found. Install Ollama, vLLM, llama.cpp, ipex-llm, SGLang, or Docker Model Runner.{NC}")
 
     print()
 
@@ -523,6 +605,8 @@ def init_config() -> None:
         "monthly_budget": None,
         "ollama_endpoint": "http://localhost:11434",
         "vllm_endpoint": "http://localhost:8000",
+        "llamacpp_endpoint": "http://localhost:8080",
+        "ipexllm_endpoint": "http://localhost:8010",
         "sglang_endpoint": "http://localhost:30000",
         "docker_model_runner_endpoint": "http://localhost:12434",
         "auto_generate": False,
@@ -615,7 +699,24 @@ def main() -> None:
             err("No models found. Install a local runtime or configure cloud API keys.")
             sys.exit(1)
 
-        generator = StrategyGenerator(results, config)
+        # Auto-detect hardware if available
+        hardware_profile = None
+        if HAS_HARDWARE:
+            try:
+                detector = HardwareDetector()
+                hardware_profile = detector.detect_all()
+                log("Hardware detected — strategy will include hardware-aware scoring.")
+            except Exception:
+                warn("Hardware detection failed — generating strategy without hardware info.")
+        elif HARDWARE_PROFILE_FILE.exists():
+            try:
+                with open(HARDWARE_PROFILE_FILE) as f:
+                    hardware_profile = json.load(f)
+                log("Using cached hardware profile for scoring.")
+            except (json.JSONDecodeError, IOError):
+                pass
+
+        generator = StrategyGenerator(results, config, hardware_profile=hardware_profile)
         strategy = generator.generate()
 
         with open(STRATEGY_FILE, "w") as f:

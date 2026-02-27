@@ -322,13 +322,50 @@ configure_env() {
             info "No API key required for local LLM."
             echo ""
 
+            # --- Hardware auto-detection ---
+            local hw_summary=""
+            local hw_recommended=""
+            local hw_vram=0
+            if [[ -f "${SCRIPT_DIR}/shared/claw_hardware.py" ]]; then
+                info "Detecting hardware..."
+                hw_summary=$(python3 "${SCRIPT_DIR}/shared/claw_hardware.py" --summary 2>/dev/null || echo "")
+                if [[ -n "$hw_summary" ]]; then
+                    echo -e "  ${BOLD}Detected:${NC} ${hw_summary}"
+                    echo ""
+                fi
+                # Get recommended runtime ID
+                local hw_json
+                hw_json=$(python3 "${SCRIPT_DIR}/shared/claw_hardware.py" --json 2>/dev/null || echo "")
+                if [[ -n "$hw_json" ]]; then
+                    hw_recommended=$(echo "$hw_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('recommendation',{}).get('primary',{}).get('id',''))" 2>/dev/null || echo "")
+                    hw_vram=$(echo "$hw_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('hardware',{}).get('gpu_summary',{}).get('max_vram_gb',0))" 2>/dev/null || echo "0")
+                fi
+            fi
+
+            # Build runtime labels with [RECOMMENDED] tags
+            local ollama_label="Ollama       — easiest setup, CPU + GPU  (port 11434)"
+            local vllm_label="vLLM         — high-throughput GPU server (port 8000)"
+            local sglang_label="SGLang       — fast serving, RadixAttention (port 30000)"
+            local dmr_label="Docker Model Runner — Docker-native model serving (port 12434)"
+            local llamacpp_label="llama.cpp    — efficient CPU inference, GGUF models (port 8080)"
+            local ipexllm_label="ipex-llm     — Intel-optimized, SYCL/AMX (port 8010)"
+
+            [[ "$hw_recommended" == "ollama" ]]   && ollama_label="${ollama_label} ${GREEN}[RECOMMENDED]${NC}"
+            [[ "$hw_recommended" == "vllm" ]]     && vllm_label="${vllm_label} ${GREEN}[RECOMMENDED]${NC}"
+            [[ "$hw_recommended" == "sglang" ]]   && sglang_label="${sglang_label} ${GREEN}[RECOMMENDED]${NC}"
+            [[ "$hw_recommended" == "docker_model_runner" ]] && dmr_label="${dmr_label} ${GREEN}[RECOMMENDED]${NC}"
+            [[ "$hw_recommended" == "llamacpp" ]] && llamacpp_label="${llamacpp_label} ${GREEN}[RECOMMENDED]${NC}"
+            [[ "$hw_recommended" == "ipexllm" ]]  && ipexllm_label="${ipexllm_label} ${GREEN}[RECOMMENDED]${NC}"
+
             # Offer local LLM runtime selection
             local runtime
             runtime=$(prompt_choice "Which local LLM runtime?" \
-                "Ollama       — easiest setup, CPU + GPU  (port 11434)" \
-                "vLLM         — high-throughput GPU server (port 8000)" \
-                "SGLang       — fast serving, RadixAttention (port 30000)" \
-                "Docker Model Runner — Docker-native model serving (port 12434)" \
+                "$ollama_label" \
+                "$vllm_label" \
+                "$sglang_label" \
+                "$dmr_label" \
+                "$llamacpp_label" \
+                "$ipexllm_label" \
                 "Already running — just configure the endpoint")
 
             local default_endpoint="http://localhost:11434/v1"
@@ -358,10 +395,34 @@ configure_env() {
                     info "Enable in Docker Desktop > Settings > Features in Development > Model Runner"
                     default_endpoint="http://localhost:12434/v1"
                     ;;
+                5)
+                    if command -v llama-server &>/dev/null; then
+                        log "llama-server is already installed."
+                    else
+                        if prompt_yn "Install llama.cpp now?" "y"; then
+                            bash "${SCRIPT_DIR}/shared/install-llamacpp.sh" install
+                        fi
+                    fi
+                    info "Download GGUF models from: https://huggingface.co/models?sort=downloads&search=gguf"
+                    default_endpoint="http://localhost:8080/v1"
+                    ;;
+                6)
+                    info "ipex-llm is Intel-optimized. Install with: pip install ipex-llm[xpu]"
+                    info "For CPU-only: pip install ipex-llm"
+                    info "Start with: python -m ipex_llm.serving.fastapi --model <model> --port 8010"
+                    default_endpoint="http://localhost:8010/v1"
+                    ;;
                 *)
                     default_endpoint="http://localhost:11434/v1"
                     ;;
             esac
+
+            # VRAM warning for low-memory systems
+            if [[ "$hw_vram" != "0" ]] && [[ "${hw_vram%.*}" -lt 8 ]] 2>/dev/null; then
+                echo ""
+                warn "Low VRAM detected (${hw_vram} GB). Only small models (3-4B) will fit."
+                warn "Consider using CPU-only runtimes (llama.cpp, Ollama) for better compatibility."
+            fi
 
             local endpoint
             endpoint=$(prompt_input "Local LLM endpoint URL" "$default_endpoint")

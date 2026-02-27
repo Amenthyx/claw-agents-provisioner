@@ -161,8 +161,11 @@
         <mxCell id="84" value="&lt;b&gt;claw_strategy.py&lt;/b&gt;&lt;br&gt;&lt;i&gt;Model Strategy Engine · Auto-discover local+cloud models · Per-task routing&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#9C27B0;fontColor=#fff;strokeColor=#8E24AA;fontSize=12;arcSize=10;" vertex="1" parent="80">
           <mxGeometry x="1285" y="38" width="395" height="65" as="geometry"/>
         </mxCell>
-        <mxCell id="85" value="&lt;b&gt;install-ollama.sh&lt;/b&gt;&lt;br&gt;&lt;i&gt;Local LLM Runtime Installer · Ollama · vLLM · SGLang · Docker Model Runner&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#AB47BC;fontColor=#fff;strokeColor=#9C27B0;fontSize=12;arcSize=10;" vertex="1" parent="80">
+        <mxCell id="85" value="&lt;b&gt;install-ollama.sh · install-llamacpp.sh&lt;/b&gt;&lt;br&gt;&lt;i&gt;6 Local LLM Runtimes · Ollama · vLLM · llama.cpp · ipex-llm · SGLang · Docker Model Runner&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#AB47BC;fontColor=#fff;strokeColor=#9C27B0;fontSize=12;arcSize=10;" vertex="1" parent="80">
           <mxGeometry x="15" y="118" width="830" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="86" value="&lt;b&gt;claw_hardware.py&lt;/b&gt;&lt;br&gt;&lt;i&gt;Hardware Detection · GPU/CPU/RAM · Runtime Recommendation&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BA68C8;fontColor=#fff;strokeColor=#AB47BC;fontSize=12;arcSize=10;" vertex="1" parent="80">
+          <mxGeometry x="870" y="118" width="810" height="65" as="geometry"/>
         </mxCell>
 
         <!-- ══════════════════════════════════════════════════════════════ -->
@@ -248,7 +251,7 @@
         <mxCell id="126" value="&lt;b&gt;Groq&lt;/b&gt;&lt;br&gt;&lt;i&gt;Fast inference&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6A1B9A;fontColor=#fff;strokeColor=#4A148C;fontSize=13;arcSize=10;" vertex="1" parent="120">
           <mxGeometry x="635" y="150" width="280" height="85" as="geometry"/>
         </mxCell>
-        <mxCell id="127" value="&lt;b&gt;Local LLM Runtimes&lt;/b&gt;&lt;br&gt;&lt;i&gt;Ollama :11434 · vLLM :8000 · SGLang :30000 · Docker Model Runner :12434&lt;/i&gt;&lt;br&gt;&lt;i&gt;No API key · OpenAI-compatible endpoint · Free inference&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#424242;fontColor=#fff;strokeColor=#212121;fontSize=12;arcSize=10;dashed=1;dashPattern=8 4;" vertex="1" parent="120">
+        <mxCell id="127" value="&lt;b&gt;Local LLM Runtimes&lt;/b&gt;&lt;br&gt;&lt;i&gt;Ollama :11434 · vLLM :8000 · llama.cpp :8080 · ipex-llm :8010 · SGLang :30000 · Docker Model Runner :12434&lt;/i&gt;&lt;br&gt;&lt;i&gt;No API key · OpenAI-compatible endpoint · Free inference · Hardware auto-detection&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#424242;fontColor=#fff;strokeColor=#212121;fontSize=12;arcSize=10;dashed=1;dashPattern=8 4;" vertex="1" parent="120">
           <mxGeometry x="15" y="258" width="900" height="95" as="geometry"/>
         </mxCell>
 
@@ -292,7 +295,7 @@
         <mxCell id="144" value="&lt;b&gt;Docker Socket&lt;/b&gt;&lt;br&gt;&lt;i&gt;/var/run/docker.sock&lt;/i&gt;&lt;br&gt;&lt;font color=&quot;#FFCDD2&quot;&gt;&lt;b&gt;NanoClaw only (DooD)&lt;/b&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#78909C;fontColor=#fff;strokeColor=#607D8B;fontSize=11;arcSize=10;" vertex="1" parent="140">
           <mxGeometry x="15" y="135" width="280" height="75" as="geometry"/>
         </mxCell>
-        <mxCell id="145" value="&lt;b&gt;Network Ports&lt;/b&gt;&lt;br&gt;&lt;i&gt;:3100 · :3200 · :3300 · :3400 · :8800 · :8181&lt;/i&gt;&lt;br&gt;&lt;i&gt;:9090 · :9091 · :11434 · :8000 · :30000 · :12434&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#90A4AE;fontColor=#000;strokeColor=#78909C;fontSize=11;arcSize=10;" vertex="1" parent="140">
+        <mxCell id="145" value="&lt;b&gt;Network Ports&lt;/b&gt;&lt;br&gt;&lt;i&gt;:3100 · :3200 · :3300 · :3400 · :8800 · :8181&lt;/i&gt;&lt;br&gt;&lt;i&gt;:9090 · :9091 · :11434 · :8000 · :8010 · :8080 · :30000 · :12434&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#90A4AE;fontColor=#000;strokeColor=#78909C;fontSize=11;arcSize=10;" vertex="1" parent="140">
           <mxGeometry x="325" y="135" width="280" height="75" as="geometry"/>
         </mxCell>
         <mxCell id="146" value="&lt;b&gt;RAM / tmpfs&lt;/b&gt;&lt;br&gt;&lt;i&gt;Ephemeral secret storage&lt;/i&gt;&lt;br&gt;&lt;i&gt;In-memory caches&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B0BEC5;fontColor=#000;strokeColor=#90A4AE;fontSize=11;arcSize=10;" vertex="1" parent="140">
@@ -353,7 +356,7 @@
         <mxCell id="310" value="LEGEND" style="swimlane;startSize=25;fillColor=#F5F5F5;fontColor=#333;strokeColor=#CCC;rounded=1;arcSize=6;fontSize=12;fontStyle=1;swimlaneLine=0;whiteSpace=wrap;html=1;collapsible=0;" vertex="1" parent="1">
           <mxGeometry x="250" y="2250" width="1700" height="120" as="geometry"/>
         </mxCell>
-        <mxCell id="311" value="&lt;b&gt;Thick solid line&lt;/b&gt; = primary data flow &amp;nbsp;&amp;nbsp; &lt;b&gt;Thin solid line&lt;/b&gt; = secondary flow &amp;nbsp;&amp;nbsp; &lt;b&gt;Dashed line&lt;/b&gt; = optional / background&lt;br&gt;&lt;br&gt;WhatsApp &amp;amp; Signal are &lt;b&gt;OpenClaw only&lt;/b&gt; · NanoClaw has exclusive &lt;b&gt;Docker socket&lt;/b&gt; access (DooD) · Parlant uses &lt;b&gt;MCP tools&lt;/b&gt; + behavioral guidelines&lt;br&gt;Strategy Engine auto-routes to optimal local + cloud models per task type · All agents support local LLM via &lt;b&gt;host.docker.internal&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#333;strokeColor=none;fillColor=none;" vertex="1" parent="310">
+        <mxCell id="311" value="&lt;b&gt;Thick solid line&lt;/b&gt; = primary data flow &amp;nbsp;&amp;nbsp; &lt;b&gt;Thin solid line&lt;/b&gt; = secondary flow &amp;nbsp;&amp;nbsp; &lt;b&gt;Dashed line&lt;/b&gt; = optional / background&lt;br&gt;&lt;br&gt;WhatsApp &amp;amp; Signal are &lt;b&gt;OpenClaw only&lt;/b&gt; · NanoClaw has exclusive &lt;b&gt;Docker socket&lt;/b&gt; access (DooD) · Parlant uses &lt;b&gt;MCP tools&lt;/b&gt; + behavioral guidelines&lt;br&gt;Strategy Engine auto-routes to optimal local + cloud models per task type · Hardware Detection recommends best runtime · All agents support local LLM via &lt;b&gt;host.docker.internal&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#333;strokeColor=none;fillColor=none;" vertex="1" parent="310">
           <mxGeometry x="10" y="30" width="1680" height="72" as="geometry"/>
         </mxCell>
 

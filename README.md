@@ -1025,11 +1025,24 @@ See [finetune/datasets/README.md](finetune/datasets/README.md) for the full data
 ./claw.sh datasets --download-all       # Re-download from HuggingFace
 ./claw.sh datasets --stats              # Show dataset statistics
 
+# Hardware detection & runtime recommendation
+./claw.sh hardware detect              # Detect GPU, CPU, RAM — save hardware_profile.json
+./claw.sh hardware report              # Print formatted hardware report
+./claw.sh hardware recommend           # Recommend best local LLM runtime + models
+./claw.sh hardware json                # Output hardware profile as JSON
+./claw.sh hardware summary             # One-line summary (for scripts)
+
 # Ollama / Local LLM
 ./claw.sh ollama install                # Install Ollama runtime
 ./claw.sh ollama pull <model> [model2]  # Pull models (e.g., llama3.2 qwen2.5)
 ./claw.sh ollama list                   # List installed models
 ./claw.sh ollama status                 # Check Ollama service status
+
+# llama.cpp
+./claw.sh llamacpp install             # Install llama-server
+./claw.sh llamacpp start <model.gguf>  # Start server with a GGUF model
+./claw.sh llamacpp list                # List GGUF models in models directory
+./claw.sh llamacpp status              # Check llama.cpp server status
 
 # Model Strategy Engine
 ./claw.sh strategy scan                 # Discover all local + cloud models
@@ -1067,9 +1080,11 @@ claw-agents-provisioner/
 ├── openclaw/                 # OpenClaw provisioning
 ├── parlant/                  # Parlant provisioning (guidelines + MCP)
 ├── shared/                   # Shared provisioning scripts
-│   ├── claw_strategy.py      # Model Strategy Engine
-│   ├── install-ollama.sh     # Local LLM runtime installer
-│   └── ollama-models.json    # Free model registry
+│   ├── claw_hardware.py      # Hardware detection & runtime recommendation
+│   ├── claw_strategy.py      # Model Strategy Engine (hardware-aware)
+│   ├── install-ollama.sh     # Ollama runtime installer
+│   ├── install-llamacpp.sh   # llama.cpp runtime installer
+│   └── ollama-models.json    # Free model registry (9 models)
 ├── claw.sh                   # Unified CLI launcher
 ├── docker-compose.yml        # Multi-agent Docker Compose
 └── .env.template             # Environment variable template
@@ -1669,14 +1684,16 @@ Run agents with self-hosted models — no API key, no external calls, zero cost 
 
 ### Supported Runtimes
 
-| Runtime | Port | Endpoint Example | Notes |
-|---------|------|-----------------|-------|
-| **Ollama** | 11434 | `http://localhost:11434/v1` | Easiest setup, auto-downloads models |
-| **vLLM** | 8000 | `http://localhost:8000/v1` | Production-grade, GPU optimized, high throughput |
-| **SGLang** | 30000 | `http://localhost:30000/v1` | High-performance serving, RadixAttention |
-| **Docker Model Runner** | 12434 | `http://localhost:12434/engines/llama.cpp/v1` | Docker-native, integrated model management |
-| **llama.cpp** | 8080 | `http://localhost:8080/v1` | Minimal footprint, CPU + GPU |
-| **LM Studio** | 1234 | `http://localhost:1234/v1` | Desktop GUI with server mode |
+| Runtime | Port | Endpoint Example | Best For |
+|---------|------|-----------------|----------|
+| **Ollama** | 11434 | `http://localhost:11434/v1` | Easiest setup, CPU + GPU (Metal, CUDA, ROCm) |
+| **vLLM** | 8000 | `http://localhost:8000/v1` | Highest throughput, NVIDIA GPU (PagedAttention) |
+| **llama.cpp** | 8080 | `http://localhost:8080/v1` | Most efficient CPU inference, GGUF models |
+| **ipex-llm** | 8010 | `http://localhost:8010/v1` | Intel-optimized (Arc/Flex GPU, AMX/AVX-512 CPU) |
+| **SGLang** | 30000 | `http://localhost:30000/v1` | Fast serving, RadixAttention (CUDA only) |
+| **Docker Model Runner** | 12434 | `http://localhost:12434/v1` | Docker-native, integrated model management |
+
+> **Auto-detect your hardware:** Run `./claw.sh hardware recommend` to get a personalized runtime recommendation based on your GPU, CPU, and RAM.
 
 ### Recommended Local Models
 
@@ -1805,13 +1822,14 @@ PARLANT_LOG_LEVEL=info
 
 ## Model Strategy Engine
 
-The Model Strategy Engine auto-discovers all available models (local runtimes + cloud APIs) and generates optimal per-task-type routing recommendations.
+The Model Strategy Engine auto-discovers all available models (local runtimes + cloud APIs) and generates optimal per-task-type routing recommendations. When hardware detection is available, scoring includes hardware-aware bonuses for models on the recommended runtime and penalties for models that exceed available VRAM.
 
 ### How It Works
 
-1. **Scan** — Queries Ollama (`/api/tags`), vLLM, SGLang, Docker Model Runner (`/v1/models`) for local models. Checks environment variables for cloud API keys (Anthropic, OpenAI, DeepSeek, Gemini, Groq).
-2. **Score** — Each model is scored per task type on quality, speed, cost, and specialization.
-3. **Route** — Generates `strategy.json` with primary + fallback model for each task type.
+1. **Detect** — (Optional) `claw_hardware.py` detects GPU, VRAM, CPU features, and RAM to determine the best runtime.
+2. **Scan** — Queries all 6 local runtimes (Ollama, vLLM, llama.cpp, ipex-llm, SGLang, Docker Model Runner) for models. Checks environment variables for cloud API keys (Anthropic, OpenAI, DeepSeek, Gemini, Groq).
+3. **Score** — Each model is scored per task type on quality, speed, cost, specialization, and hardware fit.
+4. **Route** — Generates `strategy.json` with primary + fallback model for each task type, plus hardware profile.
 
 ### Task Types
 
@@ -1851,8 +1869,10 @@ All runtimes use distinct ports to avoid conflicts:
 |---------|------|-----------------|
 | Ollama | 11434 | `http://localhost:11434/v1` |
 | vLLM | 8000 | `http://localhost:8000/v1` |
+| llama.cpp | 8080 | `http://localhost:8080/v1` |
+| ipex-llm | 8010 | `http://localhost:8010/v1` |
 | SGLang | 30000 | `http://localhost:30000/v1` |
-| Docker Model Runner | 12434 | `http://localhost:12434/engines/llama.cpp/v1` |
+| Docker Model Runner | 12434 | `http://localhost:12434/v1` |
 
 ## Ecosystem Diagram
 

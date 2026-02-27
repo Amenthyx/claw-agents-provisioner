@@ -91,7 +91,9 @@ claw-agents-provisioner/
 │   ├── provision-base.sh
 │   ├── healthcheck.sh
 │   ├── install-ollama.sh     # Ollama installer
+│   ├── install-llamacpp.sh   # llama.cpp installer
 │   ├── ollama-models.json    # Local model registry
+│   ├── claw_hardware.py      # Hardware detection & runtime recommendation
 │   ├── claw_strategy.py      # Model strategy engine
 │   └── skills-installer.sh
 ├── .team/                    # Project management artifacts
@@ -117,10 +119,19 @@ claw-agents-provisioner/
 The resolver uses weighted scoring across 8 factors (use case overlap, budget, complexity, sensitivity, channel, device, regulation, storage) to match a client assessment to one of 16 deployment profiles in the needs-mapping-matrix.
 
 ### Local LLM Support
-Supports 4 local LLM runtimes (Ollama, vLLM, SGLang, Docker Model Runner) with automatic model discovery. The Model Strategy Engine (`claw_strategy.py`) scans all available models and generates per-task-type routing recommendations.
+Supports 6 local LLM runtimes with automatic model discovery and hardware-aware runtime recommendation:
+- **Ollama** (:11434) — easiest setup, CPU + GPU (Metal, CUDA, ROCm)
+- **vLLM** (:8000) — highest throughput GPU inference (CUDA)
+- **llama.cpp** (:8080) — most efficient CPU inference, GGUF models
+- **ipex-llm** (:8010) — Intel-optimized with SYCL/AMX acceleration
+- **SGLang** (:30000) — fast serving with RadixAttention (CUDA)
+- **Docker Model Runner** (:12434) — Docker-native model serving
+
+### Hardware Detection Engine
+`claw_hardware.py` auto-detects GPU (NVIDIA/AMD/Intel/Apple Silicon), VRAM, CPU features (AVX-512, AMX), and RAM. Recommends the best runtime per hardware profile. Used by `install.sh` Step 3 and `claw_strategy.py` for hardware-aware model scoring.
 
 ### Model Strategy Engine
-Auto-discovers local + cloud models and generates `strategy.json` with optimal routing per task type (reasoning, coding, creative, chat, translation, summarization, data analysis). Prefers free local models when quality is comparable to cloud.
+Auto-discovers local + cloud models and generates `strategy.json` with optimal routing per task type (reasoning, coding, creative, chat, translation, summarization, data analysis). Prefers free local models when quality is comparable to cloud. Includes hardware-aware scoring when hardware profile is available.
 
 ### Fine-Tuning
 - **LoRA**: Full-precision, 24+ GB VRAM, PEFT library

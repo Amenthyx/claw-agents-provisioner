@@ -136,11 +136,22 @@ print_help() {
     echo -e "  ${GREEN}optimizer report${NC}             Show cost optimization report"
     echo -e "  ${GREEN}optimizer start${NC}              Start optimization proxy service"
     echo ""
+    echo -e "${BOLD}HARDWARE:${NC}"
+    echo -e "  ${GREEN}hardware detect${NC}              Detect GPU, CPU, RAM — save hardware_profile.json"
+    echo -e "  ${GREEN}hardware report${NC}              Print formatted hardware report"
+    echo -e "  ${GREEN}hardware recommend${NC}           Recommend best local LLM runtime + models"
+    echo -e "  ${GREEN}hardware json${NC}                Output hardware profile as JSON"
+    echo -e "  ${GREEN}hardware summary${NC}             One-line summary (for scripts)"
+    echo ""
     echo -e "${BOLD}LOCAL LLM:${NC}"
     echo -e "  ${GREEN}ollama install${NC}               Install Ollama runtime"
     echo -e "  ${GREEN}ollama pull <model>${NC}           Pull a model (e.g., llama3.2, qwen2.5)"
     echo -e "  ${GREEN}ollama list${NC}                  List installed local models"
     echo -e "  ${GREEN}ollama status${NC}                Check Ollama service status"
+    echo -e "  ${GREEN}llamacpp install${NC}             Install llama.cpp server"
+    echo -e "  ${GREEN}llamacpp start <model.gguf>${NC}  Start llama-server with a GGUF model"
+    echo -e "  ${GREEN}llamacpp list${NC}                List GGUF models in models directory"
+    echo -e "  ${GREEN}llamacpp status${NC}              Check llama.cpp server status"
     echo ""
     echo -e "${BOLD}STRATEGY ENGINE:${NC}"
     echo -e "  ${GREEN}strategy scan${NC}                Discover available models (local + cloud)"
@@ -768,6 +779,73 @@ case "${COMMAND}" in
             *)
                 err "Unknown strategy action: ${strat_action}"
                 echo "Usage: ./claw.sh strategy [scan|generate|report|init|benchmark]"
+                exit 1
+                ;;
+        esac
+        ;;
+
+    hardware)
+        # Hardware detection & runtime recommendation engine
+        local hardware_py="${SCRIPT_DIR}/shared/claw_hardware.py"
+        if [ ! -f "${hardware_py}" ]; then
+            err "shared/claw_hardware.py not found!"
+            exit 1
+        fi
+        local hw_action="${1:-detect}"
+        shift 2>/dev/null || true
+        case "${hw_action}" in
+            detect)
+                python3 "${hardware_py}" --detect
+                ;;
+            report)
+                python3 "${hardware_py}" --report
+                ;;
+            recommend)
+                python3 "${hardware_py}" --recommend
+                ;;
+            json)
+                python3 "${hardware_py}" --json
+                ;;
+            summary)
+                python3 "${hardware_py}" --summary
+                ;;
+            *)
+                err "Unknown hardware action: ${hw_action}"
+                echo "Usage: ./claw.sh hardware [detect|report|recommend|json|summary]"
+                exit 1
+                ;;
+        esac
+        ;;
+
+    llamacpp)
+        # llama.cpp local LLM management
+        local llamacpp_script="${SCRIPT_DIR}/shared/install-llamacpp.sh"
+        if [ ! -f "${llamacpp_script}" ]; then
+            err "shared/install-llamacpp.sh not found!"
+            exit 1
+        fi
+        local lc_action="${1:-status}"
+        shift 2>/dev/null || true
+        case "${lc_action}" in
+            install)
+                bash "${llamacpp_script}" install
+                ;;
+            start)
+                if [[ $# -eq 0 ]]; then
+                    err "Usage: ./claw.sh llamacpp start <model.gguf>"
+                    exit 1
+                fi
+                bash "${llamacpp_script}" start "$1"
+                ;;
+            list)
+                bash "${llamacpp_script}" list
+                ;;
+            status)
+                bash "${llamacpp_script}" status
+                ;;
+            *)
+                err "Unknown llamacpp action: ${lc_action}"
+                echo "Usage: ./claw.sh llamacpp [install|start|list|status]"
                 exit 1
                 ;;
         esac

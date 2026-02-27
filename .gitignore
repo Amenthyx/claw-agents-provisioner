@@ -29,6 +29,9 @@ optimizer.log
 strategy.json
 strategy_config.json
 
+# Hardware detection output
+hardware_profile.json
+
 # Client assessment files (contain PII)
 client-assessment*.json
 !client-assessment.example.json
