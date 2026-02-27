@@ -1635,6 +1635,89 @@ A config-driven optimization layer between agents and LLM APIs. Implements 14 ru
 | Budget Enforcer | Prevents cost overruns |
 | Request Batcher | 50% on batch-eligible tasks |
 
+## Local LLM Support
+
+Run agents with self-hosted models — no API key, no external calls, zero cost per token. Any OpenAI-compatible endpoint works out of the box.
+
+### Supported Runtimes
+
+| Runtime | Endpoint Example | Notes |
+|---------|-----------------|-------|
+| **Ollama** | `http://localhost:11434/v1` | Easiest setup, auto-downloads models |
+| **vLLM** | `http://localhost:8000/v1` | Production-grade, GPU optimized, high throughput |
+| **llama.cpp** | `http://localhost:8080/v1` | Minimal footprint, CPU + GPU |
+| **LM Studio** | `http://localhost:1234/v1` | Desktop GUI with server mode |
+| **LocalAI** | `http://localhost:8080/v1` | Drop-in OpenAI replacement |
+| **Text Generation WebUI** | `http://localhost:5000/v1` | Oobabooga with OpenAI extension |
+
+### Recommended Local Models
+
+| Model | Size | Best For |
+|-------|------|----------|
+| `llama3.2` | 3B / 8B | General purpose, conversation |
+| `mistral` | 7B | Fast responses, reasoning |
+| `codellama` | 7B / 13B | Code generation, debugging |
+| `deepseek-r1` | 7B / 14B | Complex reasoning, chain-of-thought |
+| `qwen2.5` | 7B / 14B | Multilingual, tool use |
+| `phi3` | 3.8B | Lightweight, resource-constrained devices |
+
+### Configuration
+
+**Option A — Interactive installer:**
+
+```bash
+./install.sh
+# Select option 3 (Environment config)
+# Choose "Local LLM (Ollama / vLLM / llama.cpp — no API key)"
+# Enter your endpoint URL and pick a model
+```
+
+**Option B — Manual `.env` setup:**
+
+```bash
+CLAW_LLM_PROVIDER=local
+CLAW_LLM_MODEL=llama3.2
+CLAW_LOCAL_LLM_ENDPOINT=http://localhost:11434/v1
+```
+
+**Option C — Quick start with Ollama:**
+
+```bash
+# Install Ollama (macOS/Linux)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull a model
+ollama pull llama3.2
+
+# Set in .env
+CLAW_LLM_PROVIDER=local
+CLAW_LLM_MODEL=llama3.2
+CLAW_LOCAL_LLM_ENDPOINT=http://localhost:11434/v1
+
+# Deploy
+./claw.sh deploy
+```
+
+### How It Works
+
+Local LLM endpoints are treated as OpenAI-compatible providers:
+
+- The agent sends requests to `CLAW_LOCAL_LLM_ENDPOINT` using the standard `/v1/chat/completions` format
+- No API key is sent in the request headers
+- The optimization pipeline still applies (caching, dedup, quality gate) — but budget enforcement and cost logging record $0.00
+- Rate limiting is set to 999 RPM (effectively unlimited for local inference)
+- Fallback chain can mix local and cloud providers (e.g., try local first, fall back to DeepSeek on failure)
+
+### Network Considerations
+
+| Scenario | Endpoint |
+|----------|----------|
+| Same machine as Docker host | `http://host.docker.internal:11434/v1` |
+| LAN server | `http://192.168.x.x:11434/v1` |
+| Docker network (Ollama in compose) | `http://ollama:11434/v1` |
+
+> **Note:** When running agents in Docker, `localhost` inside the container refers to the container itself. Use `host.docker.internal` to reach the Docker host, or add the LLM service to `docker-compose.yml`.
+
 ## Ecosystem Diagram
 
 ![Claw Agents Provisioner — Ecosystem Diagram](ecosystem-diagram.png)
