@@ -8,6 +8,7 @@ import { StepLLM } from './components/steps/StepLLM';
 import { StepHardware } from './components/steps/StepHardware';
 import { StepModels } from './components/steps/StepModels';
 import { StepSecurity } from './components/steps/StepSecurity';
+import { StepGateway } from './components/steps/StepGateway';
 import { StepReview } from './components/steps/StepReview';
 import { StepDeploy } from './components/steps/StepDeploy';
 import { useWizardState } from './hooks/useWizardState';
@@ -48,7 +49,7 @@ function App() {
   );
 
   const handleDeploy = useCallback(() => {
-    goToStep(8);
+    goToStep(9);
   }, [goToStep]);
 
   const renderStep = () => {
@@ -113,6 +114,15 @@ function App() {
 
       case 7:
         return (
+          <StepGateway
+            config={state.gateway}
+            onChange={(gateway) => updateState({ gateway })}
+            selectedPlatform={state.platform}
+          />
+        );
+
+      case 8:
+        return (
           <StepReview
             state={state}
             assessmentJSON={getAssessmentJSON()}
@@ -121,8 +131,14 @@ function App() {
           />
         );
 
-      case 8:
-        return <StepDeploy assessmentJSON={getAssessmentJSON()} />;
+      case 9:
+        return (
+          <StepDeploy
+            assessmentJSON={getAssessmentJSON()}
+            platform={state.platform}
+            gatewayPort={state.gateway.port}
+          />
+        );
 
       default:
         return null;

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Edit3, ChevronDown, ChevronUp, Rocket, Key } from 'lucide-react';
+import { Edit3, ChevronDown, ChevronUp, Rocket, Key, Router } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import type { WizardState } from '../../lib/types';
-import { PLATFORMS, SECURITY_OPTIONS, CLOUD_PROVIDERS } from '../../lib/types';
+import { PLATFORMS, SECURITY_OPTIONS, CLOUD_PROVIDERS, FAILOVER_STRATEGIES, ROUTING_MODES } from '../../lib/types';
 import { staggerContainer, cardVariant, fadeInUp } from '../../lib/motion';
 
 interface StepReviewProps {
@@ -131,6 +131,28 @@ export function StepReview({ state, assessmentJSON, onGoToStep, onDeploy }: Step
                 })}
               </div>
             )}
+          </ReviewSection>
+        </motion.div>
+
+        {/* Gateway */}
+        <motion.div variants={cardVariant}>
+          <ReviewSection title="Gateway" step={7} onEdit={onGoToStep}>
+            <div className="flex items-center gap-3 flex-wrap">
+              <Router className="w-4 h-4 text-neon-cyan" />
+              <Badge variant="accent">
+                <span className="font-mono">:{state.gateway.port}</span>
+              </Badge>
+              <span className="text-xs text-text-muted">|</span>
+              <Badge>
+                {FAILOVER_STRATEGIES.find((f) => f.id === state.gateway.failover)?.name || state.gateway.failover}
+              </Badge>
+              <span className="text-xs text-text-muted">|</span>
+              <Badge>
+                {ROUTING_MODES.find((r) => r.id === state.gateway.routing)?.name || state.gateway.routing}
+              </Badge>
+              <span className="text-xs text-text-muted">|</span>
+              <span className="text-xs text-text-muted font-mono">{state.gateway.rateLimit} RPM</span>
+            </div>
           </ReviewSection>
         </motion.div>
 

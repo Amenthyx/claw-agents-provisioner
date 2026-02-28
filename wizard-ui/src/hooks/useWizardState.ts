@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { WizardState } from '../lib/types';
 
-const TOTAL_STEPS = 9;
+const TOTAL_STEPS = 10;
 
 const initialState: WizardState = {
   currentStep: 0,
@@ -19,6 +19,12 @@ const initialState: WizardState = {
   sensitivity: 'standard',
   apiKeys: {},
   cloudProviders: [],
+  gateway: {
+    port: 9095,
+    rateLimit: 120,
+    failover: 'local-first',
+    routing: 'auto',
+  },
 };
 
 export function useWizardState() {
@@ -71,9 +77,11 @@ export function useWizardState() {
         return state.llmProvider === 'cloud' || state.selectedModels.length > 0;
       case 6: // Security
         return true; // Optional
-      case 7: // Review
+      case 7: // Gateway
+        return state.gateway.port >= 1024 && state.gateway.port <= 65535;
+      case 8: // Review
         return true;
-      case 8: // Deploy
+      case 9: // Deploy
         return false; // No next step
       default:
         return false;
@@ -96,6 +104,12 @@ export function useWizardState() {
               Object.entries(state.apiKeys).map(([k, v]) => [k, v ? '***configured***' : undefined])
             )
           : undefined,
+      },
+      gateway: {
+        port: state.gateway.port,
+        rateLimit: state.gateway.rateLimit,
+        failover: state.gateway.failover,
+        routing: state.gateway.routing,
       },
       security: {
         enabled: state.securityEnabled,

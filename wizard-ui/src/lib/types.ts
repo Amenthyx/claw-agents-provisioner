@@ -30,6 +30,13 @@ export interface ModelInfo {
   vram_gb: number;
 }
 
+export interface GatewayConfig {
+  port: number;
+  rateLimit: number;
+  failover: 'local-first' | 'cloud-first' | 'round-robin';
+  routing: 'auto' | 'manual';
+}
+
 export interface WizardState {
   currentStep: number;
   platform: string;
@@ -46,6 +53,7 @@ export interface WizardState {
   sensitivity: string;
   apiKeys: Record<string, string>;
   cloudProviders: string[];
+  gateway: GatewayConfig;
 }
 
 export interface DeployEvent {
@@ -63,6 +71,7 @@ export const STEP_LABELS = [
   'Hardware',
   'Models',
   'Security',
+  'Gateway',
   'Review',
   'Deploy',
 ] as const;
@@ -73,7 +82,7 @@ export const PLATFORMS: Platform[] = [
     name: 'ZeroClaw',
     language: 'Rust',
     memory: '512MB',
-    port: 5000,
+    port: 3100,
     description: 'Lightweight zero-config agent for quick deployments. Minimal resource footprint with essential agent capabilities.',
     icon: 'zap',
     features: ['Zero configuration', 'Fast startup', 'REST API', 'Lightweight'],
@@ -83,7 +92,7 @@ export const PLATFORMS: Platform[] = [
     name: 'NanoClaw',
     language: 'TypeScript',
     memory: '1GB',
-    port: 5100,
+    port: 3200,
     description: 'Small but capable agent with extended tooling. Balanced between resource usage and functionality.',
     icon: 'cpu',
     features: ['Tool integration', 'Memory system', 'Plugin support', 'Async tasks'],
@@ -92,8 +101,8 @@ export const PLATFORMS: Platform[] = [
     id: 'picoclaw',
     name: 'PicoClaw',
     language: 'Go',
-    memory: '256MB',
-    port: 5200,
+    memory: '128MB',
+    port: 3300,
     description: 'Ultra-minimal agent for edge deployments and IoT scenarios. Smallest possible footprint.',
     icon: 'minimize-2',
     features: ['Edge-ready', 'Ultra-light', 'MQTT support', 'Embedded mode'],
@@ -101,9 +110,9 @@ export const PLATFORMS: Platform[] = [
   {
     id: 'openclaw',
     name: 'OpenClaw',
-    language: 'TypeScript',
-    memory: '2GB',
-    port: 5300,
+    language: 'Node.js',
+    memory: '4GB',
+    port: 3400,
     description: 'Full-featured open agent platform with advanced reasoning, multi-model support, and enterprise integrations.',
     icon: 'globe',
     features: ['Multi-model', 'RAG pipeline', 'Enterprise APIs', 'Advanced reasoning'],
@@ -113,11 +122,29 @@ export const PLATFORMS: Platform[] = [
     name: 'Parlant',
     language: 'Python',
     memory: '2GB',
-    port: 5400,
+    port: 8800,
     description: 'Conversational agent platform with dialogue management, persona system, and multi-turn reasoning.',
     icon: 'message-circle',
     features: ['Dialogue engine', 'Persona system', 'Context tracking', 'Multi-turn'],
   },
+];
+
+export const SERVICE_PORTS = {
+  router: 9095,
+  wizard: 9098,
+  dashboard: 9099,
+  orchestrator: 9100,
+} as const;
+
+export const FAILOVER_STRATEGIES = [
+  { id: 'local-first' as const, name: 'Local First', description: 'Try local runtimes before falling back to cloud APIs' },
+  { id: 'cloud-first' as const, name: 'Cloud First', description: 'Prefer cloud APIs, fall back to local on failure' },
+  { id: 'round-robin' as const, name: 'Round Robin', description: 'Distribute requests evenly across all backends' },
+];
+
+export const ROUTING_MODES = [
+  { id: 'auto' as const, name: 'Auto-Detect', description: 'Automatically route based on task keywords (coding, reasoning, creative, etc.)' },
+  { id: 'manual' as const, name: 'Manual', description: 'Always route to a specific backend — no automatic task detection' },
 ];
 
 export const MODELS: ModelInfo[] = [

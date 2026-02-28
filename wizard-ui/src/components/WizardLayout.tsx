@@ -23,8 +23,8 @@ export function WizardLayout({
 }: WizardLayoutProps) {
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === totalSteps - 1;
-  const isDeployStep = currentStep === 8;
-  const isReviewStep = currentStep === 7;
+  const isDeployStep = currentStep === 9;
+  const isReviewStep = currentStep === 8;
 
   return (
     <div className="min-h-screen flex flex-col">
