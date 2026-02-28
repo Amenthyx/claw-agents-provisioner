@@ -76,6 +76,31 @@ export const api = {
       body: JSON.stringify(config),
     }),
 
+  checkPostgresReadiness: (config: {
+    host?: string; port?: number; dbname?: string; user?: string; password?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (config.host) params.set('host', config.host);
+    if (config.port) params.set('port', String(config.port));
+    if (config.dbname) params.set('dbname', config.dbname);
+    if (config.user) params.set('user', config.user);
+    if (config.password) params.set('password', config.password);
+    return fetchJson<{
+      driver_installed: boolean;
+      server_reachable: boolean;
+      connection_ok: boolean;
+      connection_message: string;
+      docker_available: boolean;
+      ready: boolean;
+    }>(`${API_BASE}/storage/check-postgres?${params.toString()}`);
+  },
+
+  setupPostgres: (mode: 'docker' | 'local', config: Record<string, unknown>) =>
+    fetchJson<{ success: boolean; message: string; host?: string; port?: number }>(`${API_BASE}/storage/setup-postgres`, {
+      method: 'POST',
+      body: JSON.stringify({ mode, config }),
+    }),
+
   // ── Dashboard Endpoints ─────────────────────────────────
   dashboard: {
     getStatus: () => fetchJson<any>(`${DASHBOARD_API}/status`),

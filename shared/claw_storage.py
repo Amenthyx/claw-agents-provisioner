@@ -168,18 +168,54 @@ class SQLiteBackend(StorageBackend):
 # =========================================================================
 #  PostgreSQLBackend
 # =========================================================================
+def ensure_psycopg2() -> bool:
+    """Try to import psycopg2; if missing, auto-install psycopg2-binary via pip.
+    Returns True if psycopg2 is available after the attempt."""
+    try:
+        import psycopg2  # noqa: F401
+        return True
+    except ImportError:
+        pass
+    log("psycopg2 not found — installing psycopg2-binary automatically...")
+    import subprocess as _sp
+    try:
+        _sp.check_call(
+            [sys.executable, "-m", "pip", "install", "--quiet", "psycopg2-binary"],
+            stdout=_sp.DEVNULL,
+            stderr=_sp.PIPE,
+        )
+        import psycopg2  # noqa: F811, F401
+        log("psycopg2-binary installed successfully")
+        return True
+    except Exception as e:
+        err(f"Failed to install psycopg2-binary: {e}")
+        return False
+
+
+def check_postgres_server(host: str = "localhost", port: int = 5432) -> bool:
+    """Check if a PostgreSQL server is listening at host:port."""
+    import socket as _sock
+    try:
+        s = _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM)
+        s.settimeout(3)
+        result = s.connect_ex((host, port))
+        s.close()
+        return result == 0
+    except OSError:
+        return False
+
+
 class PostgreSQLBackend(StorageBackend):
     """PostgreSQL storage backend using psycopg2."""
 
     def __init__(self, host: str, port: int, dbname: str, user: str, password: str) -> None:
-        try:
-            import psycopg2
-            import psycopg2.extras
-        except ImportError:
+        if not ensure_psycopg2():
             raise ImportError(
-                "psycopg2 is required for PostgreSQL support. "
-                "Install it with: pip install psycopg2-binary"
+                "psycopg2 is required for PostgreSQL support and could not be "
+                "installed automatically. Install it manually with:\n"
+                "  pip install psycopg2-binary"
             )
+        import psycopg2
         self._psycopg2 = psycopg2
         self._lock = threading.Lock()
         self._conn = psycopg2.connect(

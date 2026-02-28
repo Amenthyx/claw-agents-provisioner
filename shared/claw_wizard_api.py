@@ -1642,6 +1642,129 @@ def _test_storage_connection(config: Dict[str, Any]) -> Dict[str, Any]:
         return {"success": False, "message": str(e), "latency_ms": 0}
 
 
+def _check_postgres_readiness(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Full readiness check for PostgreSQL:
+      1) Is psycopg2 installed (or can it be auto-installed)?
+      2) Is a PostgreSQL server reachable at the configured host:port?
+      3) Can we actually connect with the given credentials?
+    Returns a structured result the frontend can act on."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("claw_storage", SCRIPT_DIR / "claw_storage.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    host = config.get("host", "localhost")
+    port = int(config.get("port", 5432))
+
+    # 1) psycopg2
+    driver_ok = mod.ensure_psycopg2()
+
+    # 2) Server reachable
+    server_ok = mod.check_postgres_server(host, port)
+
+    # 3) Credential test (only if driver + server both OK)
+    connect_ok = False
+    connect_msg = ""
+    if driver_ok and server_ok:
+        try:
+            result = mod.StorageManager.test_connection(config)
+            connect_ok = result.get("success", False)
+            connect_msg = result.get("message", "")
+        except Exception as e:
+            connect_msg = str(e)
+
+    # Check Docker availability for the "install via Docker" option
+    docker_available = False
+    try:
+        rc, _, _ = _run_cmd(["docker", "info"], timeout=5)
+        docker_available = rc == 0
+    except Exception:
+        pass
+
+    return {
+        "driver_installed": driver_ok,
+        "server_reachable": server_ok,
+        "connection_ok": connect_ok,
+        "connection_message": connect_msg,
+        "docker_available": docker_available,
+        "host": host,
+        "port": port,
+        "ready": driver_ok and server_ok and connect_ok,
+    }
+
+
+def _setup_postgres_docker(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Start a PostgreSQL container using the docker-compose postgres profile."""
+    user = config.get("user", "xclaw")
+    password = config.get("password", "xclaw")
+    dbname = config.get("dbname", "xclaw")
+    port = int(config.get("port", 5432))
+
+    # Check Docker first
+    rc, _, _ = _run_cmd(["docker", "info"], timeout=5)
+    if rc != 0:
+        return {"success": False, "message": "Docker is not running. Please start Docker first."}
+
+    compose_file = PROJECT_ROOT / "docker-compose.yml"
+    if not compose_file.exists():
+        return {"success": False, "message": "docker-compose.yml not found in project root."}
+
+    # Set env vars for the postgres service
+    env = os.environ.copy()
+    env["CLAW_POSTGRES_USER"] = user
+    env["CLAW_POSTGRES_PASSWORD"] = password
+    env["CLAW_POSTGRES_DB"] = dbname
+    env["CLAW_POSTGRES_PORT"] = str(port)
+
+    log(f"Starting PostgreSQL container (port {port}, user={user}, db={dbname})...")
+
+    # docker compose --profile postgres up -d
+    rc, out, stderr = _run_cmd(
+        ["docker", "compose", "-f", str(compose_file), "--profile", "postgres", "up", "-d"],
+        timeout=120,
+        env=env,
+    )
+    if rc != 0:
+        # Try older docker-compose command
+        rc, out, stderr = _run_cmd(
+            ["docker-compose", "-f", str(compose_file), "--profile", "postgres", "up", "-d"],
+            timeout=120,
+            env=env,
+        )
+
+    if rc != 0:
+        return {
+            "success": False,
+            "message": f"Failed to start PostgreSQL container: {stderr or out}",
+        }
+
+    # Wait for it to become healthy (up to 30 seconds)
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("claw_storage", SCRIPT_DIR / "claw_storage.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    for attempt in range(15):
+        time.sleep(2)
+        if mod.check_postgres_server("localhost", port):
+            # Give it another second for auth to be ready
+            time.sleep(1)
+            log(f"PostgreSQL container is ready on :{port}")
+            return {
+                "success": True,
+                "message": f"PostgreSQL started via Docker on port {port}",
+                "host": "localhost",
+                "port": port,
+                "user": user,
+                "dbname": dbname,
+            }
+
+    return {
+        "success": False,
+        "message": "PostgreSQL container started but is not responding yet. Check `docker logs` for details.",
+    }
+
+
 def _get_data_overview() -> Dict[str, Any]:
     """Get metadata for all configured databases."""
     try:
@@ -2010,6 +2133,19 @@ class WizardAPIHandler(BaseHTTPRequestHandler):
         elif path == "/api/wizard/storage":
             self._json_response(_load_storage_config())
 
+        elif path == "/api/wizard/storage/check-postgres":
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            pg_config = {
+                "engine": "postgresql",
+                "host": qs.get("host", ["localhost"])[0],
+                "port": int(qs.get("port", ["5432"])[0]),
+                "dbname": qs.get("dbname", ["xclaw"])[0],
+                "user": qs.get("user", ["xclaw"])[0],
+                "password": qs.get("password", [""])[0],
+            }
+            self._json_response(_check_postgres_readiness(pg_config))
+
         elif path == "/api/dashboard/data":
             self._json_response(_get_data_overview())
 
@@ -2270,6 +2406,37 @@ class WizardAPIHandler(BaseHTTPRequestHandler):
                 self._json_response({"success": False, "error": "Invalid JSON"}, status=400)
                 return
             self._json_response(_test_storage_connection(body))
+
+        elif path == "/api/wizard/storage/setup-postgres":
+            raw = self._read_body()
+            try:
+                body = json.loads(raw) if raw else {}
+            except json.JSONDecodeError:
+                self._json_response({"success": False, "error": "Invalid JSON"}, status=400)
+                return
+            mode = body.get("mode", "docker")
+            pg_config = body.get("config", {})
+            if mode == "docker":
+                self._json_response(_setup_postgres_docker(pg_config))
+            else:
+                # Local install — we only auto-install the driver
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("claw_storage", SCRIPT_DIR / "claw_storage.py")
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                driver_ok = mod.ensure_psycopg2()
+                if driver_ok:
+                    self._json_response({
+                        "success": True,
+                        "message": "psycopg2 driver installed. Please install and start PostgreSQL on your system, then test the connection.",
+                        "driver_installed": True,
+                    })
+                else:
+                    self._json_response({
+                        "success": False,
+                        "message": "Could not install psycopg2 driver automatically. Run: pip install psycopg2-binary",
+                        "driver_installed": False,
+                    })
 
         elif path == "/api/dashboard/data/query":
             raw = self._read_body()
