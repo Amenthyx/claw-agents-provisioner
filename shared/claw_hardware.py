@@ -93,6 +93,22 @@ def _run(cmd: List[str], timeout: int = 10) -> Optional[str]:
     return None
 
 
+def _run_powershell(ps_cmd: str, timeout: int = 10) -> Optional[str]:
+    """Run a PowerShell command and return stdout (Windows only)."""
+    try:
+        result = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-Command", ps_cmd],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError, PermissionError):
+        pass
+    return None
+
+
 # -------------------------------------------------------------------------
 # HardwareDetector — discovers GPU, CPU, RAM, OS
 # -------------------------------------------------------------------------
@@ -174,19 +190,30 @@ class HardwareDetector:
                     features.append(chip_out)
 
         elif self.os_name == "Windows":
-            out = _run(["wmic", "cpu", "get", "Name", "/value"])
+            # Try PowerShell first (works in Git Bash), fall back to wmic
+            out = _run_powershell(
+                "Get-CimInstance Win32_Processor | Select-Object -ExpandProperty Name"
+            )
+            if not out:
+                out = _run(["wmic", "cpu", "get", "Name", "/value"])
+                if out:
+                    for line in out.splitlines():
+                        if line.startswith("Name="):
+                            out = line.split("=", 1)[1].strip()
+                            break
             if out:
-                for line in out.splitlines():
-                    if line.startswith("Name="):
-                        brand = line.split("=", 1)[1].strip()
-                        break
-            # Check features via environment or registry
-            # AVX-512 detection on Windows
-            out2 = _run(["wmic", "cpu", "get", "Caption", "/value"])
-            if out2 and "Intel" in brand:
-                # Heuristic: Xeon, recent Core i9 likely have AVX-512
-                if any(x in brand for x in ["Xeon", "i9-1", "i7-1"]):
+                brand = out.strip()
+
+            # Heuristic feature detection based on CPU brand
+            if "Intel" in brand:
+                # Core Ultra, Xeon w5/w7, 12th+ gen Core i9/i7 have AVX-512
+                if any(x in brand for x in ["Ultra", "Xeon w", "Xeon W"]):
+                    features.append("AVX-512")
+                    features.append("AMX")
+                elif any(x in brand for x in ["i9-1", "i7-1"]):
                     features.append("AVX-512 (likely)")
+                if "Ultra" in brand:
+                    features.append("Intel Hybrid (P+E cores)")
 
         self.cpu = {
             "brand": brand,
@@ -214,6 +241,18 @@ class HardwareDetector:
                 return
 
         elif self.os_name == "Windows":
+            # Try PowerShell first (works in Git Bash), fall back to wmic
+            out = _run_powershell(
+                "(Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize"
+            )
+            if out:
+                try:
+                    kb = int(out.strip())
+                    self.ram_gb = kb / 1024 / 1024
+                    return
+                except ValueError:
+                    pass
+
             out = _run(["wmic", "OS", "get", "TotalVisibleMemorySize", "/value"])
             if out:
                 for line in out.splitlines():
@@ -230,6 +269,24 @@ class HardwareDetector:
             "--query-gpu=name,memory.total,driver_version,compute_cap",
             "--format=csv,noheader,nounits",
         ])
+
+        # Windows fallback: nvidia-smi may not be in Git Bash PATH
+        if not out and self.os_name == "Windows":
+            # Try common install path
+            nvidia_smi_path = "C:/Program Files/NVIDIA Corporation/NVSMI/nvidia-smi.exe"
+            out = _run([
+                nvidia_smi_path,
+                "--query-gpu=name,memory.total,driver_version,compute_cap",
+                "--format=csv,noheader,nounits",
+            ])
+            # Also try via PowerShell
+            if not out:
+                out = _run_powershell(
+                    "& 'C:\\Windows\\System32\\nvidia-smi.exe' "
+                    "--query-gpu=name,memory.total,driver_version,compute_cap "
+                    "--format=csv,noheader,nounits"
+                )
+
         if not out:
             return
 
@@ -310,7 +367,11 @@ class HardwareDetector:
 
     # --- Intel GPU Detection ---
     def _detect_intel_gpu(self) -> None:
-        """Detect Intel Arc/Flex GPUs via xpu-smi or lspci."""
+        """Detect Intel Arc/Flex GPUs via xpu-smi, lspci, or PowerShell (Windows)."""
+        if self.os_name == "Windows":
+            self._detect_intel_gpu_windows()
+            return
+
         if self.os_name not in ("Linux",):
             return
 
@@ -360,6 +421,52 @@ class HardwareDetector:
                         }
                         self.gpus.append(gpu)
                         log(f"  Intel GPU (lspci): {gpu['name']}")
+
+    def _detect_intel_gpu_windows(self) -> None:
+        """Detect Intel GPUs on Windows via PowerShell Get-CimInstance."""
+        out = _run_powershell(
+            "Get-CimInstance Win32_VideoController | "
+            "ForEach-Object { $_.Name + '|' + $_.AdapterRAM }"
+        )
+        if not out:
+            return
+
+        for line in out.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split("|", 1)
+            name = parts[0].strip()
+
+            # Only detect Intel discrete GPUs (Arc, Flex, DG1, DG2), not integrated
+            if "Intel" not in name:
+                continue
+            if not any(x in name for x in ["Arc", "Flex", "DG1", "DG2"]):
+                continue
+
+            vram_gb = 0.0
+            if len(parts) > 1 and parts[1].strip():
+                try:
+                    adapter_ram_bytes = int(parts[1].strip())
+                    # WMI AdapterRAM is capped at ~4 GB (32-bit uint)
+                    # For GPUs with >4 GB, parse from name if available
+                    vram_gb = round(adapter_ram_bytes / 1024 / 1024 / 1024, 1)
+                except (ValueError, OverflowError):
+                    pass
+
+            # Parse VRAM from name (e.g. "Intel(R) Arc(TM) 140T GPU (16GB)")
+            name_match = re.search(r"\((\d+)\s*GB\)", name)
+            if name_match:
+                vram_gb = float(name_match.group(1))
+
+            gpu = {
+                "vendor": "Intel",
+                "name": name,
+                "vram_gb": vram_gb,
+                "api": "SYCL",
+            }
+            self.gpus.append(gpu)
+            log(f"  Intel GPU: {name} ({vram_gb} GB VRAM)")
 
     # --- Apple Silicon Detection ---
     def _detect_apple_silicon(self) -> None:
