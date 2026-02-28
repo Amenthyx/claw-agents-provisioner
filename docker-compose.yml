@@ -249,9 +249,40 @@ services:
               capabilities: [gpu]
     command: ["python", "-c", "print('Fine-tuning container ready. Mount scripts and run.')"]
 
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — Optional shared database (profile-gated)
+  # Enabled when storage engine is set to PostgreSQL in the wizard
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    profiles:
+      - postgres
+    environment:
+      POSTGRES_USER: ${CLAW_POSTGRES_USER:-xclaw}
+      POSTGRES_PASSWORD: ${CLAW_POSTGRES_PASSWORD:-xclaw}
+      POSTGRES_DB: ${CLAW_POSTGRES_DB:-xclaw}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${CLAW_POSTGRES_PORT:-5432}:5432"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 64M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CLAW_POSTGRES_USER:-xclaw}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
 volumes:
   zeroclaw-data:
   nanoclaw-data:
   picoclaw-data:
   openclaw-data:
   parlant-data:
+  postgres-data:

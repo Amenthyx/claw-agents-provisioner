@@ -1,0 +1,106 @@
+# =============================================================================
+# XClaw All-in-One Container
+# =============================================================================
+# Self-contained isolated environment with the full XClaw stack:
+#   - Selected agent platform (stub or native)
+#   - Security gate (inbound + outbound)
+#   - Gateway router (:9095)
+#   - Optimizer pipeline (:9091)
+#   - Watchdog health monitor (:9097)
+#   - Wizard API (:9098)
+#   - Dashboard (:9099)
+#
+# Build:
+#   docker build -f Dockerfile.xclaw \
+#     --build-arg CLAW_AGENT=zeroclaw \
+#     --build-arg CLAW_AGENT_PORT=3100 \
+#     --build-arg CLAW_AGENT_NAME=my-agent \
+#     -t xclaw:latest .
+#
+# Run:
+#   docker run -d --name xclaw-zeroclaw \
+#     -p 3100:3100 -p 9095:9095 -p 9098:9098 \
+#     --env-file .env \
+#     xclaw:latest
+# =============================================================================
+
+FROM python:3.11-slim AS base
+
+# Build args
+ARG CLAW_AGENT=zeroclaw
+ARG CLAW_AGENT_PORT=3100
+ARG CLAW_AGENT_NAME=xclaw-agent
+ARG CLAW_LLM_PROVIDER=hybrid
+ARG CLAW_STORAGE_ENGINE=sqlite
+
+# Persist as env vars
+ENV CLAW_AGENT=${CLAW_AGENT} \
+    CLAW_AGENT_PORT=${CLAW_AGENT_PORT} \
+    CLAW_AGENT_NAME=${CLAW_AGENT_NAME} \
+    CLAW_LLM_PROVIDER=${CLAW_LLM_PROVIDER} \
+    CLAW_STORAGE_ENGINE=${CLAW_STORAGE_ENGINE} \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    tini \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create xclaw user
+RUN groupadd -g 1000 xclaw && \
+    useradd -u 1000 -g xclaw -m -s /bin/bash xclaw
+
+# App directory
+WORKDIR /opt/xclaw
+
+# Install psycopg2 only when PostgreSQL engine is selected
+RUN if [ "$CLAW_STORAGE_ENGINE" = "postgresql" ]; then \
+      pip install --no-cache-dir psycopg2-binary; \
+    fi
+
+# Copy ALL shared Python modules (stdlib only — no pip installs needed)
+COPY shared/*.py ./shared/
+COPY shared/*.json ./shared/
+COPY shared/*.sh ./shared/
+
+# Copy agent-specific files
+COPY ${CLAW_AGENT}/ ./${CLAW_AGENT}/
+
+# Copy config files
+COPY .env.template ./.env.template
+COPY strategy.json* ./
+
+# Copy the entrypoint
+COPY entrypoint-xclaw.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Create data directories
+RUN mkdir -p data/wizard data/billing/reports data/claws data/dashboard \
+    data/memory data/router data/skills data/orchestrator data/rag \
+    data/shared && \
+    chown -R xclaw:xclaw /opt/xclaw
+
+# Expose ports
+#   Agent platform port (varies by agent)
+EXPOSE ${CLAW_AGENT_PORT}
+#   Gateway router
+EXPOSE 9095
+#   Optimizer
+EXPOSE 9091
+#   Watchdog
+EXPOSE 9097
+#   Wizard API
+EXPOSE 9098
+#   Dashboard
+EXPOSE 9099
+
+# Health check — verify agent + wizard API are responding
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=15s \
+    CMD curl -sf http://localhost:${CLAW_AGENT_PORT}/health || exit 1
+
+USER xclaw
+ENTRYPOINT ["tini", "--"]
+CMD ["/entrypoint.sh"]
