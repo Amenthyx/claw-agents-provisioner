@@ -1351,6 +1351,165 @@ setup_strategy() {
 }
 
 # =============================================================================
+#  Step 14: Enterprise Dashboard & Services
+# =============================================================================
+
+setup_dashboard_services() {
+    step "Step 14: Enterprise Dashboard & Services"
+
+    info "Optional enterprise services for managing your Claw deployment."
+    echo ""
+    echo -e "  ${BOLD}Services:${NC}"
+    echo -e "    ${GREEN}Dashboard${NC}     — Web-based fleet management UI     (port 9099)"
+    echo -e "    ${GREEN}Wizard${NC}        — Assessment creation web form       (port 9098)"
+    echo -e "    ${GREEN}Router${NC}        — OpenAI-compatible model proxy      (port 9095)"
+    echo -e "    ${GREEN}Memory${NC}        — Conversation memory service        (port 9096)"
+    echo -e "    ${GREEN}RAG${NC}           — Document retrieval pipeline        (port 9097)"
+    echo -e "    ${GREEN}Orchestrator${NC}  — Multi-agent task coordination      (port 9100)"
+    echo ""
+
+    # Check Python 3.8+
+    if ! command_exists python3; then
+        err "Python 3 is required for enterprise services."
+        return 1
+    fi
+    local py_version
+    py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "0.0")
+    info "Python version: ${py_version}"
+
+    echo ""
+    echo -e "  ${BOLD}1)${NC} Install Enterprise Dashboard"
+    echo -e "  ${BOLD}2)${NC} Install Assessment Wizard (Web)"
+    echo -e "  ${BOLD}3)${NC} Install Model Router"
+    echo -e "  ${BOLD}4)${NC} Install All Services"
+    echo -e "  ${BOLD}5)${NC} Install React Wizard UI (requires Node.js)"
+    echo -e "  ${BOLD}6)${NC} Skip"
+    echo -ne "\n${CYAN}Choose [1-6]:${NC} "
+    read -r svc_choice
+
+    case "$svc_choice" in
+        1)
+            log "Setting up Enterprise Dashboard..."
+            if [[ -f "${SCRIPT_DIR}/shared/claw_dashboard.py" ]]; then
+                # Add port to .env if not present
+                if [[ -f "${SCRIPT_DIR}/.env" ]] && ! grep -q "DASHBOARD_PORT" "${SCRIPT_DIR}/.env"; then
+                    echo "DASHBOARD_PORT=9099" >> "${SCRIPT_DIR}/.env"
+                fi
+                log "Dashboard installed. Start with: ./claw.sh dashboard start"
+                info "Access at: http://localhost:9099"
+            else
+                err "shared/claw_dashboard.py not found!"
+            fi
+            ;;
+        2)
+            log "Setting up Assessment Wizard..."
+            if [[ -f "${SCRIPT_DIR}/shared/claw_wizard.py" ]]; then
+                log "Wizard installed. Start with: ./claw.sh wizard start"
+                info "Access at: http://localhost:9098"
+            else
+                err "shared/claw_wizard.py not found!"
+            fi
+            ;;
+        3)
+            log "Setting up Model Router..."
+            if [[ -f "${SCRIPT_DIR}/shared/claw_router.py" ]]; then
+                log "Router installed. Start with: ./claw.sh router start"
+                info "OpenAI-compatible endpoint at: http://localhost:9095/v1/chat/completions"
+            else
+                err "shared/claw_router.py not found!"
+            fi
+            ;;
+        4)
+            log "Setting up all enterprise services..."
+            local services=("claw_dashboard.py:Dashboard:9099" "claw_wizard.py:Wizard:9098"
+                            "claw_router.py:Router:9095" "claw_memory.py:Memory:9096"
+                            "claw_rag.py:RAG:9097" "claw_orchestrator.py:Orchestrator:9100")
+            for svc in "${services[@]}"; do
+                IFS=: read -r file name port <<< "$svc"
+                if [[ -f "${SCRIPT_DIR}/shared/${file}" ]]; then
+                    echo -e "  ${GREEN}✓${NC} ${name} (port ${port}) — ready"
+                else
+                    echo -e "  ${RED}✗${NC} ${name} — shared/${file} not found"
+                fi
+            done
+            echo ""
+            log "Start all services with individual commands:"
+            info "  ./claw.sh dashboard start"
+            info "  ./claw.sh router start"
+            info "  ./claw.sh memory start"
+            info "  ./claw.sh rag start"
+            ;;
+        5)
+            log "Setting up React Wizard UI..."
+            if [[ -d "${SCRIPT_DIR}/wizard-ui" ]]; then
+                if command_exists npm; then
+                    cd "${SCRIPT_DIR}/wizard-ui"
+                    info "Installing dependencies..."
+                    npm install
+                    info "Building production bundle..."
+                    npm run build
+                    log "React Wizard UI built. Served at /wizard via dashboard."
+                    cd "${SCRIPT_DIR}"
+                else
+                    err "Node.js/npm is required for the React UI."
+                    info "Install from: https://nodejs.org/"
+                fi
+            else
+                err "wizard-ui/ directory not found!"
+            fi
+            ;;
+        *)
+            info "Skipped."
+            ;;
+    esac
+}
+
+# =============================================================================
+#  Step 15: Billing & Skills
+# =============================================================================
+
+setup_billing_skills() {
+    step "Step 15: Billing & Skills"
+
+    echo -e "  ${BOLD}1)${NC} Initialize cost analytics     ${DIM}(track API spend)${NC}"
+    echo -e "  ${BOLD}2)${NC} Browse skills catalog         ${DIM}(42 skills, 6 bundles)${NC}"
+    echo -e "  ${BOLD}3)${NC} Auto-select LoRA adapter      ${DIM}(match use case → adapter)${NC}"
+    echo -e "  ${BOLD}4)${NC} Skip"
+    echo -ne "\n${CYAN}Choose [1-4]:${NC} "
+    read -r bschoice
+
+    case "$bschoice" in
+        1)
+            if [[ -f "${SCRIPT_DIR}/shared/claw_billing.py" ]]; then
+                python3 "${SCRIPT_DIR}/shared/claw_billing.py" --init-config
+                log "Billing initialized. View reports with: ./claw.sh billing report"
+            else
+                err "shared/claw_billing.py not found!"
+            fi
+            ;;
+        2)
+            if [[ -f "${SCRIPT_DIR}/shared/claw_skills.py" ]]; then
+                python3 "${SCRIPT_DIR}/shared/claw_skills.py" --list
+            else
+                err "shared/claw_skills.py not found!"
+            fi
+            ;;
+        3)
+            if [[ -f "${SCRIPT_DIR}/shared/claw_adapter_selector.py" ]]; then
+                local use_case
+                use_case=$(prompt_input "Enter primary use case (e.g., customer_support, code_review)")
+                python3 "${SCRIPT_DIR}/shared/claw_adapter_selector.py" --use-case "$use_case"
+            else
+                err "shared/claw_adapter_selector.py not found!"
+            fi
+            ;;
+        *)
+            info "Skipped."
+            ;;
+    esac
+}
+
+# =============================================================================
 #  Main Menu
 # =============================================================================
 
@@ -1387,11 +1546,13 @@ show_menu() {
     echo -e "  ${BOLD}11)${NC} Optimization engine            ${DIM}(cost routing, caching, budgets)${NC}"
     echo -e "  ${BOLD}12)${NC} Security rules                 ${DIM}(forbidden URLs, content, data, network)${NC}"
     echo -e "  ${BOLD}13)${NC} Model strategy engine          ${DIM}(auto-routing, local + cloud models)${NC}"
+    echo -e "  ${BOLD}14)${NC} Enterprise dashboard & services ${DIM}(web UI, router, memory, RAG)${NC}"
+    echo -e "  ${BOLD}15)${NC} Billing & skills               ${DIM}(cost analytics, skill catalog, adapters)${NC}"
     echo ""
     echo -e "  ${BOLD}f)${NC}  Full setup (steps 1-7 sequentially)"
     echo -e "  ${BOLD}q)${NC}  Quit"
     echo ""
-    echo -ne "${CYAN}Choose [0-13/f/q]:${NC} "
+    echo -ne "${CYAN}Choose [0-15/f/q]:${NC} "
 }
 
 run_full_setup() {
@@ -1453,6 +1614,8 @@ main() {
             11) setup_optimizer; wait_key ;;
             12) setup_security; wait_key ;;
             13) setup_strategy; wait_key ;;
+            14) setup_dashboard_services; wait_key ;;
+            15) setup_billing_skills; wait_key ;;
             f|F) run_full_setup; wait_key ;;
             q|Q)
                 echo ""

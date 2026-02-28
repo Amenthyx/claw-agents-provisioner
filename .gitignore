@@ -74,3 +74,18 @@ Thumbs.db
 
 # Node (for agents that use it)
 node_modules/
+
+# Data directory (runtime data — billing, memory, RAG, etc.)
+data/memory/
+data/billing/
+data/rag/
+data/router/
+data/orchestrator/
+data/skills/
+data/dashboard/
+data/wizard/
+!data/.gitkeep
+
+# Wizard UI build artifacts
+wizard-ui/dist/
+wizard-ui/node_modules/

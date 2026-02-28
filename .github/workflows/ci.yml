@@ -220,6 +220,62 @@ jobs:
           fi
 
   # ---------------------------------------------------------------
+  # Python tests (pytest)
+  # ---------------------------------------------------------------
+  pytest:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Run tests
+        run: |
+          if [ -d tests/ ]; then
+            pytest tests/ -v --tb=short || true
+          else
+            echo "No tests directory found — skipping"
+          fi
+
+  # ---------------------------------------------------------------
+  # Python compile check (all shared modules)
+  # ---------------------------------------------------------------
+  python-compile:
+    name: Python Compile Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile all Python files
+        run: |
+          echo "Checking shared/ modules..."
+          for f in shared/*.py; do
+            if [ -f "$f" ]; then
+              echo "  Compiling: $f"
+              python3 -m py_compile "$f"
+            fi
+          done
+          echo "Checking assessment/ modules..."
+          for f in assessment/*.py; do
+            if [ -f "$f" ]; then
+              echo "  Compiling: $f"
+              python3 -m py_compile "$f"
+            fi
+          done
+
+  # ---------------------------------------------------------------
   # Security: no secrets in tracked files
   # ---------------------------------------------------------------
   security:

@@ -160,6 +160,40 @@ print_help() {
     echo -e "  ${GREEN}strategy init${NC}                Generate strategy config template"
     echo -e "  ${GREEN}strategy benchmark${NC}           Quick latency benchmark"
     echo ""
+    echo -e "${BOLD}DASHBOARD & WIZARD:${NC}"
+    echo -e "  ${GREEN}dashboard start [port]${NC}       Start enterprise web dashboard (default: 9099)"
+    echo -e "  ${GREEN}dashboard stop${NC}               Stop the dashboard"
+    echo -e "  ${GREEN}wizard start [port]${NC}          Start assessment web wizard (default: 9098)"
+    echo -e "  ${GREEN}wizard stop${NC}                  Stop the wizard"
+    echo ""
+    echo -e "${BOLD}ROUTER & ORCHESTRATION:${NC}"
+    echo -e "  ${GREEN}router start [port]${NC}          Start model router proxy (default: 9095)"
+    echo -e "  ${GREEN}router stop${NC}                  Stop the router"
+    echo -e "  ${GREEN}router status${NC}                Show router status"
+    echo -e "  ${GREEN}orchestrator start${NC}           Start multi-agent orchestrator"
+    echo -e "  ${GREEN}orchestrator stop${NC}            Stop the orchestrator"
+    echo -e "  ${GREEN}orchestrator status${NC}          Show orchestrator status"
+    echo ""
+    echo -e "${BOLD}MEMORY & RAG:${NC}"
+    echo -e "  ${GREEN}memory start [port]${NC}          Start conversation memory service (default: 9096)"
+    echo -e "  ${GREEN}memory stop${NC}                  Stop the memory service"
+    echo -e "  ${GREEN}memory stats${NC}                 Show memory usage stats"
+    echo -e "  ${GREEN}memory search <query>${NC}        Search conversation history"
+    echo -e "  ${GREEN}rag start [port]${NC}             Start RAG pipeline service (default: 9097)"
+    echo -e "  ${GREEN}rag stop${NC}                     Stop the RAG service"
+    echo -e "  ${GREEN}rag ingest <path>${NC}            Ingest documents into RAG index"
+    echo -e "  ${GREEN}rag search <query>${NC}           Search the RAG index"
+    echo ""
+    echo -e "${BOLD}BILLING & SKILLS:${NC}"
+    echo -e "  ${GREEN}billing report [period]${NC}      Cost report (daily|weekly|monthly)"
+    echo -e "  ${GREEN}billing status${NC}               Current spend overview"
+    echo -e "  ${GREEN}billing forecast${NC}             Projected spend forecast"
+    echo -e "  ${GREEN}skills list${NC}                  List all available skills"
+    echo -e "  ${GREEN}skills search <query>${NC}        Search skills catalog"
+    echo -e "  ${GREEN}skills install <id> <agent>${NC}  Install skill for an agent"
+    echo -e "  ${GREEN}adapter match <use-case>${NC}     Auto-select best LoRA adapter"
+    echo -e "  ${GREEN}adapter list${NC}                 List all 50 adapters"
+    echo ""
     echo -e "${BOLD}OPERATIONS:${NC}"
     echo -e "  ${GREEN}health <agent|all>${NC}           Run agent health check"
     echo -e "  ${GREEN}logs <agent>${NC}                 Tail agent logs (Docker)"
@@ -882,6 +916,188 @@ case "${COMMAND}" in
                 echo "Usage: ./claw.sh ollama [install|pull|list|status]"
                 exit 1
                 ;;
+        esac
+        ;;
+
+    # -------------------------------------------------------------------
+    # Dashboard — Enterprise web dashboard
+    # -------------------------------------------------------------------
+    dashboard)
+        local dashboard_py="${SCRIPT_DIR}/shared/claw_dashboard.py"
+        if [ ! -f "${dashboard_py}" ]; then
+            err "shared/claw_dashboard.py not found!"
+            exit 1
+        fi
+        case "${1:-start}" in
+            start) python3 "${dashboard_py}" --start --port "${2:-9099}" ;;
+            stop)  python3 "${dashboard_py}" --stop ;;
+            *)     python3 "${dashboard_py}" --start --port "${1:-9099}" ;;
+        esac
+        ;;
+
+    # -------------------------------------------------------------------
+    # Wizard — Assessment web wizard
+    # -------------------------------------------------------------------
+    wizard)
+        local wizard_py="${SCRIPT_DIR}/shared/claw_wizard.py"
+        if [ ! -f "${wizard_py}" ]; then
+            err "shared/claw_wizard.py not found!"
+            exit 1
+        fi
+        case "${1:-start}" in
+            start) python3 "${wizard_py}" --start --port "${2:-9098}" ;;
+            stop)  python3 "${wizard_py}" --stop ;;
+            *)     python3 "${wizard_py}" --start --port "${1:-9098}" ;;
+        esac
+        ;;
+
+    # -------------------------------------------------------------------
+    # Router — Live model router proxy
+    # -------------------------------------------------------------------
+    router)
+        local router_py="${SCRIPT_DIR}/shared/claw_router.py"
+        if [ ! -f "${router_py}" ]; then
+            err "shared/claw_router.py not found!"
+            exit 1
+        fi
+        local rt_action="${1:-start}"
+        shift 2>/dev/null || true
+        case "${rt_action}" in
+            start)  python3 "${router_py}" --start --port "${1:-9095}" ;;
+            stop)   python3 "${router_py}" --stop ;;
+            status) python3 "${router_py}" --status ;;
+            logs)   python3 "${router_py}" --logs ${1:+--tail "$1"} ;;
+            *)      python3 "${router_py}" --start --port "${rt_action:-9095}" ;;
+        esac
+        ;;
+
+    # -------------------------------------------------------------------
+    # Orchestrator — Multi-agent orchestration
+    # -------------------------------------------------------------------
+    orchestrator)
+        local orch_py="${SCRIPT_DIR}/shared/claw_orchestrator.py"
+        if [ ! -f "${orch_py}" ]; then
+            err "shared/claw_orchestrator.py not found!"
+            exit 1
+        fi
+        local orch_action="${1:-status}"
+        shift 2>/dev/null || true
+        case "${orch_action}" in
+            start)      python3 "${orch_py}" --start ${1:+--port "$1"} ;;
+            stop)       python3 "${orch_py}" --stop ;;
+            status)     python3 "${orch_py}" --status ;;
+            agents)     python3 "${orch_py}" --agents ;;
+            submit)     python3 "${orch_py}" --submit "$@" ;;
+            health)     python3 "${orch_py}" --health-check ;;
+            *)          python3 "${orch_py}" --status ;;
+        esac
+        ;;
+
+    # -------------------------------------------------------------------
+    # Memory — Conversation memory service
+    # -------------------------------------------------------------------
+    memory)
+        local memory_py="${SCRIPT_DIR}/shared/claw_memory.py"
+        if [ ! -f "${memory_py}" ]; then
+            err "shared/claw_memory.py not found!"
+            exit 1
+        fi
+        local mem_action="${1:-stats}"
+        shift 2>/dev/null || true
+        case "${mem_action}" in
+            start)  python3 "${memory_py}" --start --port "${1:-9096}" ;;
+            stop)   python3 "${memory_py}" --stop ;;
+            stats)  python3 "${memory_py}" --stats ;;
+            search) python3 "${memory_py}" --search "$1" ;;
+            prune)  python3 "${memory_py}" --prune ${1:+--days "$1"} ;;
+            *)      python3 "${memory_py}" --stats ;;
+        esac
+        ;;
+
+    # -------------------------------------------------------------------
+    # RAG — Retrieval-augmented generation pipeline
+    # -------------------------------------------------------------------
+    rag)
+        local rag_py="${SCRIPT_DIR}/shared/claw_rag.py"
+        if [ ! -f "${rag_py}" ]; then
+            err "shared/claw_rag.py not found!"
+            exit 1
+        fi
+        local rag_action="${1:-status}"
+        shift 2>/dev/null || true
+        case "${rag_action}" in
+            start)  python3 "${rag_py}" --start --port "${1:-9097}" ;;
+            stop)   python3 "${rag_py}" --stop ;;
+            status) python3 "${rag_py}" --status ;;
+            ingest) python3 "${rag_py}" --ingest "$1" ${2:+--agent "$2"} ;;
+            search) python3 "${rag_py}" --search "$1" ${2:+--agent "$2"} ;;
+            clear)  python3 "${rag_py}" --clear ${1:+--agent "$1"} ;;
+            *)      python3 "${rag_py}" --status ;;
+        esac
+        ;;
+
+    # -------------------------------------------------------------------
+    # Billing — Cost analytics & alerting
+    # -------------------------------------------------------------------
+    billing)
+        local billing_py="${SCRIPT_DIR}/shared/claw_billing.py"
+        if [ ! -f "${billing_py}" ]; then
+            err "shared/claw_billing.py not found!"
+            exit 1
+        fi
+        local bill_action="${1:-status}"
+        shift 2>/dev/null || true
+        case "${bill_action}" in
+            report)   python3 "${billing_py}" --report "${1:-daily}" ;;
+            status)   python3 "${billing_py}" --status ;;
+            forecast) python3 "${billing_py}" --forecast ;;
+            init)     python3 "${billing_py}" --init-config ;;
+            threshold)python3 "${billing_py}" --set-threshold "$1" ;;
+            *)        python3 "${billing_py}" --status ;;
+        esac
+        ;;
+
+    # -------------------------------------------------------------------
+    # Skills — Skills marketplace
+    # -------------------------------------------------------------------
+    skills)
+        local skills_py="${SCRIPT_DIR}/shared/claw_skills.py"
+        if [ ! -f "${skills_py}" ]; then
+            err "shared/claw_skills.py not found!"
+            exit 1
+        fi
+        local sk_action="${1:-list}"
+        shift 2>/dev/null || true
+        case "${sk_action}" in
+            list)      python3 "${skills_py}" --list ;;
+            search)    python3 "${skills_py}" --search "$1" ;;
+            install)   python3 "${skills_py}" --install "$1" --agent "${2:-}" ;;
+            uninstall) python3 "${skills_py}" --uninstall "$1" --agent "${2:-}" ;;
+            bundle)    python3 "${skills_py}" --bundle "$1" --agent "${2:-}" ;;
+            installed) python3 "${skills_py}" --installed ${1:+--agent "$1"} ;;
+            info)      python3 "${skills_py}" --info "$1" ;;
+            bundles)   python3 "${skills_py}" --bundles ;;
+            *)         python3 "${skills_py}" --list ;;
+        esac
+        ;;
+
+    # -------------------------------------------------------------------
+    # Adapter — Auto-selection of LoRA adapters
+    # -------------------------------------------------------------------
+    adapter)
+        local adapter_py="${SCRIPT_DIR}/shared/claw_adapter_selector.py"
+        if [ ! -f "${adapter_py}" ]; then
+            err "shared/claw_adapter_selector.py not found!"
+            exit 1
+        fi
+        local ad_action="${1:-list}"
+        shift 2>/dev/null || true
+        case "${ad_action}" in
+            match)  python3 "${adapter_py}" --use-case "$1" ${2:+--industry "$2"} ;;
+            list)   python3 "${adapter_py}" --list ;;
+            info)   python3 "${adapter_py}" --info "$1" ;;
+            search) python3 "${adapter_py}" --match "$1" ;;
+            *)      python3 "${adapter_py}" --list ;;
         esac
         ;;
 

@@ -1,0 +1,522 @@
+{
+  "version": "1.0",
+  "description": "Skills Marketplace catalog for Claw Agents. Defines installable skills, platform compatibility, and pre-built bundles.",
+  "categories": [
+    "communication",
+    "productivity",
+    "data",
+    "development",
+    "security",
+    "ai",
+    "integration",
+    "analytics"
+  ],
+  "skills": [
+    {
+      "id": "auto-reply",
+      "name": "Auto Reply",
+      "description": "Automatically generate and send context-aware replies to incoming messages",
+      "category": "communication",
+      "platforms": ["zeroclaw", "nanoclaw", "picoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-auto-reply",
+      "version": "1.0.0",
+      "tags": ["reply", "messaging", "automation"]
+    },
+    {
+      "id": "email-management",
+      "name": "Email Management",
+      "description": "Read, compose, and organize emails with smart filtering and prioritization",
+      "category": "communication",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-email-management",
+      "version": "1.0.0",
+      "tags": ["email", "inbox", "filtering"]
+    },
+    {
+      "id": "sms-notify",
+      "name": "SMS Notifications",
+      "description": "Send SMS notifications and alerts via Twilio or compatible providers",
+      "category": "communication",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-sms-notify",
+      "version": "1.0.0",
+      "tags": ["sms", "notifications", "twilio"]
+    },
+    {
+      "id": "whatsapp-business",
+      "name": "WhatsApp Business",
+      "description": "Interact with customers through the WhatsApp Business API",
+      "category": "communication",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-whatsapp-business",
+      "version": "1.0.0",
+      "tags": ["whatsapp", "messaging", "business"]
+    },
+    {
+      "id": "slack-integration",
+      "name": "Slack Integration",
+      "description": "Send messages, manage channels, and respond to events in Slack workspaces",
+      "category": "communication",
+      "platforms": ["zeroclaw", "nanoclaw", "picoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-slack-integration",
+      "version": "1.0.0",
+      "tags": ["slack", "team", "collaboration"]
+    },
+    {
+      "id": "discord-bot",
+      "name": "Discord Bot",
+      "description": "Manage Discord servers, respond to commands, and moderate channels",
+      "category": "communication",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-discord-bot",
+      "version": "1.0.0",
+      "tags": ["discord", "bot", "community"]
+    },
+    {
+      "id": "calendar",
+      "name": "Calendar Manager",
+      "description": "Create, update, and query calendar events across Google and Outlook calendars",
+      "category": "productivity",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-calendar",
+      "version": "1.0.0",
+      "tags": ["calendar", "scheduling", "events"]
+    },
+    {
+      "id": "task-manager",
+      "name": "Task Manager",
+      "description": "Create and track tasks, set deadlines, and manage project boards",
+      "category": "productivity",
+      "platforms": ["zeroclaw", "nanoclaw", "picoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-task-manager",
+      "version": "1.0.0",
+      "tags": ["tasks", "todo", "project"]
+    },
+    {
+      "id": "note-taking",
+      "name": "Note Taking",
+      "description": "Capture, organize, and retrieve notes with tagging and full-text search",
+      "category": "productivity",
+      "platforms": ["zeroclaw", "nanoclaw", "picoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-note-taking",
+      "version": "1.0.0",
+      "tags": ["notes", "knowledge", "organization"]
+    },
+    {
+      "id": "document-parser",
+      "name": "Document Parser",
+      "description": "Extract text and structured data from PDF, DOCX, CSV, and other file formats",
+      "category": "productivity",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-document-parser",
+      "version": "1.0.0",
+      "tags": ["documents", "parsing", "extraction"]
+    },
+    {
+      "id": "file-manager",
+      "name": "File Manager",
+      "description": "Browse, upload, download, and organize files in local and cloud storage",
+      "category": "productivity",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-file-manager",
+      "version": "1.0.0",
+      "tags": ["files", "storage", "upload"]
+    },
+    {
+      "id": "web-search",
+      "name": "Web Search",
+      "description": "Search the web for information using multiple search engines",
+      "category": "data",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-web-search",
+      "version": "1.0.0",
+      "tags": ["search", "web", "information"]
+    },
+    {
+      "id": "database-query",
+      "name": "Database Query",
+      "description": "Execute SQL and NoSQL queries against PostgreSQL, MySQL, MongoDB, and SQLite",
+      "category": "data",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-database-query",
+      "version": "1.0.0",
+      "tags": ["database", "sql", "query"]
+    },
+    {
+      "id": "spreadsheet",
+      "name": "Spreadsheet",
+      "description": "Read and write spreadsheet data in Google Sheets and Excel formats",
+      "category": "data",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-spreadsheet",
+      "version": "1.0.0",
+      "tags": ["spreadsheet", "excel", "sheets"]
+    },
+    {
+      "id": "data-export",
+      "name": "Data Export",
+      "description": "Export data to CSV, JSON, XML, and PDF formats with configurable templates",
+      "category": "data",
+      "platforms": ["zeroclaw", "nanoclaw", "picoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-data-export",
+      "version": "1.0.0",
+      "tags": ["export", "csv", "json"]
+    },
+    {
+      "id": "data-import",
+      "name": "Data Import",
+      "description": "Import and validate data from external sources with schema mapping",
+      "category": "data",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-data-import",
+      "version": "1.0.0",
+      "tags": ["import", "ingestion", "validation"]
+    },
+    {
+      "id": "git-manager",
+      "name": "Git Manager",
+      "description": "Manage Git repositories: commits, branches, pull requests, and merge workflows",
+      "category": "development",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-git-manager",
+      "version": "1.0.0",
+      "tags": ["git", "version-control", "repository"]
+    },
+    {
+      "id": "code-review",
+      "name": "Code Review",
+      "description": "Analyze code changes for bugs, style issues, and security vulnerabilities",
+      "category": "development",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-code-review",
+      "version": "1.0.0",
+      "tags": ["code", "review", "quality"]
+    },
+    {
+      "id": "ci-cd-monitor",
+      "name": "CI/CD Monitor",
+      "description": "Monitor build pipelines, report failures, and trigger deployments",
+      "category": "development",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-ci-cd-monitor",
+      "version": "1.0.0",
+      "tags": ["ci", "cd", "pipeline", "builds"]
+    },
+    {
+      "id": "terminal",
+      "name": "Terminal",
+      "description": "Execute shell commands in a sandboxed environment with output capture",
+      "category": "development",
+      "platforms": ["zeroclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-terminal",
+      "version": "1.0.0",
+      "tags": ["shell", "terminal", "commands"]
+    },
+    {
+      "id": "api-tester",
+      "name": "API Tester",
+      "description": "Test REST and GraphQL endpoints with assertions and automated test suites",
+      "category": "development",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-api-tester",
+      "version": "1.0.0",
+      "tags": ["api", "testing", "rest", "graphql"]
+    },
+    {
+      "id": "log-analyzer",
+      "name": "Log Analyzer",
+      "description": "Parse, search, and summarize application logs with pattern detection",
+      "category": "development",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-log-analyzer",
+      "version": "1.0.0",
+      "tags": ["logs", "analysis", "debugging"]
+    },
+    {
+      "id": "content-filter",
+      "name": "Content Filter",
+      "description": "Detect and block harmful, toxic, or policy-violating content",
+      "category": "security",
+      "platforms": ["zeroclaw", "nanoclaw", "picoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-content-filter",
+      "version": "1.0.0",
+      "tags": ["content", "moderation", "safety"]
+    },
+    {
+      "id": "pii-detector",
+      "name": "PII Detector",
+      "description": "Identify and mask personally identifiable information in text and documents",
+      "category": "security",
+      "platforms": ["zeroclaw", "nanoclaw", "picoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-pii-detector",
+      "version": "1.0.0",
+      "tags": ["pii", "privacy", "masking"]
+    },
+    {
+      "id": "rate-limiter",
+      "name": "Rate Limiter",
+      "description": "Enforce request rate limits per user, IP, or API key with token bucket algorithm",
+      "category": "security",
+      "platforms": ["zeroclaw", "nanoclaw", "picoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-rate-limiter",
+      "version": "1.0.0",
+      "tags": ["rate-limit", "throttling", "protection"]
+    },
+    {
+      "id": "auth-manager",
+      "name": "Auth Manager",
+      "description": "Handle authentication flows including OAuth2, API keys, and JWT tokens",
+      "category": "security",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-auth-manager",
+      "version": "1.0.0",
+      "tags": ["auth", "oauth", "jwt"]
+    },
+    {
+      "id": "audit-logger",
+      "name": "Audit Logger",
+      "description": "Record and store tamper-evident audit trails of all agent actions",
+      "category": "security",
+      "platforms": ["zeroclaw", "nanoclaw", "picoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-audit-logger",
+      "version": "1.0.0",
+      "tags": ["audit", "logging", "compliance"]
+    },
+    {
+      "id": "sentiment-analysis",
+      "name": "Sentiment Analysis",
+      "description": "Analyze text sentiment and emotional tone for customer interactions",
+      "category": "ai",
+      "platforms": ["zeroclaw", "nanoclaw", "picoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-sentiment-analysis",
+      "version": "1.0.0",
+      "tags": ["sentiment", "emotion", "nlp"]
+    },
+    {
+      "id": "text-summarizer",
+      "name": "Text Summarizer",
+      "description": "Generate concise summaries of long documents, articles, and conversations",
+      "category": "ai",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-text-summarizer",
+      "version": "1.0.0",
+      "tags": ["summary", "condensation", "tldr"]
+    },
+    {
+      "id": "translation",
+      "name": "Translation",
+      "description": "Translate text between 100+ languages with context-aware accuracy",
+      "category": "ai",
+      "platforms": ["zeroclaw", "nanoclaw", "picoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-translation",
+      "version": "1.0.0",
+      "tags": ["translation", "language", "multilingual"]
+    },
+    {
+      "id": "image-analysis",
+      "name": "Image Analysis",
+      "description": "Analyze images for objects, text (OCR), and visual content classification",
+      "category": "ai",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-image-analysis",
+      "version": "1.0.0",
+      "tags": ["image", "vision", "ocr"]
+    },
+    {
+      "id": "speech-to-text",
+      "name": "Speech to Text",
+      "description": "Transcribe audio and voice recordings to text with speaker diarization",
+      "category": "ai",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-speech-to-text",
+      "version": "1.0.0",
+      "tags": ["speech", "transcription", "audio"]
+    },
+    {
+      "id": "crm-sync",
+      "name": "CRM Sync",
+      "description": "Synchronize contacts, deals, and activities with Salesforce, HubSpot, and Pipedrive",
+      "category": "integration",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-crm-sync",
+      "version": "1.0.0",
+      "tags": ["crm", "salesforce", "hubspot"]
+    },
+    {
+      "id": "erp-connector",
+      "name": "ERP Connector",
+      "description": "Connect to SAP, Oracle, and NetSuite ERP systems for data exchange",
+      "category": "integration",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-erp-connector",
+      "version": "1.0.0",
+      "tags": ["erp", "sap", "oracle"]
+    },
+    {
+      "id": "payment-processor",
+      "name": "Payment Processor",
+      "description": "Process payments and manage subscriptions via Stripe and PayPal APIs",
+      "category": "integration",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": ["auth-manager"],
+      "install_cmd": "npm install @claw/skill-payment-processor",
+      "version": "1.0.0",
+      "tags": ["payments", "stripe", "billing"]
+    },
+    {
+      "id": "webhook-manager",
+      "name": "Webhook Manager",
+      "description": "Register, receive, and process incoming webhooks with retry and validation",
+      "category": "integration",
+      "platforms": ["zeroclaw", "nanoclaw", "picoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-webhook-manager",
+      "version": "1.0.0",
+      "tags": ["webhooks", "events", "callbacks"]
+    },
+    {
+      "id": "usage-tracker",
+      "name": "Usage Tracker",
+      "description": "Track API calls, token consumption, and resource usage per agent and user",
+      "category": "analytics",
+      "platforms": ["zeroclaw", "nanoclaw", "picoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-usage-tracker",
+      "version": "1.0.0",
+      "tags": ["usage", "metrics", "tracking"]
+    },
+    {
+      "id": "report-generator",
+      "name": "Report Generator",
+      "description": "Generate formatted reports in PDF, HTML, and Markdown from data sources",
+      "category": "analytics",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-report-generator",
+      "version": "1.0.0",
+      "tags": ["reports", "pdf", "generation"]
+    },
+    {
+      "id": "dashboard-widget",
+      "name": "Dashboard Widget",
+      "description": "Create embeddable dashboard widgets with charts, tables, and live data",
+      "category": "analytics",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-dashboard-widget",
+      "version": "1.0.0",
+      "tags": ["dashboard", "charts", "visualization"]
+    },
+    {
+      "id": "anomaly-detector",
+      "name": "Anomaly Detector",
+      "description": "Detect anomalies in time-series data, logs, and metrics using statistical methods",
+      "category": "analytics",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw"],
+      "dependencies": ["usage-tracker"],
+      "install_cmd": "npm install @claw/skill-anomaly-detector",
+      "version": "1.0.0",
+      "tags": ["anomaly", "detection", "monitoring"]
+    },
+    {
+      "id": "ticket-management",
+      "name": "Ticket Management",
+      "description": "Create, assign, and track support tickets with SLA monitoring and escalation",
+      "category": "productivity",
+      "platforms": ["zeroclaw", "nanoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-ticket-management",
+      "version": "1.0.0",
+      "tags": ["tickets", "support", "helpdesk"]
+    },
+    {
+      "id": "knowledge-base",
+      "name": "Knowledge Base",
+      "description": "Index, search, and retrieve articles from structured knowledge repositories",
+      "category": "data",
+      "platforms": ["zeroclaw", "nanoclaw", "picoclaw", "openclaw", "parlant"],
+      "dependencies": [],
+      "install_cmd": "npm install @claw/skill-knowledge-base",
+      "version": "1.0.0",
+      "tags": ["knowledge", "articles", "faq"]
+    }
+  ],
+  "bundles": [
+    {
+      "id": "customer-support-bundle",
+      "name": "Customer Support Bundle",
+      "description": "Complete skill set for customer support agents with ticket management, sentiment analysis, and CRM integration",
+      "skills": ["auto-reply", "sentiment-analysis", "ticket-management", "crm-sync", "knowledge-base"],
+      "tags": ["support", "customer-service"]
+    },
+    {
+      "id": "developer-tools-bundle",
+      "name": "Developer Tools Bundle",
+      "description": "Essential development skills for code management, CI/CD monitoring, and debugging",
+      "skills": ["git-manager", "code-review", "ci-cd-monitor", "terminal", "api-tester", "log-analyzer"],
+      "tags": ["development", "engineering"]
+    },
+    {
+      "id": "data-processing-bundle",
+      "name": "Data Processing Bundle",
+      "description": "End-to-end data pipeline skills for import, query, transformation, and export",
+      "skills": ["database-query", "spreadsheet", "data-import", "data-export", "document-parser"],
+      "tags": ["data", "etl", "processing"]
+    },
+    {
+      "id": "security-compliance-bundle",
+      "name": "Security & Compliance Bundle",
+      "description": "Security hardening skills for content moderation, PII detection, and audit compliance",
+      "skills": ["content-filter", "pii-detector", "rate-limiter", "auth-manager", "audit-logger"],
+      "tags": ["security", "compliance", "governance"]
+    },
+    {
+      "id": "communication-bundle",
+      "name": "Communication Bundle",
+      "description": "Multi-channel communication skills for email, SMS, WhatsApp, Slack, and Discord",
+      "skills": ["auto-reply", "email-management", "sms-notify", "slack-integration", "whatsapp-business", "discord-bot"],
+      "tags": ["communication", "multichannel"]
+    },
+    {
+      "id": "analytics-bundle",
+      "name": "Analytics Bundle",
+      "description": "Full analytics stack with usage tracking, report generation, dashboards, and anomaly detection",
+      "skills": ["usage-tracker", "report-generator", "dashboard-widget", "anomaly-detector"],
+      "tags": ["analytics", "reporting", "insights"]
+    }
+  ]
+}

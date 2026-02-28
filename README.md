@@ -1874,6 +1874,134 @@ All runtimes use distinct ports to avoid conflicts:
 | SGLang | 30000 | `http://localhost:30000/v1` |
 | Docker Model Runner | 12434 | `http://localhost:12434/v1` |
 
+## Enterprise Services
+
+### Enterprise Web Dashboard (Port 9099)
+
+Full-featured web dashboard for managing your entire Claw deployment.
+
+```bash
+./claw.sh dashboard start         # Start on :9099
+./claw.sh dashboard stop
+```
+
+**Features**: Agent fleet management, model strategy view, hardware profile, fine-tuning manager, security dashboard, cost analytics, settings editor.
+
+### Live Model Router (Port 9095)
+
+OpenAI-compatible proxy that routes requests to the best available model based on task type.
+
+```bash
+./claw.sh router start            # Start on :9095
+./claw.sh router status
+./claw.sh router stop
+```
+
+**Endpoint**: `POST http://localhost:9095/v1/chat/completions` — drop-in replacement for OpenAI API. Auto-detects task type from system prompt and routes to optimal model per `strategy.json`.
+
+### Conversation Memory (Port 9096)
+
+SQLite-backed conversation memory with cross-agent context sharing.
+
+```bash
+./claw.sh memory start            # Start on :9096
+./claw.sh memory stats
+./claw.sh memory search "query"
+./claw.sh memory stop
+```
+
+### RAG Pipeline (Port 9097)
+
+Stdlib-only retrieval-augmented generation using trigram-based similarity (no vector DB needed).
+
+```bash
+./claw.sh rag start               # Start on :9097
+./claw.sh rag ingest ./docs
+./claw.sh rag search "deployment"
+./claw.sh rag stop
+```
+
+### Assessment Web Wizard (Port 9098)
+
+Web-based wizard for creating client assessments via a multi-step form.
+
+```bash
+./claw.sh wizard start            # Start on :9098
+./claw.sh wizard stop
+```
+
+### Multi-Agent Orchestrator
+
+Coordinates multiple running agents for complex workflows with SQLite-backed task queue.
+
+```bash
+./claw.sh orchestrator start
+./claw.sh orchestrator status
+./claw.sh orchestrator stop
+```
+
+### Cost Analytics & Alerting
+
+Tracks API usage costs across local and cloud models with threshold alerts.
+
+```bash
+./claw.sh billing report daily    # Daily cost report
+./claw.sh billing forecast        # Spend forecast
+./claw.sh billing status          # Current spend overview
+```
+
+### Skills Marketplace
+
+Catalog of 42 skills across 8 categories with 6 pre-built bundles.
+
+```bash
+./claw.sh skills list             # All available skills
+./claw.sh skills search "sentiment"
+./claw.sh skills install web-search zeroclaw
+./claw.sh skills bundle customer-support-bundle nanoclaw
+```
+
+### Adapter Auto-Selection
+
+Automatically selects the best LoRA adapter from 50 available based on use case.
+
+```bash
+./claw.sh adapter match customer_support
+./claw.sh adapter list
+```
+
+### React Installation Wizard (Port 3000)
+
+Modern React UI replicating the CLI installer with a 9-step wizard.
+
+```bash
+cd wizard-ui && npm run dev       # Development server on :3000
+cd wizard-ui && npm run build     # Production build (served via dashboard)
+```
+
+### Port Map
+
+| Service | Port | Description |
+|---------|------|-------------|
+| Ollama | 11434 | Local LLM runtime |
+| vLLM | 8000 | GPU inference |
+| llama.cpp | 8080 | CPU inference |
+| ipex-llm | 8010 | Intel-optimized |
+| SGLang | 30000 | RadixAttention |
+| Docker Model Runner | 12434 | Docker-native |
+| ZeroClaw | 3100 | Rust agent |
+| NanoClaw | 3200 | TypeScript agent |
+| PicoClaw | 3300 | Go agent |
+| OpenClaw | 3400 | Node.js agent |
+| Parlant | 8800 | Python agent |
+| **Router** | **9095** | Model proxy |
+| **Memory** | **9096** | Conversation store |
+| **RAG** | **9097** | Document retrieval |
+| **Wizard** | **9098** | Assessment form |
+| **Dashboard** | **9099** | Web management |
+| **Orchestrator** | **9100** | Task coordination |
+| **React Wizard** | **3000** | Installation UI |
+
 ## Ecosystem Diagram
 
 ![Claw Agents Provisioner — Ecosystem Diagram](ecosystem-diagram.png)
