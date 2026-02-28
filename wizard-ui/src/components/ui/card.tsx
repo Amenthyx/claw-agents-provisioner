@@ -10,11 +10,11 @@ export function Card({ className, selected, hoverable = false, children, ...prop
   return (
     <div
       className={cn(
-        'rounded-xl border bg-[#16213e]/80 backdrop-blur-sm transition-all duration-200',
+        'rounded-xl border glass-card transition-all duration-200',
         selected
-          ? 'border-[#00d4aa] shadow-lg shadow-[#00d4aa]/10'
-          : 'border-[#2a2a4e]',
-        hoverable && !selected && 'hover:border-[#00d4aa]/50 hover:shadow-md hover:shadow-[#00d4aa]/5 cursor-pointer',
+          ? 'border-neon-cyan border-glow-cyan shadow-neon-sm'
+          : 'border-cyber-border',
+        hoverable && !selected && 'hover:border-neon-cyan/50 hover:shadow-neon-sm hover:scale-[1.01] hover:-translate-y-0.5 cursor-pointer',
         className
       )}
       {...props}
@@ -34,7 +34,7 @@ export function CardHeader({ className, children, ...props }: HTMLAttributes<HTM
 
 export function CardTitle({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement>) {
   return (
-    <h3 className={cn('text-lg font-semibold text-[#e0e0e0]', className)} {...props}>
+    <h3 className={cn('text-lg font-semibold text-text-primary', className)} {...props}>
       {children}
     </h3>
   );
@@ -42,7 +42,7 @@ export function CardTitle({ className, children, ...props }: HTMLAttributes<HTML
 
 export function CardDescription({ className, children, ...props }: HTMLAttributes<HTMLParagraphElement>) {
   return (
-    <p className={cn('text-sm text-[#a0a0a0] mt-1', className)} {...props}>
+    <p className={cn('text-sm text-text-secondary mt-1', className)} {...props}>
       {children}
     </p>
   );
@@ -76,13 +76,13 @@ export function StatCard({ label, value, icon, className }: StatCardProps) {
     <Card className={cn('p-4', className)}>
       <div className="flex items-center gap-3">
         {icon && (
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#00d4aa]/10 text-[#00d4aa]">
+          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-neon-cyan/10 text-neon-cyan">
             {icon}
           </div>
         )}
         <div>
-          <p className="text-xs text-[#a0a0a0] uppercase tracking-wider">{label}</p>
-          <p className="text-lg font-semibold text-[#e0e0e0] mt-0.5">{value}</p>
+          <p className="text-xs text-text-secondary uppercase tracking-wider">{label}</p>
+          <p className="text-lg font-semibold text-text-primary font-mono mt-0.5">{value}</p>
         </div>
       </div>
     </Card>

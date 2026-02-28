@@ -13,16 +13,20 @@ export function Progress({ value, max = 100, className, showLabel = false }: Pro
   return (
     <div className={cn('w-full', className)}>
       {showLabel && (
-        <div className="flex justify-between text-xs text-[#a0a0a0] mb-1">
+        <div className="flex justify-between text-xs text-text-secondary mb-1 font-mono">
           <span>Progress</span>
-          <span>{Math.round(percentage)}%</span>
+          <span className="text-neon-cyan">{Math.round(percentage)}%</span>
         </div>
       )}
-      <div className="w-full h-2 bg-[#1a1a2e] rounded-full overflow-hidden border border-[#2a2a4e]">
+      <div className="w-full h-2 bg-cyber-bg-surface rounded-full overflow-hidden border border-cyber-border">
         <div
-          className="h-full bg-gradient-to-r from-[#00d4aa] to-[#00f5c4] rounded-full transition-all duration-500 ease-out"
+          className="h-full bg-gradient-to-r from-neon-cyan to-neon-cyan-dim rounded-full transition-all duration-500 ease-out relative"
           style={{ width: `${percentage}%` }}
-        />
+        >
+          {percentage > 0 && percentage < 100 && (
+            <div className="absolute right-0 top-0 bottom-0 w-2 bg-neon-cyan rounded-full animate-pulse shadow-neon-sm" />
+          )}
+        </div>
       </div>
     </div>
   );

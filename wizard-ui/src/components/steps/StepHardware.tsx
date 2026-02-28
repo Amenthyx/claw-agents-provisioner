@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Cpu, MemoryStick, Monitor, Loader2, AlertTriangle, Settings } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { StatCard } from '../ui/card';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import type { HardwareProfile } from '../../lib/types';
+import { staggerContainer, cardVariant, fadeInUp } from '../../lib/motion';
 
 const MOCK_HARDWARE: HardwareProfile = {
   os: { name: 'Windows', version: '11', arch: 'x86_64' },
@@ -35,7 +37,6 @@ export function StepHardware() {
         setHardware(data.hardware);
         setRecommendation(data.recommendation);
       } catch {
-        // Fall back to mock data when API is unavailable
         setError('Hardware detection API not available. Showing example configuration.');
         setHardware(MOCK_HARDWARE);
         setRecommendation(MOCK_RECOMMENDATION);
@@ -49,62 +50,75 @@ export function StepHardware() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh]">
-        <Loader2 className="w-8 h-8 text-[#00d4aa] animate-spin mb-4" />
-        <p className="text-[#a0a0a0]">Detecting hardware configuration...</p>
+        <Loader2 className="w-8 h-8 text-neon-cyan animate-spin mb-4" />
+        <p className="text-text-secondary font-mono text-neon-cyan">Scanning hardware...</p>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-[#e0e0e0] mb-2">Hardware Profile</h2>
-        <p className="text-[#a0a0a0]">
+      <motion.div className="mb-8" variants={fadeInUp} initial="initial" animate="animate">
+        <h2 className="text-2xl font-bold text-text-primary mb-2">Hardware Profile</h2>
+        <p className="text-text-secondary">
           Your system hardware has been analyzed to determine optimal configuration.
         </p>
-      </div>
+      </motion.div>
 
       {error && (
-        <div className="flex items-center gap-3 p-4 rounded-lg border border-[#ffa502]/20 bg-[#ffa502]/5 mb-6">
-          <AlertTriangle className="w-5 h-5 text-[#ffa502] shrink-0" />
-          <p className="text-sm text-[#ffa502]">{error}</p>
+        <div className="flex items-center gap-3 p-4 rounded-lg border border-status-warning/20 bg-status-warning/5 mb-6">
+          <AlertTriangle className="w-5 h-5 text-status-warning shrink-0" />
+          <p className="text-sm text-status-warning font-mono">{error}</p>
         </div>
       )}
 
       {hardware && (
         <>
           {/* System stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard
-              label="Operating System"
-              value={`${hardware.os.name} ${hardware.os.version}`}
-              icon={<Monitor className="w-5 h-5" />}
-            />
-            <StatCard
-              label="CPU"
-              value={`${hardware.cpu.cores} Cores`}
-              icon={<Cpu className="w-5 h-5" />}
-            />
-            <StatCard
-              label="RAM"
-              value={`${hardware.ram_gb} GB`}
-              icon={<MemoryStick className="w-5 h-5" />}
-            />
-            <StatCard
-              label="Architecture"
-              value={hardware.os.arch}
-              icon={<Settings className="w-5 h-5" />}
-            />
-          </div>
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+          >
+            <motion.div variants={cardVariant}>
+              <StatCard
+                label="Operating System"
+                value={`${hardware.os.name} ${hardware.os.version}`}
+                icon={<Monitor className="w-5 h-5" />}
+              />
+            </motion.div>
+            <motion.div variants={cardVariant}>
+              <StatCard
+                label="CPU"
+                value={`${hardware.cpu.cores} Cores`}
+                icon={<Cpu className="w-5 h-5" />}
+              />
+            </motion.div>
+            <motion.div variants={cardVariant}>
+              <StatCard
+                label="RAM"
+                value={`${hardware.ram_gb} GB`}
+                icon={<MemoryStick className="w-5 h-5" />}
+              />
+            </motion.div>
+            <motion.div variants={cardVariant}>
+              <StatCard
+                label="Architecture"
+                value={hardware.os.arch}
+                icon={<Settings className="w-5 h-5" />}
+              />
+            </motion.div>
+          </motion.div>
 
           {/* CPU Details */}
           <Card className="mb-4">
             <CardContent>
-              <h3 className="text-sm font-semibold text-[#e0e0e0] mb-3 flex items-center gap-2">
-                <Cpu className="w-4 h-4 text-[#00d4aa]" />
+              <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+                <Cpu className="w-4 h-4 text-neon-cyan" />
                 Processor
               </h3>
-              <p className="text-[#a0a0a0] text-sm mb-2">{hardware.cpu.brand}</p>
+              <p className="text-text-secondary text-sm mb-2 font-mono">{hardware.cpu.brand}</p>
               <div className="flex gap-2 flex-wrap">
                 {hardware.cpu.features.map((f) => (
                   <Badge key={f} variant="accent">{f}</Badge>
@@ -116,26 +130,26 @@ export function StepHardware() {
           {/* GPU Details */}
           <Card className="mb-6">
             <CardContent>
-              <h3 className="text-sm font-semibold text-[#e0e0e0] mb-3 flex items-center gap-2">
-                <Monitor className="w-4 h-4 text-[#00d4aa]" />
+              <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+                <Monitor className="w-4 h-4 text-neon-cyan" />
                 GPU
               </h3>
               {hardware.gpus.length > 0 ? (
                 <div className="space-y-3">
                   {hardware.gpus.map((gpu, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-[#1a1a2e] border border-[#2a2a4e]">
+                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-cyber-bg-surface border border-cyber-border">
                       <div>
-                        <p className="text-sm font-medium text-[#e0e0e0]">{gpu.name}</p>
-                        <p className="text-xs text-[#666]">{gpu.vendor} - {gpu.api}</p>
+                        <p className="text-sm font-medium text-text-primary font-mono">{gpu.name}</p>
+                        <p className="text-xs text-text-muted font-mono">{gpu.vendor} - {gpu.api}</p>
                       </div>
                       <Badge variant="success">{gpu.vram_gb} GB VRAM</Badge>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="p-3 rounded-lg bg-[#1a1a2e] border border-[#2a2a4e]">
-                  <p className="text-sm text-[#a0a0a0]">No dedicated GPU detected</p>
-                  <p className="text-xs text-[#666] mt-1">CPU inference will be used for local models</p>
+                <div className="p-3 rounded-lg bg-cyber-bg-surface border border-cyber-border">
+                  <p className="text-sm text-text-secondary">No dedicated GPU detected</p>
+                  <p className="text-xs text-text-muted mt-1 font-mono">CPU inference will be used for local models</p>
                 </div>
               )}
             </CardContent>
@@ -143,25 +157,25 @@ export function StepHardware() {
 
           {/* Recommendation */}
           {recommendation && (
-            <Card className="border-[#00d4aa]/30 bg-[#00d4aa]/5">
+            <Card className="border-neon-cyan/30 bg-neon-cyan/5 border-l-4 border-l-neon-cyan" style={{ borderImage: 'linear-gradient(to bottom, #00ffcc, #ff00ff) 1', borderImageSlice: '0 0 0 4' }}>
               <CardContent>
-                <h3 className="text-sm font-semibold text-[#00d4aa] mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-neon-cyan mb-3 flex items-center gap-2">
                   <Settings className="w-4 h-4" />
                   Recommended Runtime
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
-                  <div className="p-3 rounded-lg bg-[#0a0a0f]/50 border border-[#2a2a4e]">
-                    <p className="text-xs text-[#666] mb-1">Primary</p>
-                    <p className="text-sm font-medium text-[#e0e0e0]">{recommendation.primary.name}</p>
-                    <Badge variant="accent" className="mt-1">:{recommendation.primary.port}</Badge>
+                  <div className="p-3 rounded-lg bg-cyber-bg/50 border border-cyber-border">
+                    <p className="text-xs text-text-muted mb-1 font-mono">Primary</p>
+                    <p className="text-sm font-medium text-text-primary">{recommendation.primary.name}</p>
+                    <Badge variant="accent" className="mt-1"><span className="font-mono">:{recommendation.primary.port}</span></Badge>
                   </div>
-                  <div className="p-3 rounded-lg bg-[#0a0a0f]/50 border border-[#2a2a4e]">
-                    <p className="text-xs text-[#666] mb-1">Fallback</p>
-                    <p className="text-sm font-medium text-[#e0e0e0]">{recommendation.fallback.name}</p>
-                    <Badge className="mt-1">:{recommendation.fallback.port}</Badge>
+                  <div className="p-3 rounded-lg bg-cyber-bg/50 border border-cyber-border">
+                    <p className="text-xs text-text-muted mb-1 font-mono">Fallback</p>
+                    <p className="text-sm font-medium text-text-primary">{recommendation.fallback.name}</p>
+                    <Badge className="mt-1"><span className="font-mono">:{recommendation.fallback.port}</span></Badge>
                   </div>
                 </div>
-                <p className="text-sm text-[#a0a0a0]">{recommendation.reason}</p>
+                <p className="text-sm text-text-secondary">{recommendation.reason}</p>
               </CardContent>
             </Card>
           )}

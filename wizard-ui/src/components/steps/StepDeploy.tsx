@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { CheckCircle2, Circle, Loader2, XCircle, ExternalLink, Terminal, Copy } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, XCircle, ExternalLink, Copy, RotateCcw } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
+import { fadeInUp } from '../../lib/motion';
 
 interface DeployStep {
   id: string;
@@ -62,7 +64,6 @@ export function StepDeploy({ assessmentJSON }: StepDeployProps) {
     setHasError(false);
     setSteps(DEPLOY_STEPS.map((s) => ({ ...s, status: 'pending' as const })));
 
-    // Try to connect to real API first
     try {
       const res = await fetch('/api/wizard/deploy', {
         method: 'POST',
@@ -71,7 +72,6 @@ export function StepDeploy({ assessmentJSON }: StepDeployProps) {
       });
 
       if (res.ok) {
-        // Real API available - connect SSE
         const eventSource = new EventSource('/api/wizard/deploy/stream');
         eventSource.onmessage = (event) => {
           const data = JSON.parse(event.data);
@@ -91,7 +91,6 @@ export function StepDeploy({ assessmentJSON }: StepDeployProps) {
         };
         eventSource.onerror = () => {
           eventSource.close();
-          // Fall back to simulation
           simulateDeploy();
         };
         return;
@@ -112,7 +111,6 @@ export function StepDeploy({ assessmentJSON }: StepDeployProps) {
       addLog(`Starting: ${step.label}...`);
       setProgress(Math.round(((i + 0.5) / DEPLOY_STEPS.length) * 100));
 
-      // Simulate work with realistic logs
       const messages = getStepLogs(step.id, platform);
       for (const msg of messages) {
         await delay(300 + Math.random() * 400);
@@ -135,13 +133,16 @@ export function StepDeploy({ assessmentJSON }: StepDeployProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Completed step count for animated line
+  const completedCount = steps.filter((s) => s.status === 'complete').length;
+
   return (
     <div>
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-[#e0e0e0] mb-2">
-          {isComplete ? 'Deployment Complete' : hasError ? 'Deployment Failed' : 'Deploying Agent'}
+      <motion.div className="mb-8" variants={fadeInUp} initial="initial" animate="animate">
+        <h2 className="text-2xl font-bold text-text-primary mb-2 font-mono">
+          {isComplete ? '> Deployment Complete' : hasError ? '> Deployment Failed' : '> Deploying Agent'}
         </h2>
-        <p className="text-[#a0a0a0]">
+        <p className="text-text-secondary">
           {isComplete
             ? 'Your agent platform is ready to use.'
             : hasError
@@ -150,7 +151,7 @@ export function StepDeploy({ assessmentJSON }: StepDeployProps) {
                 ? 'Setting up your agent platform...'
                 : 'Click "Start Deployment" to begin.'}
         </p>
-      </div>
+      </motion.div>
 
       {/* Progress */}
       <Progress value={progress} showLabel className="mb-8 max-w-3xl" />
@@ -160,28 +161,38 @@ export function StepDeploy({ assessmentJSON }: StepDeployProps) {
         <div className="lg:col-span-1">
           <Card>
             <CardContent>
-              <h3 className="text-sm font-semibold text-[#e0e0e0] mb-4">Deployment Steps</h3>
-              <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-text-primary mb-4 font-mono">Deployment Steps</h3>
+              <div className="relative space-y-3">
+                {/* Animated connecting line */}
+                <div className="absolute left-[10px] top-[10px] w-px bg-cyber-border" style={{ height: `calc(100% - 20px)` }} />
+                <motion.div
+                  className="absolute left-[10px] top-[10px] w-px bg-neon-cyan"
+                  initial={false}
+                  animate={{ height: `${(completedCount / steps.length) * 100}%` }}
+                  transition={{ duration: 0.4, ease: 'easeOut' }}
+                  style={{ maxHeight: `calc(100% - 20px)` }}
+                />
+
                 {steps.map((step) => (
-                  <div key={step.id} className="flex items-center gap-3">
+                  <div key={step.id} className="flex items-center gap-3 relative z-10">
                     {step.status === 'complete' ? (
-                      <CheckCircle2 className="w-5 h-5 text-[#2ed573] shrink-0" />
+                      <CheckCircle2 className="w-5 h-5 text-status-success shrink-0" />
                     ) : step.status === 'running' ? (
-                      <Loader2 className="w-5 h-5 text-[#00d4aa] animate-spin shrink-0" />
+                      <Loader2 className="w-5 h-5 text-neon-cyan animate-spin shrink-0" />
                     ) : step.status === 'error' ? (
-                      <XCircle className="w-5 h-5 text-[#ff4757] shrink-0" />
+                      <XCircle className="w-5 h-5 text-status-error shrink-0" />
                     ) : (
-                      <Circle className="w-5 h-5 text-[#2a2a4e] shrink-0" />
+                      <Circle className="w-5 h-5 text-cyber-border shrink-0" />
                     )}
                     <span
-                      className={`text-sm ${
+                      className={`text-sm font-mono ${
                         step.status === 'complete'
-                          ? 'text-[#a0a0a0]'
+                          ? 'text-text-secondary'
                           : step.status === 'running'
-                            ? 'text-[#e0e0e0] font-medium'
+                            ? 'text-text-primary font-medium'
                             : step.status === 'error'
-                              ? 'text-[#ff4757]'
-                              : 'text-[#555]'
+                              ? 'text-status-error'
+                              : 'text-text-muted'
                       }`}
                     >
                       {step.label}
@@ -199,39 +210,63 @@ export function StepDeploy({ assessmentJSON }: StepDeployProps) {
               </Button>
             </div>
           )}
+
+          {hasError && !isSimulating && (
+            <div className="mt-4">
+              <Button size="lg" className="w-full bg-status-error hover:bg-status-error/80" onClick={startDeploy}>
+                <RotateCcw className="w-4 h-4" />
+                Retry Deployment
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Log output */}
         <div className="lg:col-span-2">
           <Card className="h-full">
             <CardContent className="h-full flex flex-col">
-              <div className="flex items-center gap-2 mb-3">
-                <Terminal className="w-4 h-4 text-[#00d4aa]" />
-                <h3 className="text-sm font-semibold text-[#e0e0e0]">Deployment Log</h3>
+              {/* Terminal chrome */}
+              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-cyber-border">
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-status-error/60" />
+                  <div className="w-3 h-3 rounded-full bg-status-warning/60" />
+                  <div className="w-3 h-3 rounded-full bg-status-success/60" />
+                </div>
+                <span className="text-[10px] text-text-muted font-mono ml-2">deployment.log</span>
               </div>
               <div
                 ref={logRef}
-                className="flex-1 min-h-[300px] max-h-[400px] overflow-y-auto p-4 rounded-lg bg-[#0a0a0f] border border-[#2a2a4e] font-mono text-xs space-y-0.5"
+                className="flex-1 min-h-[300px] max-h-[400px] overflow-y-auto p-4 rounded-lg bg-cyber-bg border border-cyber-border font-mono text-xs space-y-0.5"
               >
                 {logs.length === 0 ? (
-                  <p className="text-[#555]">Waiting to start deployment...</p>
+                  <p className="text-text-muted">
+                    <span className="text-neon-cyan">$</span> Waiting to start deployment...
+                    <span className="cursor-blink" />
+                  </p>
                 ) : (
-                  logs.map((log, i) => (
-                    <p
-                      key={i}
-                      className={
-                        log.includes('error') || log.includes('Error')
-                          ? 'text-[#ff4757]'
-                          : log.includes('Completed')
-                            ? 'text-[#2ed573]'
-                            : log.includes('Starting')
-                              ? 'text-[#00d4aa]'
-                              : 'text-[#a0a0a0]'
-                      }
-                    >
-                      {log}
-                    </p>
-                  ))
+                  <>
+                    {logs.map((log, i) => (
+                      <p
+                        key={i}
+                        className={
+                          log.includes('error') || log.includes('Error')
+                            ? 'text-status-error'
+                            : log.includes('Completed')
+                              ? 'text-status-success'
+                              : log.includes('Starting')
+                                ? 'text-neon-cyan'
+                                : 'text-text-secondary'
+                        }
+                      >
+                        {log}
+                      </p>
+                    ))}
+                    {isSimulating && (
+                      <p className="text-text-muted">
+                        <span className="cursor-blink" />
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </CardContent>
@@ -240,62 +275,70 @@ export function StepDeploy({ assessmentJSON }: StepDeployProps) {
       </div>
 
       {/* Success card */}
-      {isComplete && (
-        <Card className="mt-8 border-[#2ed573]/30 bg-[#2ed573]/5 max-w-3xl">
-          <CardContent className="py-8">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 rounded-2xl bg-[#2ed573]/20 text-[#2ed573] flex items-center justify-center">
-                <CheckCircle2 className="w-7 h-7" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-[#e0e0e0]">Agent Deployed Successfully</h3>
-                <p className="text-sm text-[#a0a0a0]">Your XClaw agent is running and ready</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-[#0a0a0f]/50 border border-[#2a2a4e]">
-                <div className="flex-1">
-                  <p className="text-xs text-[#666] mb-1">Agent URL</p>
-                  <p className="text-sm font-mono text-[#00d4aa]">http://localhost:5000</p>
+      <AnimatePresence>
+        {isComplete && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          >
+            <Card className="mt-8 border-status-success/30 bg-status-success/5 max-w-3xl shadow-[0_0_24px_#00ff8820]">
+              <CardContent className="py-8">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-14 h-14 rounded-2xl bg-status-success/20 text-status-success flex items-center justify-center">
+                    <CheckCircle2 className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-text-primary">Agent Deployed Successfully</h3>
+                    <p className="text-sm text-text-secondary">Your XClaw agent is running and ready</p>
+                  </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={handleCopyUrl}>
-                  <Copy className="w-4 h-4" />
-                  {copied ? 'Copied!' : 'Copy'}
-                </Button>
-                <a
-                  href="http://localhost:5000"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button variant="outline" size="sm">
-                    <ExternalLink className="w-4 h-4" />
-                    Open
-                  </Button>
-                </a>
-              </div>
 
-              <div>
-                <p className="text-sm font-semibold text-[#e0e0e0] mb-2">Next Steps</p>
-                <ul className="space-y-2">
-                  <li className="flex items-center gap-2 text-sm text-[#a0a0a0]">
-                    <Badge variant="accent">1</Badge>
-                    Open the agent dashboard at the URL above
-                  </li>
-                  <li className="flex items-center gap-2 text-sm text-[#a0a0a0]">
-                    <Badge variant="accent">2</Badge>
-                    Configure your API keys in the settings panel
-                  </li>
-                  <li className="flex items-center gap-2 text-sm text-[#a0a0a0]">
-                    <Badge variant="accent">3</Badge>
-                    Start interacting with your AI agent
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-4 rounded-lg bg-cyber-bg/50 border border-cyber-border">
+                    <div className="flex-1">
+                      <p className="text-xs text-text-muted mb-1 font-mono">Agent URL</p>
+                      <p className="text-sm font-mono text-neon-cyan">http://localhost:5000</p>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={handleCopyUrl}>
+                      <Copy className="w-4 h-4" />
+                      {copied ? <span className="text-status-success">Copied!</span> : 'Copy'}
+                    </Button>
+                    <a
+                      href="http://localhost:5000"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button variant="outline" size="sm">
+                        <ExternalLink className="w-4 h-4" />
+                        Open
+                      </Button>
+                    </a>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-text-primary mb-2">Next Steps</p>
+                    <ul className="space-y-2">
+                      <li className="flex items-center gap-2 text-sm text-text-secondary">
+                        <Badge variant="accent"><span className="font-mono">1</span></Badge>
+                        Open the agent dashboard at the URL above
+                      </li>
+                      <li className="flex items-center gap-2 text-sm text-text-secondary">
+                        <Badge variant="accent"><span className="font-mono">2</span></Badge>
+                        Configure your API keys in the settings panel
+                      </li>
+                      <li className="flex items-center gap-2 text-sm text-text-secondary">
+                        <Badge variant="accent"><span className="font-mono">3</span></Badge>
+                        Start interacting with your AI agent
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -17,6 +17,8 @@ const initialState: WizardState = {
   useCase: [],
   budget: 0,
   sensitivity: 'standard',
+  apiKeys: {},
+  cloudProviders: [],
 };
 
 export function useWizardState() {
@@ -56,6 +58,12 @@ export function useWizardState() {
       case 2: // Deployment
         return state.deploymentMethod !== undefined;
       case 3: // LLM
+        if (state.llmProvider === 'hybrid') {
+          return state.cloudProviders.length > 0 && state.runtime !== '';
+        }
+        if (state.llmProvider === 'local') {
+          return state.runtime !== '';
+        }
         return state.llmProvider !== undefined;
       case 4: // Hardware
         return true; // Auto-detected
@@ -82,6 +90,12 @@ export function useWizardState() {
         provider: state.llmProvider,
         runtime: state.runtime || undefined,
         models: state.selectedModels.length > 0 ? state.selectedModels : undefined,
+        cloudProviders: state.cloudProviders.length > 0 ? state.cloudProviders : undefined,
+        apiKeys: Object.keys(state.apiKeys).length > 0
+          ? Object.fromEntries(
+              Object.entries(state.apiKeys).map(([k, v]) => [k, v ? '***configured***' : undefined])
+            )
+          : undefined,
       },
       security: {
         enabled: state.securityEnabled,

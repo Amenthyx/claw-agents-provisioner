@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { WizardLayout } from './components/WizardLayout';
 import { StepWelcome } from './components/steps/StepWelcome';
 import { StepPlatform } from './components/steps/StepPlatform';
@@ -10,6 +11,7 @@ import { StepSecurity } from './components/steps/StepSecurity';
 import { StepReview } from './components/steps/StepReview';
 import { StepDeploy } from './components/steps/StepDeploy';
 import { useWizardState } from './hooks/useWizardState';
+import { pageVariants, pageTransition } from './lib/motion';
 
 function App() {
   const {
@@ -77,6 +79,10 @@ function App() {
             onSelect={(provider) => updateState({ llmProvider: provider })}
             runtime={state.runtime}
             onRuntimeChange={(runtime) => updateState({ runtime })}
+            cloudProviders={state.cloudProviders}
+            onCloudProvidersChange={(cloudProviders) => updateState({ cloudProviders })}
+            apiKeys={state.apiKeys}
+            onApiKeysChange={(apiKeys) => updateState({ apiKeys })}
           />
         );
 
@@ -89,7 +95,7 @@ function App() {
             llmProvider={state.llmProvider}
             selectedModels={state.selectedModels}
             onToggleModel={handleToggleModel}
-            availableVram={10} // Will be updated from hardware detection
+            availableVram={10}
           />
         );
 
@@ -132,7 +138,18 @@ function App() {
       onPrev={prevStep}
       onGoToStep={goToStep}
     >
-      {renderStep()}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={state.currentStep}
+          variants={pageVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={pageTransition}
+        >
+          {renderStep()}
+        </motion.div>
+      </AnimatePresence>
     </WizardLayout>
   );
 }

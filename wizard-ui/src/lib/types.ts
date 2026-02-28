@@ -33,8 +33,8 @@ export interface ModelInfo {
 export interface WizardState {
   currentStep: number;
   platform: string;
-  deploymentMethod: 'docker' | 'vagrant';
-  llmProvider: 'cloud' | 'local';
+  deploymentMethod: 'docker' | 'vagrant' | 'local';
+  llmProvider: 'cloud' | 'local' | 'hybrid';
   runtime: string;
   selectedModels: string[];
   securityEnabled: boolean;
@@ -44,6 +44,8 @@ export interface WizardState {
   useCase: string[];
   budget: number;
   sensitivity: string;
+  apiKeys: Record<string, string>;
+  cloudProviders: string[];
 }
 
 export interface DeployEvent {
@@ -69,7 +71,7 @@ export const PLATFORMS: Platform[] = [
   {
     id: 'zeroclaw',
     name: 'ZeroClaw',
-    language: 'Python',
+    language: 'Rust',
     memory: '512MB',
     port: 5000,
     description: 'Lightweight zero-config agent for quick deployments. Minimal resource footprint with essential agent capabilities.',
@@ -79,7 +81,7 @@ export const PLATFORMS: Platform[] = [
   {
     id: 'nanoclaw',
     name: 'NanoClaw',
-    language: 'Python',
+    language: 'TypeScript',
     memory: '1GB',
     port: 5100,
     description: 'Small but capable agent with extended tooling. Balanced between resource usage and functionality.',
@@ -89,7 +91,7 @@ export const PLATFORMS: Platform[] = [
   {
     id: 'picoclaw',
     name: 'PicoClaw',
-    language: 'Python',
+    language: 'Go',
     memory: '256MB',
     port: 5200,
     description: 'Ultra-minimal agent for edge deployments and IoT scenarios. Smallest possible footprint.',
@@ -99,7 +101,7 @@ export const PLATFORMS: Platform[] = [
   {
     id: 'openclaw',
     name: 'OpenClaw',
-    language: 'Python',
+    language: 'TypeScript',
     memory: '2GB',
     port: 5300,
     description: 'Full-featured open agent platform with advanced reasoning, multi-model support, and enterprise integrations.',
@@ -137,4 +139,19 @@ export const SECURITY_OPTIONS = [
   { id: 'gdpr', label: 'GDPR Compliance', description: 'European data protection regulation compliance' },
   { id: 'hipaa', label: 'HIPAA Compliance', description: 'Healthcare data protection compliance' },
   { id: 'pci-dss', label: 'PCI-DSS Compliance', description: 'Payment card industry security standards' },
+];
+
+export const CLOUD_PROVIDERS = [
+  { id: 'anthropic', name: 'Anthropic', model: 'Claude', color: '#d4a574' },
+  { id: 'openai', name: 'OpenAI', model: 'GPT-4', color: '#74aa9c' },
+  { id: 'deepseek', name: 'DeepSeek', model: 'DeepSeek V3', color: '#4a9eff' },
+  { id: 'google', name: 'Google', model: 'Gemini', color: '#4285f4' },
+  { id: 'groq', name: 'Groq', model: 'LPU Inference', color: '#f55036' },
+];
+
+export const LOCAL_RUNTIMES = [
+  { id: 'ollama', name: 'Ollama', description: 'Easy-to-use local model runner', port: 11434 },
+  { id: 'llama-cpp', name: 'llama.cpp', description: 'High-performance CPU/GPU inference', port: 8080 },
+  { id: 'vllm', name: 'vLLM', description: 'Production-grade GPU inference server', port: 8000 },
+  { id: 'localai', name: 'LocalAI', description: 'OpenAI-compatible local API', port: 8080 },
 ];
