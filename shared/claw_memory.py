@@ -38,6 +38,8 @@ Created by Mauro Tommasi — linkedin.com/in/maurotommasi
 Apache 2.0 © 2026 Amenthyx
 """
 
+from __future__ import annotations
+
 import json
 import os
 import signal
@@ -51,6 +53,10 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
+
+from claw_auth import check_auth
+from claw_metrics import MetricsCollector
+from claw_ratelimit import RateLimiter
 
 # -------------------------------------------------------------------------
 # Constants
@@ -107,7 +113,7 @@ class ConversationStore:
 
     def __init__(self, db_path: Optional[Path] = None) -> None:
         self.db_path = db_path or DB_FILE
-        self._dal = None
+        self._dal: Optional[Any] = None
         try:
             from claw_dal import DAL
             self._dal = DAL.get_instance()
@@ -116,9 +122,10 @@ class ConversationStore:
             pass
 
         # Fallback: direct SQLite if DAL unavailable
+        self._lock = threading.Lock()
+        self._conn: Optional[sqlite3.Connection] = None
         if self._dal is None:
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
-            self._lock = threading.Lock()
             self._conn = sqlite3.connect(
                 str(self.db_path),
                 check_same_thread=False,
@@ -128,9 +135,6 @@ class ConversationStore:
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA foreign_keys=ON")
             self._init_schema()
-        else:
-            self._lock = threading.Lock()
-            self._conn = None
 
     def _init_schema(self) -> None:
         """Create tables if they do not exist."""
@@ -566,10 +570,50 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
     """Handles HTTP requests for the conversation memory API."""
 
     store: ConversationStore  # set by MemoryServer
+    metrics: Optional[MetricsCollector] = None
+    rate_limiter: RateLimiter = RateLimiter()
 
     def log_message(self, format: str, *args: Any) -> None:
         """Override to use our log function."""
         info(f"{self.address_string()} {format % args}")
+
+    def _get_client_key(self) -> str:
+        """Derive a rate-limit key from Bearer token or client IP."""
+        auth = self.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            return auth[7:].strip()
+        return self.client_address[0]
+
+    def _check_middleware(self) -> bool:
+        """
+        Run auth + rate-limit checks before request handling.
+
+        Returns True if the request should proceed, False if a response
+        has already been sent (401 or 429).
+        """
+        ok, error_msg = check_auth(self.headers)
+        if not ok:
+            self._send_json({"error": error_msg}, 401)
+            return False
+
+        client_key = self._get_client_key()
+        allowed, remaining, reset_at = self.rate_limiter.check(client_key)
+        self._rl_remaining = remaining
+        self._rl_reset_at = reset_at
+
+        if not allowed:
+            body = json.dumps({"error": "Rate limit exceeded. Try again later."}, indent=2).encode("utf-8")
+            self.send_response(429)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-RateLimit-Limit", str(self.rate_limiter.max_requests))
+            self.send_header("X-RateLimit-Remaining", str(remaining))
+            self.send_header("X-RateLimit-Reset", str(int(reset_at)))
+            self.end_headers()
+            self.wfile.write(body)
+            return False
+
+        return True
 
     def _send_json(self, data: Any, status: int = 200) -> None:
         """Send a JSON response."""
@@ -577,6 +621,12 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        # Rate-limit headers
+        self.send_header("X-RateLimit-Limit", str(self.rate_limiter.max_requests))
+        if hasattr(self, "_rl_remaining"):
+            self.send_header("X-RateLimit-Remaining", str(self._rl_remaining))
+        if hasattr(self, "_rl_reset_at"):
+            self.send_header("X-RateLimit-Reset", str(int(self._rl_reset_at)))
         self.end_headers()
         self.wfile.write(body)
 
@@ -587,7 +637,7 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             return b""
         return self.rfile.read(length)
 
-    def _parse_json_body(self) -> Optional[Dict]:
+    def _parse_json_body(self) -> Optional[Dict[str, Any]]:
         """Parse the request body as JSON."""
         raw = self._read_body()
         if not raw:
@@ -614,166 +664,250 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
         path = parsed.path.rstrip("/")
         return path == pattern.rstrip("/")
 
+    def _send_metrics(self) -> None:
+        """GET /metrics — Prometheus text exposition."""
+        if not self.metrics:
+            self._send_json({"error": "Metrics not initialized"}, 503)
+            return
+        body = self.metrics.metrics_handler().encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self) -> None:
         """Handle GET requests."""
+        if self.metrics:
+            self.metrics.inc_active_connections()
+        start = time.time()
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/")
+        status = 200
 
-        # GET /api/memory/stats
-        if path == "/api/memory/stats":
-            stats = self.store.get_stats()
-            self._send_json(stats)
-            return
-
-        # GET /api/memory/conversations/:id
-        if path.startswith("/api/memory/conversations/"):
-            conv_id = path.replace("/api/memory/conversations/", "").split("/")[0]
-            if not conv_id:
-                self._send_json({"error": "Missing conversation ID"}, 400)
+        try:
+            # Health and metrics bypass auth + rate limiting
+            if path == "/metrics":
+                self._send_metrics()
+                return
+            if path == "/health" or path == "/":
+                self._send_json({"status": "ok", "service": "claw-memory", "port": DEFAULT_PORT})
                 return
 
-            conv = self.store.get_conversation(conv_id)
-            if not conv:
-                self._send_json({"error": "Conversation not found"}, 404)
+            # Auth + rate-limit middleware
+            if not self._check_middleware():
                 return
 
-            self._send_json(conv)
-            return
+            # GET /api/memory/stats
+            if path == "/api/memory/stats":
+                stats = self.store.get_stats()
+                self._send_json(stats)
+                return
 
-        # GET /api/memory/conversations (list)
-        if path == "/api/memory/conversations":
-            conversations = self.store.list_conversations()
-            self._send_json({"conversations": conversations})
-            return
+            # GET /api/memory/conversations/:id
+            if path.startswith("/api/memory/conversations/"):
+                conv_id = path.replace("/api/memory/conversations/", "").split("/")[0]
+                if not conv_id:
+                    status = 400
+                    self._send_json({"error": "Missing conversation ID"}, 400)
+                    return
 
-        # Health check
-        if path == "/health" or path == "/":
-            self._send_json({"status": "ok", "service": "claw-memory", "port": DEFAULT_PORT})
-            return
+                conv = self.store.get_conversation(conv_id)
+                if not conv:
+                    status = 404
+                    self._send_json({"error": "Conversation not found"}, 404)
+                    return
 
-        self._send_json({"error": "Not found"}, 404)
+                self._send_json(conv)
+                return
+
+            # GET /api/memory/conversations (list)
+            if path == "/api/memory/conversations":
+                conversations = self.store.list_conversations()
+                self._send_json({"conversations": conversations})
+                return
+
+            status = 404
+            self._send_json({"error": "Not found"}, 404)
+        except Exception:
+            status = 500
+            raise
+        finally:
+            if self.metrics:
+                self.metrics.dec_active_connections()
+                self.metrics.track_request("GET", path, status, time.time() - start)
 
     def do_POST(self) -> None:
         """Handle POST requests."""
+        if self.metrics:
+            self.metrics.inc_active_connections()
+        start = time.time()
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/")
+        status = 200
 
-        # POST /api/memory/conversations/:id/messages
-        if "/messages" in path and path.startswith("/api/memory/conversations/"):
-            parts = path.replace("/api/memory/conversations/", "").split("/")
-            conv_id = parts[0] if parts else ""
-            if not conv_id:
-                self._send_json({"error": "Missing conversation ID"}, 400)
+        try:
+            # Auth + rate-limit middleware
+            if not self._check_middleware():
                 return
 
-            body = self._parse_json_body()
-            if not body:
-                self._send_json({"error": "Invalid or missing JSON body"}, 400)
+            # POST /api/memory/conversations/:id/messages
+            if "/messages" in path and path.startswith("/api/memory/conversations/"):
+                parts = path.replace("/api/memory/conversations/", "").split("/")
+                conv_id = parts[0] if parts else ""
+                if not conv_id:
+                    status = 400
+                    self._send_json({"error": "Missing conversation ID"}, 400)
+                    return
+
+                body = self._parse_json_body()
+                if not body:
+                    status = 400
+                    self._send_json({"error": "Invalid or missing JSON body"}, 400)
+                    return
+
+                role = body.get("role", "")
+                content = body.get("content", "")
+                tokens = body.get("tokens", 0)
+
+                if role not in ("user", "assistant", "system"):
+                    status = 400
+                    self._send_json({"error": "Invalid role. Must be user, assistant, or system"}, 400)
+                    return
+
+                if not content:
+                    status = 400
+                    self._send_json({"error": "Missing content"}, 400)
+                    return
+
+                msg = self.store.add_message(conv_id, role, content, tokens)
+                if not msg:
+                    status = 404
+                    self._send_json({"error": "Conversation not found"}, 404)
+                    return
+
+                status = 201
+                self._send_json(msg, 201)
                 return
 
-            role = body.get("role", "")
-            content = body.get("content", "")
-            tokens = body.get("tokens", 0)
+            # POST /api/memory/conversations
+            if path == "/api/memory/conversations":
+                body = self._parse_json_body()
+                if not body:
+                    status = 400
+                    self._send_json({"error": "Invalid or missing JSON body"}, 400)
+                    return
 
-            if role not in ("user", "assistant", "system"):
-                self._send_json({"error": "Invalid role. Must be user, assistant, or system"}, 400)
+                agent_id = body.get("agent_id", "")
+                if not agent_id:
+                    status = 400
+                    self._send_json({"error": "Missing agent_id"}, 400)
+                    return
+
+                conv_id = body.get("id")
+                conv = self.store.create_conversation(agent_id, conv_id)
+                status = 201
+                self._send_json(conv, 201)
                 return
 
-            if not content:
-                self._send_json({"error": "Missing content"}, 400)
+            # POST /api/memory/search
+            if path == "/api/memory/search":
+                body = self._parse_json_body()
+                if not body:
+                    status = 400
+                    self._send_json({"error": "Invalid or missing JSON body"}, 400)
+                    return
+
+                query = body.get("query", "")
+                if not query:
+                    status = 400
+                    self._send_json({"error": "Missing query"}, 400)
+                    return
+
+                agent_id = body.get("agent_id")
+                limit = body.get("limit", 50)
+
+                results = self.store.search(query, agent_id=agent_id, limit=limit)
+                self._send_json({"query": query, "count": len(results), "results": results})
                 return
 
-            msg = self.store.add_message(conv_id, role, content, tokens)
-            if not msg:
-                self._send_json({"error": "Conversation not found"}, 404)
+            # POST /api/memory/share
+            if path == "/api/memory/share":
+                body = self._parse_json_body()
+                if not body:
+                    status = 400
+                    self._send_json({"error": "Invalid or missing JSON body"}, 400)
+                    return
+
+                from_agent = body.get("from_agent", "")
+                to_agent = body.get("to_agent", "")
+                conversation_id = body.get("conversation_id", "")
+                context_summary = body.get("context_summary", "")
+
+                if not all([from_agent, to_agent, conversation_id, context_summary]):
+                    status = 400
+                    self._send_json({
+                        "error": "Missing required fields: from_agent, to_agent, "
+                                 "conversation_id, context_summary"
+                    }, 400)
+                    return
+
+                share = self.store.share_context(
+                    from_agent, to_agent, conversation_id, context_summary
+                )
+                status = 201
+                self._send_json(share, 201)
                 return
 
-            self._send_json(msg, 201)
-            return
-
-        # POST /api/memory/conversations
-        if path == "/api/memory/conversations":
-            body = self._parse_json_body()
-            if not body:
-                self._send_json({"error": "Invalid or missing JSON body"}, 400)
-                return
-
-            agent_id = body.get("agent_id", "")
-            if not agent_id:
-                self._send_json({"error": "Missing agent_id"}, 400)
-                return
-
-            conv_id = body.get("id")
-            conv = self.store.create_conversation(agent_id, conv_id)
-            self._send_json(conv, 201)
-            return
-
-        # POST /api/memory/search
-        if path == "/api/memory/search":
-            body = self._parse_json_body()
-            if not body:
-                self._send_json({"error": "Invalid or missing JSON body"}, 400)
-                return
-
-            query = body.get("query", "")
-            if not query:
-                self._send_json({"error": "Missing query"}, 400)
-                return
-
-            agent_id = body.get("agent_id")
-            limit = body.get("limit", 50)
-
-            results = self.store.search(query, agent_id=agent_id, limit=limit)
-            self._send_json({"query": query, "count": len(results), "results": results})
-            return
-
-        # POST /api/memory/share
-        if path == "/api/memory/share":
-            body = self._parse_json_body()
-            if not body:
-                self._send_json({"error": "Invalid or missing JSON body"}, 400)
-                return
-
-            from_agent = body.get("from_agent", "")
-            to_agent = body.get("to_agent", "")
-            conversation_id = body.get("conversation_id", "")
-            context_summary = body.get("context_summary", "")
-
-            if not all([from_agent, to_agent, conversation_id, context_summary]):
-                self._send_json({
-                    "error": "Missing required fields: from_agent, to_agent, "
-                             "conversation_id, context_summary"
-                }, 400)
-                return
-
-            share = self.store.share_context(
-                from_agent, to_agent, conversation_id, context_summary
-            )
-            self._send_json(share, 201)
-            return
-
-        self._send_json({"error": "Not found"}, 404)
+            status = 404
+            self._send_json({"error": "Not found"}, 404)
+        except Exception:
+            status = 500
+            raise
+        finally:
+            if self.metrics:
+                self.metrics.dec_active_connections()
+                self.metrics.track_request("POST", path, status, time.time() - start)
 
     def do_DELETE(self) -> None:
         """Handle DELETE requests."""
+        if self.metrics:
+            self.metrics.inc_active_connections()
+        start = time.time()
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/")
+        status = 200
 
-        # DELETE /api/memory/conversations/:id
-        if path.startswith("/api/memory/conversations/"):
-            conv_id = path.replace("/api/memory/conversations/", "").split("/")[0]
-            if not conv_id:
-                self._send_json({"error": "Missing conversation ID"}, 400)
+        try:
+            # Auth + rate-limit middleware
+            if not self._check_middleware():
                 return
 
-            deleted = self.store.delete_conversation(conv_id)
-            if deleted:
-                self._send_json({"deleted": True, "id": conv_id})
-            else:
-                self._send_json({"error": "Conversation not found"}, 404)
-            return
+            # DELETE /api/memory/conversations/:id
+            if path.startswith("/api/memory/conversations/"):
+                conv_id = path.replace("/api/memory/conversations/", "").split("/")[0]
+                if not conv_id:
+                    status = 400
+                    self._send_json({"error": "Missing conversation ID"}, 400)
+                    return
 
-        self._send_json({"error": "Not found"}, 404)
+                deleted = self.store.delete_conversation(conv_id)
+                if deleted:
+                    self._send_json({"deleted": True, "id": conv_id})
+                else:
+                    status = 404
+                    self._send_json({"error": "Conversation not found"}, 404)
+                return
+
+            status = 404
+            self._send_json({"error": "Not found"}, 404)
+        except Exception:
+            status = 500
+            raise
+        finally:
+            if self.metrics:
+                self.metrics.dec_active_connections()
+                self.metrics.track_request("DELETE", path, status, time.time() - start)
 
 
 # -------------------------------------------------------------------------
@@ -796,8 +930,9 @@ class MemoryServer:
         with open(PID_FILE, "w") as f:
             f.write(str(os.getpid()))
 
-        # Configure handler with store reference
+        # Configure handler with store and metrics references
         MemoryRequestHandler.store = self.store
+        MemoryRequestHandler.metrics = MetricsCollector(service="claw-memory")
 
         self.server = HTTPServer(("0.0.0.0", self.port), MemoryRequestHandler)
 

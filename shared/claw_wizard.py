@@ -39,10 +39,16 @@ import signal
 import subprocess
 import sys
 import threading
+import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from socketserver import ThreadingMixIn
+from typing import Optional
 from urllib.parse import parse_qs
+
+from claw_auth import check_auth
+from claw_metrics import MetricsCollector
+from claw_ratelimit import RateLimiter
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -538,6 +544,47 @@ class WizardHandler(BaseHTTPRequestHandler):
     """Handles wizard HTTP endpoints."""
 
     server_version = "ClawWizard/1.0"
+    metrics: Optional[MetricsCollector] = None
+    rate_limiter: RateLimiter = RateLimiter()
+
+    def _get_client_key(self) -> str:
+        """Derive a rate-limit key from Bearer token or client IP."""
+        auth = self.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            return auth[7:].strip()
+        return self.client_address[0]
+
+    def _check_middleware(self) -> bool:
+        """
+        Run auth + rate-limit checks before request handling.
+
+        Returns True if the request should proceed, False if a response
+        has already been sent (401 or 429).
+        """
+        ok, error_msg = check_auth(self.headers)
+        if not ok:
+            self._send_json({"error": error_msg}, 401)
+            return False
+
+        client_key = self._get_client_key()
+        allowed, remaining, reset_at = self.rate_limiter.check(client_key)
+        self._rl_remaining = remaining
+        self._rl_reset_at = reset_at
+
+        if not allowed:
+            body = json.dumps({"error": "Rate limit exceeded. Try again later."}, indent=2).encode("utf-8")
+            self.send_response(429)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-RateLimit-Limit", str(self.rate_limiter.max_requests))
+            self.send_header("X-RateLimit-Remaining", str(remaining))
+            self.send_header("X-RateLimit-Reset", str(int(reset_at)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body)
+            return False
+
+        return True
 
     def _send_json(self, data: dict, status: int = 200):
         body = json.dumps(data, indent=2).encode("utf-8")
@@ -545,6 +592,12 @@ class WizardHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Content-Length", str(len(body)))
+        # Rate-limit headers
+        self.send_header("X-RateLimit-Limit", str(self.rate_limiter.max_requests))
+        if hasattr(self, "_rl_remaining"):
+            self.send_header("X-RateLimit-Remaining", str(self._rl_remaining))
+        if hasattr(self, "_rl_reset_at"):
+            self.send_header("X-RateLimit-Reset", str(int(self._rl_reset_at)))
         self.end_headers()
         self.wfile.write(body)
 
@@ -560,43 +613,94 @@ class WizardHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         return self.rfile.read(length) if length > 0 else b""
 
+    def _send_metrics(self) -> None:
+        """GET /metrics — Prometheus text exposition."""
+        if not self.metrics:
+            self._send_json({"error": "Metrics not initialized"}, 503)
+            return
+        body = self.metrics.metrics_handler().encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     # ── GET routes ────────────────────────────────────────────────────────
 
     def do_GET(self):
+        if self.metrics:
+            self.metrics.inc_active_connections()
+        start = time.time()
         path = self.path.split("?")[0]
+        status = 200
 
-        if path == "/":
-            port = self.server.server_address[1]
-            html = WIZARD_HTML.replace("WIZARD_PORT", str(port))
-            self._send_html(html)
+        try:
+            # Health and metrics bypass auth + rate limiting
+            if path == "/metrics":
+                self._send_metrics()
+                return
 
-        elif path == "/api/wizard/platforms":
-            self._send_json({"platforms": PLATFORMS})
+            # Auth + rate-limit middleware
+            if not self._check_middleware():
+                return
 
-        elif path == "/api/wizard/preview":
-            result = run_resolve_preview()
-            self._send_json(result)
+            if path == "/":
+                port = self.server.server_address[1]
+                html = WIZARD_HTML.replace("WIZARD_PORT", str(port))
+                self._send_html(html)
 
-        elif path == "/api/wizard/status":
-            with _deploy_lock:
-                self._send_json(dict(_deploy_state))
+            elif path == "/api/wizard/platforms":
+                self._send_json({"platforms": PLATFORMS})
 
-        else:
-            self.send_error(404, "Not Found")
+            elif path == "/api/wizard/preview":
+                result = run_resolve_preview()
+                self._send_json(result)
+
+            elif path == "/api/wizard/status":
+                with _deploy_lock:
+                    self._send_json(dict(_deploy_state))
+
+            else:
+                status = 404
+                self.send_error(404, "Not Found")
+        except Exception:
+            status = 500
+            raise
+        finally:
+            if self.metrics:
+                self.metrics.dec_active_connections()
+                self.metrics.track_request("GET", path, status, time.time() - start)
 
     # ── POST routes ───────────────────────────────────────────────────────
 
     def do_POST(self):
+        if self.metrics:
+            self.metrics.inc_active_connections()
+        start = time.time()
         path = self.path.split("?")[0]
+        status = 200
 
-        if path == "/api/wizard/assess":
-            self._handle_assess()
+        try:
+            # Auth + rate-limit middleware
+            if not self._check_middleware():
+                return
 
-        elif path == "/api/wizard/deploy":
-            self._handle_deploy()
+            if path == "/api/wizard/assess":
+                self._handle_assess()
 
-        else:
-            self.send_error(404, "Not Found")
+            elif path == "/api/wizard/deploy":
+                self._handle_deploy()
+
+            else:
+                status = 404
+                self.send_error(404, "Not Found")
+        except Exception:
+            status = 500
+            raise
+        finally:
+            if self.metrics:
+                self.metrics.dec_active_connections()
+                self.metrics.track_request("POST", path, status, time.time() - start)
 
     def _handle_assess(self):
         """Validate form data and write client-assessment.json."""
@@ -730,6 +834,7 @@ def cmd_start(port: int):
     print(f"  {GREEN}Starting on port {port}...{NC}")
     print()
 
+    WizardHandler.metrics = MetricsCollector(service="claw-wizard")
     server = ThreadedWizardServer(("0.0.0.0", port), WizardHandler)
     write_pid()
 

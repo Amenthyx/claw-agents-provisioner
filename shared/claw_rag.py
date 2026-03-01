@@ -47,6 +47,8 @@ Created by Mauro Tommasi — linkedin.com/in/maurotommasi
 Apache 2.0 (c) 2026 Amenthyx
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -59,6 +61,10 @@ from datetime import datetime, timezone
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
+
+from claw_auth import check_auth
+from claw_metrics import MetricsCollector
+from claw_ratelimit import RateLimiter
 
 # -------------------------------------------------------------------------
 # Constants
@@ -249,7 +255,7 @@ class TrigramIndex:
     Thread-safe via a threading.Lock on all mutating operations.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._trigrams: Dict[str, Set[str]] = {}    # chunk_id -> set of trigrams
         self._lock = threading.Lock()
 
@@ -505,7 +511,7 @@ class RAGEngine:
     shared trigram index, and persistent storage.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._index = TrigramIndex()
         self._chunks: Dict[str, Dict[str, Any]] = {}
         self._files: Dict[str, List[str]] = {}
@@ -716,6 +722,47 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
     """
 
     engine: Optional["RAGEngine"] = None
+    metrics: Optional[MetricsCollector] = None
+    rate_limiter: RateLimiter = RateLimiter()
+
+    def _get_client_key(self) -> str:
+        """Derive a rate-limit key from Bearer token or client IP."""
+        auth = self.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            return auth[7:].strip()
+        return self.client_address[0]
+
+    def _check_middleware(self) -> bool:
+        """
+        Run auth + rate-limit checks before request handling.
+
+        Returns True if the request should proceed, False if a response
+        has already been sent (401 or 429).
+        """
+        ok, error_msg = check_auth(self.headers)
+        if not ok:
+            self._send_json(401, {"error": error_msg})
+            return False
+
+        client_key = self._get_client_key()
+        allowed, remaining, reset_at = self.rate_limiter.check(client_key)
+        self._rl_remaining = remaining
+        self._rl_reset_at = reset_at
+
+        if not allowed:
+            body = json.dumps({"error": "Rate limit exceeded. Try again later."}, indent=2).encode("utf-8")
+            self.send_response(429)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-RateLimit-Limit", str(self.rate_limiter.max_requests))
+            self.send_header("X-RateLimit-Remaining", str(remaining))
+            self.send_header("X-RateLimit-Reset", str(int(reset_at)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body)
+            return False
+
+        return True
 
     def _send_json(self, status: int, data: Any) -> None:
         """Send a JSON response."""
@@ -724,6 +771,12 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
+        # Rate-limit headers
+        self.send_header("X-RateLimit-Limit", str(self.rate_limiter.max_requests))
+        if hasattr(self, "_rl_remaining"):
+            self.send_header("X-RateLimit-Remaining", str(self._rl_remaining))
+        if hasattr(self, "_rl_reset_at"):
+            self.send_header("X-RateLimit-Reset", str(int(self._rl_reset_at)))
         self.end_headers()
         self.wfile.write(body)
 
@@ -738,32 +791,107 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
         except (json.JSONDecodeError, UnicodeDecodeError):
             return {}
 
+    def _send_metrics(self) -> None:
+        """GET /metrics — Prometheus text exposition."""
+        if not self.metrics:
+            self._send_json(503, {"error": "Metrics not initialized"})
+            return
+        body = self.metrics.metrics_handler().encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self) -> None:
         """Handle GET requests."""
-        if self.path == "/api/rag/status":
-            self._handle_status()
-        elif self.path == "/health":
-            self._send_json(200, {"status": "ok", "service": "claw-rag"})
-        else:
-            self._send_json(404, {"error": "Not found"})
+        if self.metrics:
+            self.metrics.inc_active_connections()
+        start = time.time()
+        path = self.path.split("?")[0].rstrip("/")
+        status = 200
+
+        try:
+            # Health and metrics bypass auth + rate limiting
+            if path == "/metrics":
+                self._send_metrics()
+                return
+            elif path == "/health":
+                self._send_json(200, {"status": "ok", "service": "claw-rag"})
+                return
+
+            # Auth + rate-limit middleware
+            if not self._check_middleware():
+                return
+
+            if path == "/api/rag/status":
+                self._handle_status()
+            else:
+                status = 404
+                self._send_json(404, {"error": "Not found"})
+        except Exception:
+            status = 500
+            raise
+        finally:
+            if self.metrics:
+                self.metrics.dec_active_connections()
+                self.metrics.track_request("GET", path, status, time.time() - start)
 
     def do_POST(self) -> None:
         """Handle POST requests."""
-        if self.path == "/api/rag/ingest":
-            self._handle_ingest()
-        elif self.path == "/api/rag/search":
-            self._handle_search()
-        elif self.path == "/v1/search":
-            self._handle_v1_search()
-        else:
-            self._send_json(404, {"error": "Not found"})
+        if self.metrics:
+            self.metrics.inc_active_connections()
+        start = time.time()
+        path = self.path.split("?")[0].rstrip("/")
+        status = 200
+
+        try:
+            # Auth + rate-limit middleware
+            if not self._check_middleware():
+                return
+
+            if path == "/api/rag/ingest":
+                self._handle_ingest()
+            elif path == "/api/rag/search":
+                self._handle_search()
+            elif path == "/v1/search":
+                self._handle_v1_search()
+            else:
+                status = 404
+                self._send_json(404, {"error": "Not found"})
+        except Exception:
+            status = 500
+            raise
+        finally:
+            if self.metrics:
+                self.metrics.dec_active_connections()
+                self.metrics.track_request("POST", path, status, time.time() - start)
 
     def do_DELETE(self) -> None:
         """Handle DELETE requests."""
-        if self.path == "/api/rag/clear":
-            self._handle_clear()
-        else:
-            self._send_json(404, {"error": "Not found"})
+        if self.metrics:
+            self.metrics.inc_active_connections()
+        start = time.time()
+        path = self.path.split("?")[0].rstrip("/")
+        status = 200
+
+        try:
+            # Auth + rate-limit middleware
+            if not self._check_middleware():
+                return
+
+            if path == "/api/rag/clear":
+                self._handle_clear()
+            else:
+                status = 404
+                self._send_json(404, {"error": "Not found"})
+        except Exception:
+            status = 500
+            raise
+        finally:
+            if self.metrics:
+                self.metrics.dec_active_connections()
+                self.metrics.track_request("DELETE", path, status, time.time() - start)
 
     def do_OPTIONS(self) -> None:
         """Handle CORS preflight requests."""
@@ -876,7 +1004,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
         except Exception as e:
             self._send_json(500, {"error": str(e)})
 
-    def log_message(self, format: str, *args) -> None:
+    def log_message(self, format: str, *args: Any) -> None:
         """Custom log format matching claw style."""
         info(f"HTTP {args[0] if args else ''}")
 
@@ -901,6 +1029,7 @@ class RAGServer:
     def start(self) -> None:
         """Start the HTTP server."""
         RAGRequestHandler.engine = self.engine
+        RAGRequestHandler.metrics = MetricsCollector(service="claw-rag")
 
         self._server = HTTPServer(("0.0.0.0", self.port), RAGRequestHandler)
         self._server.request_queue_size = 32
@@ -910,7 +1039,7 @@ class RAGServer:
         PID_FILE.write_text(str(os.getpid()), encoding="utf-8")
 
         # Install signal handlers
-        def _shutdown(sig, frame):
+        def _shutdown(sig: int, frame: Any) -> None:
             log("Shutdown signal received")
             self.stop()
 
@@ -1177,7 +1306,7 @@ def build_parser() -> argparse.ArgumentParser:
 #  Main Entry Point
 # =========================================================================
 
-def main():
+def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 

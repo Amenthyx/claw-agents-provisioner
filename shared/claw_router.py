@@ -27,6 +27,8 @@ Created by Mauro Tommasi — linkedin.com/in/maurotommasi
 Apache 2.0 © 2026 Amenthyx
 """
 
+from __future__ import annotations
+
 import json
 import os
 import signal
@@ -40,6 +42,12 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from socketserver import ThreadingMixIn
 from typing import Any, Dict, List, Optional, Tuple
+
+from claw_auth import check_auth
+from claw_ratelimit import RateLimiter
+
+from claw_audit import get_audit_logger
+from claw_metrics import MetricsCollector
 
 # -------------------------------------------------------------------------
 # Constants
@@ -133,7 +141,7 @@ TASK_KEYWORDS: Dict[str, List[str]] = {
 }
 
 
-def detect_task_type(messages: List[Dict]) -> str:
+def detect_task_type(messages: List[Dict[str, Any]]) -> str:
     """Detect task type from system prompt keywords.
 
     Scans the system message (if present) and falls back to scanning the
@@ -641,10 +649,54 @@ class RouterRequestHandler(BaseHTTPRequestHandler):
     # Class-level references set by the server
     router: Optional[Router] = None
     strategy_mgr: Optional[StrategyManager] = None
+    metrics: Optional[MetricsCollector] = None
+    rate_limiter: RateLimiter = RateLimiter()
 
     # Suppress default stderr logging
     def log_message(self, format: str, *args: Any) -> None:
         pass  # Silenced — we use our own logging
+
+    def _get_client_key(self) -> str:
+        """Derive a rate-limit key from Bearer token or client IP."""
+        auth = self.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            return auth[7:].strip()
+        return self.client_address[0]
+
+    def _check_middleware(self) -> bool:
+        """
+        Run auth + rate-limit checks before request handling.
+
+        Returns True if the request should proceed, False if a response
+        has already been sent (401 or 429).
+        """
+        # Auth check
+        ok, error_msg = check_auth(self.headers)
+        if not ok:
+            self._send_json(401, {"error": error_msg})
+            return False
+
+        # Rate-limit check
+        client_key = self._get_client_key()
+        allowed, remaining, reset_at = self.rate_limiter.check(client_key)
+        # Store for header injection
+        self._rl_remaining = remaining
+        self._rl_reset_at = reset_at
+
+        if not allowed:
+            body = json.dumps({"error": "Rate limit exceeded. Try again later."}, indent=2).encode("utf-8")
+            self.send_response(429)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-RateLimit-Limit", str(self.rate_limiter.max_requests))
+            self.send_header("X-RateLimit-Remaining", str(remaining))
+            self.send_header("X-RateLimit-Reset", str(int(reset_at)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body)
+            return False
+
+        return True
 
     def _send_json(self, status: int, data: Any) -> None:
         """Helper to send a JSON response."""
@@ -653,6 +705,12 @@ class RouterRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
+        # Rate-limit headers
+        self.send_header("X-RateLimit-Limit", str(self.rate_limiter.max_requests))
+        if hasattr(self, "_rl_remaining"):
+            self.send_header("X-RateLimit-Remaining", str(self._rl_remaining))
+        if hasattr(self, "_rl_reset_at"):
+            self.send_header("X-RateLimit-Reset", str(int(self._rl_reset_at)))
         self.end_headers()
         self.wfile.write(body)
 
@@ -675,7 +733,7 @@ class RouterRequestHandler(BaseHTTPRequestHandler):
         return b""
 
     def _get_auth_key(self) -> str:
-        """Extract bearer token or use client IP as key."""
+        """Extract bearer token or use client IP as key (for upstream LLM routing)."""
         auth = self.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
             return auth[7:]
@@ -690,33 +748,107 @@ class RouterRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Max-Age", "86400")
         self.end_headers()
 
+    def _send_metrics(self) -> None:
+        """GET /metrics — Prometheus text exposition."""
+        if not self.metrics:
+            self._send_json(503, {"error": "Metrics not initialized"})
+            return
+        body = self.metrics.metrics_handler().encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     # --- GET routes ---
     def do_GET(self) -> None:
+        if self.metrics:
+            self.metrics.inc_active_connections()
+        start = time.time()
         path = self.path.split("?")[0].rstrip("/")
+        status = 200
 
-        if path == "/health":
-            self._handle_health()
-        elif path == "/v1/models":
-            self._handle_list_models()
-        elif path == "/api/router/status":
-            self._handle_status()
-        elif path == "/api/router/logs":
-            self._handle_logs()
-        else:
-            self._send_json(404, {"error": "Not found"})
+        try:
+            # Health and metrics bypass auth + rate limiting
+            if path == "/metrics":
+                self._send_metrics()
+                return
+            elif path == "/health":
+                self._handle_health()
+                return
+
+            # Auth + rate-limit middleware
+            if not self._check_middleware():
+                return
+
+            if path in ("", "/"):
+                self._handle_root()
+            elif path == "/v1/models":
+                self._handle_list_models()
+            elif path == "/api/router/status":
+                self._handle_status()
+            elif path == "/api/router/logs":
+                self._handle_logs()
+            else:
+                status = 404
+                self._send_json(404, {"error": "Not found"})
+        except Exception:
+            status = 500
+            raise
+        finally:
+            if self.metrics:
+                self.metrics.dec_active_connections()
+                self.metrics.track_request("GET", path, status, time.time() - start)
 
     # --- POST routes ---
     def do_POST(self) -> None:
+        if self.metrics:
+            self.metrics.inc_active_connections()
+        start = time.time()
         path = self.path.split("?")[0].rstrip("/")
+        status = 200
 
-        if path == "/v1/chat/completions":
-            self._handle_chat_completions()
-        elif path == "/api/router/reload":
-            self._handle_reload()
-        else:
-            self._send_json(404, {"error": "Not found"})
+        try:
+            # Auth + rate-limit middleware
+            if not self._check_middleware():
+                return
+
+            if path == "/v1/chat/completions":
+                self._handle_chat_completions()
+            elif path == "/api/router/reload":
+                self._handle_reload()
+            else:
+                status = 404
+                self._send_json(404, {"error": "Not found"})
+        except Exception:
+            status = 500
+            raise
+        finally:
+            if self.metrics:
+                self.metrics.dec_active_connections()
+                self.metrics.track_request("POST", path, status, time.time() - start)
 
     # --- Endpoint handlers ---
+
+    def _handle_root(self) -> None:
+        model_count = 0
+        if self.strategy_mgr and self.strategy_mgr.strategy:
+            model_count = len(self.strategy_mgr.list_models())
+        self._send_json(200, {
+            "service": "claw-router",
+            "version": "1.0.0",
+            "status": "ok",
+            "description": "OpenAI-compatible gateway router with task-based model routing",
+            "models_loaded": model_count,
+            "endpoints": {
+                "POST /v1/chat/completions": "Chat completions (OpenAI-compatible)",
+                "GET  /v1/models": "List available models",
+                "GET  /health": "Health check",
+                "GET  /api/router/status": "Router status and statistics",
+                "GET  /api/router/logs": "Recent request logs",
+                "POST /api/router/reload": "Reload strategy configuration",
+            },
+        })
 
     def _handle_health(self) -> None:
         self._send_json(200, {
@@ -813,8 +945,18 @@ class RouterRequestHandler(BaseHTTPRequestHandler):
             self._send_json(503, {"error": "Strategy manager not initialized"})
             return
 
+        client_ip = self.client_address[0] if self.client_address else ""
         invalidate_health_cache()
         success = self.strategy_mgr.reload()
+
+        audit = get_audit_logger()
+        audit.log_config_change(
+            action="reload_strategy",
+            resource="strategy.json",
+            outcome="success" if success else "failure",
+            ip_address=client_ip,
+        )
+
         if success:
             self._send_json(200, {
                 "status": "reloaded",
@@ -839,8 +981,20 @@ class RouterRequestHandler(BaseHTTPRequestHandler):
 
         body = self._read_body()
         auth_key = self._get_auth_key()
+        client_ip = self.client_address[0] if self.client_address else ""
 
         status, headers, resp_body = self.router.handle_chat_completions(body, auth_key)
+
+        audit = get_audit_logger()
+        audit.log_request(
+            action="POST /v1/chat/completions",
+            resource="/v1/chat/completions",
+            outcome="success" if status < 400 else "failure",
+            ip_address=client_ip,
+            user=auth_key,
+            details={"status": status},
+        )
+
         self._send_raw(status, headers, resp_body)
 
 
@@ -930,6 +1084,7 @@ def start_server(port: int = DEFAULT_PORT) -> None:
     # Attach to handler class
     RouterRequestHandler.router = router
     RouterRequestHandler.strategy_mgr = strategy_mgr
+    RouterRequestHandler.metrics = MetricsCollector(service="claw-router")
 
     # Create server
     server = ThreadedRouterServer(("0.0.0.0", port), RouterRequestHandler)

@@ -43,6 +43,8 @@ Created by Mauro Tommasi — linkedin.com/in/maurotommasi
 Apache 2.0 (c) 2026 Amenthyx
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -61,6 +63,10 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.error import URLError
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
+
+from claw_auth import check_auth
+from claw_metrics import MetricsCollector
+from claw_ratelimit import RateLimiter
 
 # =========================================================================
 #  Constants
@@ -261,10 +267,10 @@ class AgentRegistry:
     Uses DAL when available, falls back to direct SQLite connection.
     """
 
-    def __init__(self, conn: sqlite3.Connection):
+    def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
         self._lock = threading.Lock()
-        self._dal = None
+        self._dal: Optional[Any] = None
         try:
             from claw_dal import DAL
             self._dal = DAL.get_instance()
@@ -319,7 +325,7 @@ class AgentRegistry:
             self._conn.commit()
             return cursor.rowcount > 0
 
-    def get_agent(self, agent_id: str) -> Optional[Dict]:
+    def get_agent(self, agent_id: str) -> Optional[Dict[str, Any]]:
         """Get a single agent by ID."""
         if self._dal:
             return self._dal.agents.get(agent_id)
@@ -329,7 +335,7 @@ class AgentRegistry:
         ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    def get_all(self) -> List[Dict]:
+    def get_all(self) -> List[Dict[str, Any]]:
         """Get all registered agents."""
         if self._dal:
             return self._dal.agents.list_all()
@@ -339,7 +345,7 @@ class AgentRegistry:
         ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    def get_available(self, capability: Optional[str] = None) -> List[Dict]:
+    def get_available(self, capability: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get agents sorted by load, optionally filtered by capability."""
         if self._dal:
             return self._dal.agents.list_available(capability)
@@ -377,7 +383,7 @@ class AgentRegistry:
             )
             self._conn.commit()
 
-    def health_check(self, agent_id: str) -> Dict:
+    def health_check(self, agent_id: str) -> Dict[str, Any]:
         """Ping an agent's endpoint and update its status."""
         agent = self.get_agent(agent_id)
         if not agent:
@@ -422,7 +428,7 @@ class AgentRegistry:
         return {"ok": status == "healthy", "status": status, "detail": detail,
                 "agent_id": agent_id, "checked_at": now}
 
-    def health_check_all(self) -> List[Dict]:
+    def health_check_all(self) -> List[Dict[str, Any]]:
         """Run health checks on all registered agents."""
         results = []
         for agent in self.get_all():
@@ -445,7 +451,7 @@ class AgentRegistry:
         return count
 
     @staticmethod
-    def _row_to_dict(row: sqlite3.Row) -> Dict:
+    def _row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
         """Convert a sqlite3.Row to a plain dict with parsed JSON fields."""
         d = dict(row)
         if "capabilities" in d and isinstance(d["capabilities"], str):
@@ -462,7 +468,7 @@ class AgentRegistry:
 class TaskQueue:
     """SQLite-backed task queue with priority levels (1=low, 5=critical)."""
 
-    def __init__(self, conn: sqlite3.Connection):
+    def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
         self._lock = threading.Lock()
 
@@ -532,14 +538,14 @@ class TaskQueue:
             self._conn.commit()
             return cursor.rowcount > 0
 
-    def get_task(self, task_id: str) -> Optional[Dict]:
+    def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Get a single task by ID."""
         row = self._conn.execute(
             "SELECT * FROM tasks WHERE id = ?", (task_id,)
         ).fetchone()
         return dict(row) if row else None
 
-    def get_pending(self, limit: int = 10) -> List[Dict]:
+    def get_pending(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Get pending tasks ordered by priority (desc) then created_at (asc)."""
         rows = self._conn.execute("""
             SELECT * FROM tasks WHERE status = 'pending'
@@ -547,7 +553,7 @@ class TaskQueue:
         """, (limit,)).fetchall()
         return [dict(r) for r in rows]
 
-    def get_by_status(self, status: str, limit: int = 50) -> List[Dict]:
+    def get_by_status(self, status: str, limit: int = 50) -> List[Dict[str, Any]]:
         """Get tasks filtered by status."""
         rows = self._conn.execute("""
             SELECT * FROM tasks WHERE status = ?
@@ -555,14 +561,14 @@ class TaskQueue:
         """, (status, limit)).fetchall()
         return [dict(r) for r in rows]
 
-    def get_all(self, limit: int = 100) -> List[Dict]:
+    def get_all(self, limit: int = 100) -> List[Dict[str, Any]]:
         """Get all tasks, most recent first."""
         rows = self._conn.execute("""
             SELECT * FROM tasks ORDER BY created_at DESC LIMIT ?
         """, (limit,)).fetchall()
         return [dict(r) for r in rows]
 
-    def get_by_pipeline(self, pipeline_id: str) -> List[Dict]:
+    def get_by_pipeline(self, pipeline_id: str) -> List[Dict[str, Any]]:
         """Get all tasks belonging to a pipeline, ordered by step."""
         rows = self._conn.execute("""
             SELECT * FROM tasks WHERE pipeline_id = ?
@@ -584,10 +590,10 @@ class TaskQueue:
 class TaskRouter:
     """Routes tasks to the best available agent based on keyword matching."""
 
-    def __init__(self, registry: AgentRegistry):
+    def __init__(self, registry: AgentRegistry) -> None:
         self._registry = registry
 
-    def route(self, task: Dict) -> Optional[str]:
+    def route(self, task: Dict[str, Any]) -> Optional[str]:
         """Select the best agent for a task.  Returns agent_id or None."""
         # If task already has an agent hint, try that first
         hint = task.get("assigned_agent")
@@ -641,7 +647,7 @@ class PipelineBuilder:
 
     def __init__(self, conn: sqlite3.Connection, queue: TaskQueue,
                  router: TaskRouter, registry: AgentRegistry,
-                 event_bus: "EventBus"):
+                 event_bus: EventBus) -> None:
         self._conn = conn
         self._lock = threading.Lock()
         self._queue = queue
@@ -649,7 +655,7 @@ class PipelineBuilder:
         self._registry = registry
         self._event_bus = event_bus
 
-    def create(self, name: str, steps: List[Dict]) -> str:
+    def create(self, name: str, steps: List[Dict[str, Any]]) -> str:
         """Create a pipeline definition.
 
         Each step is a dict with keys:
@@ -830,7 +836,7 @@ class PipelineBuilder:
             payload={"pipeline_id": pipeline_id, "steps": len(steps)}
         )
 
-    def get_pipeline(self, pipeline_id: str) -> Optional[Dict]:
+    def get_pipeline(self, pipeline_id: str) -> Optional[Dict[str, Any]]:
         """Get pipeline details including parsed steps."""
         row = self._conn.execute(
             "SELECT * FROM pipelines WHERE id = ?", (pipeline_id,)
@@ -845,7 +851,7 @@ class PipelineBuilder:
                 d["steps"] = []
         return d
 
-    def get_all(self, limit: int = 50) -> List[Dict]:
+    def get_all(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Get all pipelines."""
         rows = self._conn.execute(
             "SELECT * FROM pipelines ORDER BY created_at DESC LIMIT ?",
@@ -869,14 +875,14 @@ class PipelineBuilder:
 class EventBus:
     """Simple in-process pub/sub with SQLite persistence for event history."""
 
-    def __init__(self, conn: sqlite3.Connection):
+    def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
         self._lock = threading.Lock()
-        self._subscribers: Dict[str, List[Callable]] = {}
+        self._subscribers: Dict[str, List[Callable[[Dict[str, Any]], None]]] = {}
 
     def publish(self, event_type: str, source: Optional[str] = None,
                 target: Optional[str] = None,
-                payload: Optional[Dict] = None) -> int:
+                payload: Optional[Dict[str, Any]] = None) -> int:
         """Publish an event.  Persists to DB and notifies subscribers."""
         now = _now()
         payload_json = json.dumps(payload or {})
@@ -888,7 +894,7 @@ class EventBus:
                 VALUES (?, ?, ?, ?, ?)
             """, (event_type, source, target, payload_json, now))
             self._conn.commit()
-            event_id = cursor.lastrowid
+            event_id: int = cursor.lastrowid or 0
 
         # Notify in-process subscribers
         callbacks = self._subscribers.get(event_type, [])
@@ -908,7 +914,7 @@ class EventBus:
 
         return event_id
 
-    def subscribe(self, event_type: str, callback: Callable) -> None:
+    def subscribe(self, event_type: str, callback: Callable[[Dict[str, Any]], None]) -> None:
         """Register a callback for a specific event type."""
         if event_type not in self._subscribers:
             self._subscribers[event_type] = []
@@ -916,7 +922,7 @@ class EventBus:
 
     def get_events(self, agent_id: Optional[str] = None,
                    event_type: Optional[str] = None,
-                   limit: int = 50) -> List[Dict]:
+                   limit: int = 50) -> List[Dict[str, Any]]:
         """Query event history with optional filters."""
         query = "SELECT * FROM events WHERE 1=1"
         params: List[Any] = []
@@ -957,62 +963,155 @@ class OrchestratorHandler(BaseHTTPRequestHandler):
     pipeline_builder: PipelineBuilder = None  # type: ignore[assignment]
     event_bus: EventBus = None  # type: ignore[assignment]
     server_start_time: str = ""
+    metrics: Optional[MetricsCollector] = None
+    rate_limiter: RateLimiter = RateLimiter()
+
+    def _get_client_key(self) -> str:
+        """Derive a rate-limit key from Bearer token or client IP."""
+        auth = self.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            return auth[7:].strip()
+        return self.client_address[0]
+
+    def _check_middleware(self) -> bool:
+        """
+        Run auth + rate-limit checks before request handling.
+
+        Returns True if the request should proceed, False if a response
+        has already been sent (401 or 429).
+        """
+        ok, error_msg = check_auth(self.headers)
+        if not ok:
+            self._json_response(401, {"error": error_msg})
+            return False
+
+        client_key = self._get_client_key()
+        allowed, remaining, reset_at = self.rate_limiter.check(client_key)
+        self._rl_remaining = remaining
+        self._rl_reset_at = reset_at
+
+        if not allowed:
+            body = json.dumps({"error": "Rate limit exceeded. Try again later."}, indent=2, default=str).encode("utf-8")
+            self.send_response(429)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-RateLimit-Limit", str(self.rate_limiter.max_requests))
+            self.send_header("X-RateLimit-Remaining", str(remaining))
+            self.send_header("X-RateLimit-Reset", str(int(reset_at)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body)
+            return False
+
+        return True
+
+    def _send_metrics(self) -> None:
+        """GET /metrics — Prometheus text exposition."""
+        if not self.metrics:
+            self._json_response(503, {"error": "Metrics not initialized"})
+            return
+        body = self.metrics.metrics_handler().encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def do_GET(self) -> None:
         """Handle GET requests."""
+        if self.metrics:
+            self.metrics.inc_active_connections()
+        start = time.time()
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/")
         query = parse_qs(parsed.query)
+        status = 200
 
-        if path == "/api/orchestrator/status":
-            self._handle_status()
-        elif path == "/api/orchestrator/agents":
-            self._handle_list_agents()
-        elif path == "/api/orchestrator/tasks":
-            status_filter = query.get("status", [None])[0]
-            self._handle_list_tasks(status_filter)
-        elif path.startswith("/api/orchestrator/tasks/"):
-            task_id = path.split("/")[-1]
-            self._handle_get_task(task_id)
-        elif path.startswith("/api/orchestrator/pipeline/"):
-            pipeline_id = path.split("/")[-1]
-            self._handle_get_pipeline(pipeline_id)
-        elif path == "/api/orchestrator/events":
-            agent_id = query.get("agent_id", [None])[0]
-            limit = int(query.get("limit", ["50"])[0])
-            self._handle_list_events(agent_id, limit)
-        elif path == "/health":
-            self._json_response(200, {"status": "healthy", "service": "orchestrator"})
-        else:
-            self._json_response(404, {"error": "not found"})
+        try:
+            # Health and metrics bypass auth + rate limiting
+            if path == "/metrics":
+                self._send_metrics()
+                return
+            elif path == "/health":
+                self._json_response(200, {"status": "healthy", "service": "orchestrator"})
+                return
+
+            # Auth + rate-limit middleware
+            if not self._check_middleware():
+                return
+
+            if path == "/api/orchestrator/status":
+                self._handle_status()
+            elif path == "/api/orchestrator/agents":
+                self._handle_list_agents()
+            elif path == "/api/orchestrator/tasks":
+                status_filter = query.get("status", [None])[0]
+                self._handle_list_tasks(status_filter)
+            elif path.startswith("/api/orchestrator/tasks/"):
+                task_id = path.split("/")[-1]
+                self._handle_get_task(task_id)
+            elif path.startswith("/api/orchestrator/pipeline/"):
+                pipeline_id = path.split("/")[-1]
+                self._handle_get_pipeline(pipeline_id)
+            elif path == "/api/orchestrator/events":
+                agent_id = query.get("agent_id", [None])[0]
+                limit = int(query.get("limit", ["50"])[0])
+                self._handle_list_events(agent_id, limit)
+            else:
+                status = 404
+                self._json_response(404, {"error": "not found"})
+        except Exception:
+            status = 500
+            raise
+        finally:
+            if self.metrics:
+                self.metrics.dec_active_connections()
+                self.metrics.track_request("GET", path, status, time.time() - start)
 
     def do_POST(self) -> None:
         """Handle POST requests."""
+        if self.metrics:
+            self.metrics.inc_active_connections()
+        start = time.time()
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/")
+        status = 200
 
-        body = self._read_body()
+        try:
+            # Auth + rate-limit middleware
+            if not self._check_middleware():
+                return
 
-        if path == "/api/orchestrator/tasks":
-            self._handle_submit_task(body)
-        elif path.endswith("/complete") and "/tasks/" in path:
-            parts = path.split("/")
-            # /api/orchestrator/tasks/<id>/complete
-            task_id = parts[-2]
-            self._handle_complete_task(task_id, body)
-        elif path.endswith("/health") and "/agents/" in path:
-            parts = path.split("/")
-            # /api/orchestrator/agents/<id>/health
-            agent_id = parts[-2]
-            self._handle_agent_health(agent_id)
-        elif path == "/api/orchestrator/pipeline":
-            self._handle_create_pipeline(body)
-        elif path.endswith("/execute") and "/pipeline/" in path:
-            parts = path.split("/")
-            pipeline_id = parts[-2]
-            self._handle_execute_pipeline(pipeline_id)
-        else:
-            self._json_response(404, {"error": "not found"})
+            body = self._read_body()
+
+            if path == "/api/orchestrator/tasks":
+                self._handle_submit_task(body)
+            elif path.endswith("/complete") and "/tasks/" in path:
+                parts = path.split("/")
+                # /api/orchestrator/tasks/<id>/complete
+                task_id = parts[-2]
+                self._handle_complete_task(task_id, body)
+            elif path.endswith("/health") and "/agents/" in path:
+                parts = path.split("/")
+                # /api/orchestrator/agents/<id>/health
+                agent_id = parts[-2]
+                self._handle_agent_health(agent_id)
+            elif path == "/api/orchestrator/pipeline":
+                self._handle_create_pipeline(body)
+            elif path.endswith("/execute") and "/pipeline/" in path:
+                parts = path.split("/")
+                pipeline_id = parts[-2]
+                self._handle_execute_pipeline(pipeline_id)
+            else:
+                status = 404
+                self._json_response(404, {"error": "not found"})
+        except Exception:
+            status = 500
+            raise
+        finally:
+            if self.metrics:
+                self.metrics.dec_active_connections()
+                self.metrics.track_request("POST", path, status, time.time() - start)
 
     # --- Status -----------------------------------------------------------
 
@@ -1061,7 +1160,7 @@ class OrchestratorHandler(BaseHTTPRequestHandler):
         else:
             self._json_response(404, {"error": f"task '{task_id}' not found"})
 
-    def _handle_submit_task(self, body: Dict) -> None:
+    def _handle_submit_task(self, body: Dict[str, Any]) -> None:
         title = body.get("title", "")
         if not title:
             self._json_response(400, {"error": "title is required"})
@@ -1093,7 +1192,7 @@ class OrchestratorHandler(BaseHTTPRequestHandler):
         task = self.queue.get_task(task_id)
         self._json_response(201, {"task_id": task_id, "task": task})
 
-    def _handle_complete_task(self, task_id: str, body: Dict) -> None:
+    def _handle_complete_task(self, task_id: str, body: Dict[str, Any]) -> None:
         result = body.get("result", "")
         task = self.queue.get_task(task_id)
         if not task:
@@ -1117,7 +1216,7 @@ class OrchestratorHandler(BaseHTTPRequestHandler):
 
     # --- Pipelines --------------------------------------------------------
 
-    def _handle_create_pipeline(self, body: Dict) -> None:
+    def _handle_create_pipeline(self, body: Dict[str, Any]) -> None:
         name = body.get("name", "")
         steps = body.get("steps", [])
         if not name or not steps:
@@ -1166,7 +1265,7 @@ class OrchestratorHandler(BaseHTTPRequestHandler):
 
     # --- Helpers ----------------------------------------------------------
 
-    def _read_body(self) -> Dict:
+    def _read_body(self) -> Dict[str, Any]:
         """Read and parse JSON request body."""
         content_length = int(self.headers.get("Content-Length", 0))
         if content_length == 0:
@@ -1184,6 +1283,12 @@ class OrchestratorHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
+        # Rate-limit headers
+        self.send_header("X-RateLimit-Limit", str(self.rate_limiter.max_requests))
+        if hasattr(self, "_rl_remaining"):
+            self.send_header("X-RateLimit-Remaining", str(self._rl_remaining))
+        if hasattr(self, "_rl_reset_at"):
+            self.send_header("X-RateLimit-Reset", str(int(self._rl_reset_at)))
         self.end_headers()
         self.wfile.write(body)
 
@@ -1208,7 +1313,7 @@ class HealthMonitor:
     """Runs periodic health checks on all agents in a background thread."""
 
     def __init__(self, registry: AgentRegistry, event_bus: EventBus,
-                 interval: int = HEALTH_CHECK_INTERVAL):
+                 interval: int = HEALTH_CHECK_INTERVAL) -> None:
         self._registry = registry
         self._event_bus = event_bus
         self._interval = interval
@@ -1323,6 +1428,7 @@ def cmd_start(port: int) -> None:
     OrchestratorHandler.pipeline_builder = pipeline_builder
     OrchestratorHandler.event_bus = event_bus
     OrchestratorHandler.server_start_time = start_time
+    OrchestratorHandler.metrics = MetricsCollector(service="claw-orchestrator")
 
     # Start health monitor
     monitor = HealthMonitor(registry, event_bus)
