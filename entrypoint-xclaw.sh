@@ -76,19 +76,30 @@ log "[1/7] Starting agent: ${AGENT} on :${AGENT_PORT}"
 
 # Try native entrypoint first, fall back to Python stub
 AGENT_DIR="${XCLAW_DIR}/${AGENT}"
+AGENT_STARTED=false
 if [ -f "${AGENT_DIR}/entrypoint.sh" ]; then
-    log "  Using native entrypoint: ${AGENT}/entrypoint.sh"
+    log "  Trying native entrypoint: ${AGENT}/entrypoint.sh"
     bash "${AGENT_DIR}/entrypoint.sh" &
-    PIDS+=($!)
-elif [ -f "${SHARED_DIR}/claw_agent_stub.py" ]; then
+    AGENT_PID=$!
+    sleep 2
+    # Check if the native entrypoint is still running
+    if kill -0 "$AGENT_PID" 2>/dev/null; then
+        PIDS+=("$AGENT_PID")
+        AGENT_STARTED=true
+        log "  Native agent started (PID $AGENT_PID)"
+    else
+        warn "  Native entrypoint exited — falling back to stub"
+    fi
+fi
+if [ "$AGENT_STARTED" = false ] && [ -f "${SHARED_DIR}/claw_agent_stub.py" ]; then
     log "  Using Python agent stub on :${AGENT_PORT}"
     python "${SHARED_DIR}/claw_agent_stub.py" --port "${AGENT_PORT}" --name "${AGENT}" &
     PIDS+=($!)
-else
+    sleep 1
+    log "  Agent stub started"
+elif [ "$AGENT_STARTED" = false ]; then
     warn "  No agent binary or stub found — skipping"
 fi
-
-sleep 2
 
 # ── 2. Start Security Gate ───────────────────────────────────────────
 log "[2/7] Initializing security gate"
@@ -150,8 +161,19 @@ else
     warn "  Watchdog not found — skipping"
 fi
 
-# ── 6. Start Wizard API (serves dashboard endpoints too) ─────────────
-log "[6/7] Starting wizard API on :9098"
+# ── 6. Start Dashboard ─────────────────────────────────────────────────
+log "[6/7] Starting dashboard on :9099"
+if [ -f "${SHARED_DIR}/claw_dashboard.py" ]; then
+    python "${SHARED_DIR}/claw_dashboard.py" --start --port 9099 &
+    PIDS+=($!)
+    sleep 1
+    log "  Dashboard started"
+else
+    warn "  Dashboard not found — skipping"
+fi
+
+# ── 7. Start Wizard API ───────────────────────────────────────────────
+log "[7/7] Starting wizard API on :9098"
 if [ -f "${SHARED_DIR}/claw_wizard_api.py" ]; then
     python "${SHARED_DIR}/claw_wizard_api.py" --start --port 9098 &
     PIDS+=($!)
@@ -170,6 +192,7 @@ log "  Agent (${AGENT}):    http://localhost:${AGENT_PORT}"
 log "  Gateway Router:      http://localhost:9095"
 log "  Optimizer:           http://localhost:9091"
 log "  Watchdog:            http://localhost:9097"
+log "  Dashboard:           http://localhost:9099"
 log "  Wizard API:          http://localhost:9098"
 log ""
 log "  Health: curl http://localhost:${AGENT_PORT}/health"

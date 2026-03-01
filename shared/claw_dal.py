@@ -1148,7 +1148,7 @@ class DAL:
             SQLiteBackend, StorageManager, SCHEMA_DIR,
         )
 
-        self._storage_mgr = StorageManager()
+        self._storage_mgr = StorageManager(STORAGE_CONFIG_FILE)
 
         # Determine if PostgreSQL
         inst_engine = self._config.get("instance_db", {}).get("engine", "sqlite")
@@ -1175,7 +1175,13 @@ class DAL:
 
         # Initialize schemas
         self._storage_mgr.init_instance_schema()
-        self._storage_mgr.init_shared_schema()
+        shared_enabled = shared_cfg.get("enabled", False)
+        if shared_enabled:
+            self._storage_mgr.init_shared_schema()
+        else:
+            # Shared repos fall back to instance pool — ensure shared
+            # tables exist in the instance DB so queries don't fail.
+            self._init_shared_schema_on_instance()
 
         # Query cache
         self._cache = QueryCache()
@@ -1244,6 +1250,14 @@ class DAL:
             "shared_db": {"enabled": False, "engine": "sqlite",
                           "path": str(DEFAULT_SHARED_DB)},
         }
+
+    def _init_shared_schema_on_instance(self) -> None:
+        """When shared DB is disabled, create shared tables in instance DB."""
+        inst_cfg = self._config.get("instance_db", {})
+        engine = inst_cfg.get("engine", "sqlite")
+        schema = self._storage_mgr._load_schema(engine, "shared")
+        with self._instance_pool.connection() as db:
+            self._storage_mgr._execute_schema(db, schema)
 
     def health(self) -> Dict[str, Any]:
         """Return pool stats + cache stats."""

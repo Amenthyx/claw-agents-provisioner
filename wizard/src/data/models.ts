@@ -1,0 +1,341 @@
+import type { ModelInfo } from '../state/types';
+
+/**
+ * Comprehensive local LLM model catalog — Feb 2026
+ * Covers 0.6B to 675B parameters.
+ * diskSize = approximate GGUF Q4 quantized size.
+ * vramRequired = minimum RAM/VRAM to load the model (Q4 quant).
+ *
+ * Sources:
+ *   ollama.com/library, huggingface.co, unsloth.ai/docs,
+ *   apxml.com, Qwen/Mistral/Meta/Google/DeepSeek official repos
+ */
+export const MODELS: ModelInfo[] = [
+  // ── Tiny (0.6–1.7B) — runs on anything ──────────────────
+  {
+    id: 'qwen3:0.6b',
+    name: 'Qwen 3 0.6B',
+    parameters: '0.6B',
+    diskSize: '0.4 GB',
+    vramRequired: 1,
+    category: 'general',
+  },
+  {
+    id: 'gemma3:1b',
+    name: 'Gemma 3 1B',
+    parameters: '1B',
+    diskSize: '0.6 GB',
+    vramRequired: 2,
+    category: 'general',
+  },
+  {
+    id: 'qwen3:1.7b',
+    name: 'Qwen 3 1.7B',
+    parameters: '1.7B',
+    diskSize: '1.1 GB',
+    vramRequired: 2,
+    category: 'general',
+  },
+
+  // ── Small (3–4B) — fits on any GPU ──────────────────────
+  {
+    id: 'llama3.2:3b',
+    name: 'Llama 3.2 3B',
+    parameters: '3B',
+    diskSize: '2.0 GB',
+    vramRequired: 4,
+    category: 'general',
+  },
+  {
+    id: 'phi3',
+    name: 'Phi-3 Mini',
+    parameters: '3.8B',
+    diskSize: '2.2 GB',
+    vramRequired: 4,
+    category: 'reasoning',
+  },
+  {
+    id: 'qwen3:4b',
+    name: 'Qwen 3 4B',
+    parameters: '4B',
+    diskSize: '2.5 GB',
+    vramRequired: 4,
+    category: 'general',
+  },
+  {
+    id: 'gemma3:4b',
+    name: 'Gemma 3 4B',
+    parameters: '4B',
+    diskSize: '2.5 GB',
+    vramRequired: 4,
+    category: 'general',
+  },
+
+  // ── Medium-Small (7–8B) — 8GB VRAM ─────────────────────
+  {
+    id: 'mistral:7b',
+    name: 'Mistral 7B',
+    parameters: '7B',
+    diskSize: '4.1 GB',
+    vramRequired: 8,
+    category: 'general',
+  },
+  {
+    id: 'qwen3:8b',
+    name: 'Qwen 3 8B',
+    parameters: '8B',
+    diskSize: '4.9 GB',
+    vramRequired: 8,
+    category: 'general',
+  },
+  {
+    id: 'deepseek-r1:7b',
+    name: 'DeepSeek R1 7B',
+    parameters: '7B',
+    diskSize: '4.7 GB',
+    vramRequired: 8,
+    category: 'reasoning',
+  },
+  {
+    id: 'codellama:7b',
+    name: 'Code Llama 7B',
+    parameters: '7B',
+    diskSize: '3.8 GB',
+    vramRequired: 8,
+    category: 'coding',
+  },
+  {
+    id: 'llama4:scout:8b',
+    name: 'Llama 4 8B',
+    parameters: '8B',
+    diskSize: '4.9 GB',
+    vramRequired: 8,
+    category: 'general',
+  },
+
+  // ── Medium (12–16B) — 12-16GB VRAM ──────────────────────
+  {
+    id: 'gemma3:12b',
+    name: 'Gemma 3 12B',
+    parameters: '12B',
+    diskSize: '7.2 GB',
+    vramRequired: 12,
+    category: 'general',
+  },
+  {
+    id: 'qwen3:14b',
+    name: 'Qwen 3 14B',
+    parameters: '14B',
+    diskSize: '8.5 GB',
+    vramRequired: 16,
+    category: 'general',
+  },
+  {
+    id: 'deepseek-r1:14b',
+    name: 'DeepSeek R1 14B',
+    parameters: '14B',
+    diskSize: '8.9 GB',
+    vramRequired: 16,
+    category: 'reasoning',
+  },
+  {
+    id: 'ministral3:14b',
+    name: 'Ministral 3 14B',
+    parameters: '14B',
+    diskSize: '8.5 GB',
+    vramRequired: 16,
+    category: 'general',
+  },
+  {
+    id: 'deepseek-v3:16b',
+    name: 'DeepSeek V3 16B',
+    parameters: '16B',
+    diskSize: '10.0 GB',
+    vramRequired: 16,
+    category: 'general',
+  },
+
+  // ── Large (22–33B) — 16-24GB VRAM ───────────────────────
+  {
+    id: 'codestral:22b',
+    name: 'Codestral 22B',
+    parameters: '22B',
+    diskSize: '13.0 GB',
+    vramRequired: 16,
+    category: 'coding',
+  },
+  {
+    id: 'gemma3:27b',
+    name: 'Gemma 3 27B',
+    parameters: '27B',
+    diskSize: '16.3 GB',
+    vramRequired: 20,
+    category: 'general',
+  },
+  {
+    id: 'qwen3:30b-a3b',
+    name: 'Qwen 3 30B-A3B (MoE)',
+    parameters: '30B (3B active)',
+    diskSize: '18.0 GB',
+    vramRequired: 20,
+    category: 'general',
+  },
+  {
+    id: 'qwen3:32b',
+    name: 'Qwen 3 32B',
+    parameters: '32B',
+    diskSize: '19.6 GB',
+    vramRequired: 24,
+    category: 'general',
+  },
+  {
+    id: 'qwen2.5-coder:32b',
+    name: 'Qwen 2.5 Coder 32B',
+    parameters: '32B',
+    diskSize: '19.6 GB',
+    vramRequired: 24,
+    category: 'coding',
+  },
+  {
+    id: 'deepseek-coder-v2:33b',
+    name: 'DeepSeek Coder V2 33B',
+    parameters: '33B',
+    diskSize: '20.1 GB',
+    vramRequired: 24,
+    category: 'coding',
+  },
+
+  // ── XL (70–109B) — 48-64GB VRAM or RAM ──────────────────
+  {
+    id: 'llama3.3:70b',
+    name: 'Llama 3.3 70B',
+    parameters: '70B',
+    diskSize: '40.0 GB',
+    vramRequired: 48,
+    category: 'general',
+  },
+  {
+    id: 'qwen2.5:72b',
+    name: 'Qwen 2.5 72B',
+    parameters: '72B',
+    diskSize: '41.0 GB',
+    vramRequired: 48,
+    category: 'general',
+  },
+  {
+    id: 'deepseek-r1:70b',
+    name: 'DeepSeek R1 70B',
+    parameters: '70B',
+    diskSize: '42.0 GB',
+    vramRequired: 48,
+    category: 'reasoning',
+  },
+  {
+    id: 'codellama:70b',
+    name: 'Code Llama 70B',
+    parameters: '70B',
+    diskSize: '38.0 GB',
+    vramRequired: 48,
+    category: 'coding',
+  },
+  {
+    id: 'llama4:scout',
+    name: 'Llama 4 Scout (MoE)',
+    parameters: '109B (17B active)',
+    diskSize: '55.0 GB',
+    vramRequired: 64,
+    category: 'general',
+  },
+
+  // ── XXL (124–236B) — 80-150GB RAM ───────────────────────
+  {
+    id: 'pixtral-large:124b',
+    name: 'Pixtral Large 124B',
+    parameters: '124B',
+    diskSize: '70.0 GB',
+    vramRequired: 80,
+    category: 'general',
+  },
+  {
+    id: 'mixtral-8x22b',
+    name: 'Mixtral 8x22B (MoE)',
+    parameters: '176B (44B active)',
+    diskSize: '80.0 GB',
+    vramRequired: 96,
+    category: 'general',
+  },
+  {
+    id: 'qwen3:235b-a22b',
+    name: 'Qwen 3 235B-A22B (MoE)',
+    parameters: '235B (22B active)',
+    diskSize: '135.0 GB',
+    vramRequired: 150,
+    category: 'general',
+  },
+  {
+    id: 'deepseek-v3:236b',
+    name: 'DeepSeek V3 236B (MoE)',
+    parameters: '236B',
+    diskSize: '135.0 GB',
+    vramRequired: 150,
+    category: 'general',
+  },
+
+  // ── Ultra (397B+) — 250GB+ RAM / multi-GPU ──────────────
+  {
+    id: 'qwen3.5:397b-a17b',
+    name: 'Qwen 3.5 397B-A17B (MoE)',
+    parameters: '397B (17B active)',
+    diskSize: '214.0 GB',
+    vramRequired: 250,
+    category: 'general',
+  },
+  {
+    id: 'llama4:maverick',
+    name: 'Llama 4 Maverick (MoE)',
+    parameters: '400B (17B active)',
+    diskSize: '200.0 GB',
+    vramRequired: 256,
+    category: 'general',
+  },
+  {
+    id: 'llama3.1:405b',
+    name: 'Llama 3.1 405B',
+    parameters: '405B',
+    diskSize: '230.0 GB',
+    vramRequired: 256,
+    category: 'general',
+  },
+  {
+    id: 'qwen3-coder:480b-a35b',
+    name: 'Qwen 3 Coder 480B-A35B (MoE)',
+    parameters: '480B (35B active)',
+    diskSize: '276.0 GB',
+    vramRequired: 300,
+    category: 'coding',
+  },
+  {
+    id: 'deepseek-r1:671b',
+    name: 'DeepSeek R1 671B (MoE)',
+    parameters: '671B (37B active)',
+    diskSize: '380.0 GB',
+    vramRequired: 400,
+    category: 'reasoning',
+  },
+  {
+    id: 'deepseek-v3:671b',
+    name: 'DeepSeek V3 671B (MoE)',
+    parameters: '671B (37B active)',
+    diskSize: '380.0 GB',
+    vramRequired: 400,
+    category: 'general',
+  },
+  {
+    id: 'mistral-large-3:675b',
+    name: 'Mistral Large 3 675B (MoE)',
+    parameters: '675B (41B active)',
+    diskSize: '380.0 GB',
+    vramRequired: 400,
+    category: 'general',
+  },
+];

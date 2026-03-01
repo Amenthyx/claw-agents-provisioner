@@ -1,0 +1,20 @@
+{
+  "triggers": [],
+  "condition_types": [
+    "agent_status",
+    "memory_threshold",
+    "cpu_threshold",
+    "response_time",
+    "cost_limit",
+    "model_pull_failure",
+    "custom_http"
+  ],
+  "action_types": [
+    "alert",
+    "restart_container",
+    "switch_model",
+    "scale_down",
+    "webhook",
+    "log"
+  ]
+}

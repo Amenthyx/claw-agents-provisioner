@@ -101,6 +101,12 @@ export const api = {
       body: JSON.stringify({ mode, config }),
     }),
 
+  createPostgresDatabase: (config: Record<string, unknown>) =>
+    fetchJson<{ success: boolean; message: string }>(`${API_BASE}/storage/create-database`, {
+      method: 'POST',
+      body: JSON.stringify(config),
+    }),
+
   // ── Dashboard Endpoints ─────────────────────────────────
   dashboard: {
     getStatus: () => fetchJson<any>(`${DASHBOARD_API}/status`),

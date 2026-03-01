@@ -1460,6 +1460,7 @@ def _run_deploy(assessment_json: str) -> None:
         "-p", "9091:9091",                      # Optimizer
         "-p", "9097:9097",                      # Watchdog
         "-p", "9098:9098",                      # Wizard API (inside container)
+        "-p", "9099:9099",                      # Dashboard
     ]
 
     # Build run command
@@ -1492,7 +1493,7 @@ def _run_deploy(assessment_json: str) -> None:
     _update_deploy(60, f"  $ docker run -d --name {container_name} \\")
     _update_deploy(60, f"      --network xclaw-net --restart unless-stopped \\")
     _update_deploy(60, f"      -p {agent_port}:{agent_port} -p 9095:9095 -p 9091:9091 \\")
-    _update_deploy(60, f"      -p 9097:9097 -p 9098:9098 \\")
+    _update_deploy(60, f"      -p 9097:9097 -p 9098:9098 -p 9099:9099 \\")
     _update_deploy(61, f"      --env-file .env {image_name}")
 
     rc, out, stderr = _run_cmd(run_cmd, timeout=30)
@@ -1563,6 +1564,7 @@ def _run_deploy(assessment_json: str) -> None:
         "Gateway Router": 9095,
         "Optimizer": 9091,
         "Watchdog": 9097,
+        "Dashboard": 9099,
     }
     if llm_provider in ("local", "hybrid"):
         rt_ports_map = {"ollama": 11434, "vllm": 8000, "llama-cpp": 8080, "localai": 8080}

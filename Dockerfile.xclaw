@@ -73,9 +73,9 @@ COPY ${CLAW_AGENT}/ ./${CLAW_AGENT}/
 COPY .env.template ./.env.template
 COPY strategy.json* ./
 
-# Copy the entrypoint
+# Copy the entrypoint (strip Windows CRLF if present)
 COPY entrypoint-xclaw.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 # Create data directories
 RUN mkdir -p data/wizard data/billing/reports data/claws data/dashboard \

@@ -35,6 +35,7 @@ from typing import Any, Dict, List, Optional, Tuple
 # -------------------------------------------------------------------------
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
+SCHEMA_DIR = PROJECT_ROOT / "schema"
 STORAGE_CONFIG_FILE = PROJECT_ROOT / "data" / "wizard" / "storage_config.json"
 DEFAULT_INSTANCE_DB = PROJECT_ROOT / "data" / "instance.db"
 DEFAULT_SHARED_DB = PROJECT_ROOT / "data" / "shared" / "shared.db"
@@ -60,6 +61,15 @@ def warn(msg: str) -> None:
 
 def err(msg: str) -> None:
     print(f"{RED}[storage]{NC} {msg}", file=sys.stderr)
+
+
+def _fmt_bytes(n: int) -> str:
+    """Human-readable byte size."""
+    for u in ("B", "KB", "MB", "GB"):
+        if n < 1024:
+            return f"{n:.1f} {u}"
+        n /= 1024
+    return f"{n:.1f} TB"
 
 
 # =========================================================================
@@ -531,14 +541,44 @@ class StorageManager:
             self._shared_db = self._create_backend(shared_cfg)
         return self._shared_db
 
+    @staticmethod
+    def _load_schema(engine: str, kind: str) -> str:
+        """Load schema SQL from .sql file, falling back to inline strings."""
+        suffix = "postgres" if engine == "postgresql" else "sqlite"
+        sql_file = SCHEMA_DIR / f"{kind}_{suffix}.sql"
+        if sql_file.exists():
+            log(f"Loading schema from {sql_file}")
+            return sql_file.read_text(encoding="utf-8")
+        # Fallback to inline
+        if kind == "instance":
+            return INSTANCE_SCHEMA_PG_SQL if engine == "postgresql" else INSTANCE_SCHEMA_SQL
+        return SHARED_SCHEMA_PG_SQL if engine == "postgresql" else SHARED_SCHEMA_SQL
+
+    def _execute_schema(self, db: StorageBackend, schema_sql: str) -> None:
+        """Execute a multi-statement SQL schema, handling PRAGMAs and extensions."""
+        for raw_stmt in schema_sql.split(";"):
+            # Strip comments and whitespace to get the actual SQL
+            lines = [l for l in raw_stmt.split("\n") if l.strip() and not l.strip().startswith("--")]
+            stmt = "\n".join(lines).strip()
+            if not stmt:
+                continue
+            # Skip PRAGMA for PostgreSQL, skip CREATE EXTENSION for SQLite
+            upper = stmt.upper()
+            if isinstance(db, SQLiteBackend) and "CREATE EXTENSION" in upper:
+                continue
+            if isinstance(db, PostgreSQLBackend) and upper.startswith("PRAGMA"):
+                continue
+            try:
+                db.execute(stmt)
+            except Exception as e:
+                # Non-fatal: log and continue (e.g. IF NOT EXISTS already created)
+                warn(f"Schema stmt skipped: {e}")
+
     def init_instance_schema(self) -> None:
         db = self.get_instance_db()
         engine = self._config.get("instance_db", {}).get("engine", "sqlite")
-        schema = INSTANCE_SCHEMA_PG_SQL if engine == "postgresql" else INSTANCE_SCHEMA_SQL
-        for stmt in schema.strip().split(";"):
-            stmt = stmt.strip()
-            if stmt:
-                db.execute(stmt)
+        schema = self._load_schema(engine, "instance")
+        self._execute_schema(db, schema)
         log("Instance database schema initialized")
 
     def init_shared_schema(self) -> None:
@@ -547,35 +587,75 @@ class StorageManager:
             warn("Shared database is disabled — skipping schema init")
             return
         engine = self._config.get("shared_db", {}).get("engine", "sqlite")
-        schema = SHARED_SCHEMA_PG_SQL if engine == "postgresql" else SHARED_SCHEMA_SQL
-        for stmt in schema.strip().split(";"):
-            stmt = stmt.strip()
-            if stmt:
-                db.execute(stmt)
+        schema = self._load_schema(engine, "shared")
+        self._execute_schema(db, schema)
         log("Shared database schema initialized")
 
     @staticmethod
     def test_connection(config: Dict[str, Any]) -> Dict[str, Any]:
-        """Test a database connection and return result with latency."""
+        """Test a database connection and return result with latency.
+        For SQLite: checks if the file exists (reports 'will be created' if not).
+        For PostgreSQL: attempts actual connection; reports db_exists=False if
+        the server is reachable but the database is missing."""
         engine = config.get("engine", "sqlite")
         start = time.monotonic()
         try:
             if engine == "postgresql":
-                backend = PostgreSQLBackend(
-                    host=config.get("host", "localhost"),
-                    port=config.get("port", 5432),
-                    dbname=config.get("dbname", "xclaw"),
-                    user=config.get("user", "xclaw"),
-                    password=config.get("password", ""),
-                )
+                host = config.get("host", "localhost")
+                port = config.get("port", 5432)
+                dbname = config.get("dbname", "xclaw")
+                user = config.get("user", "xclaw")
+                password = config.get("password", "")
+                try:
+                    backend = PostgreSQLBackend(
+                        host=host, port=port, dbname=dbname, user=user, password=password,
+                    )
+                    backend.fetchone("SELECT 1")
+                    latency_ms = round((time.monotonic() - start) * 1000, 2)
+                    backend.close()
+                    return {
+                        "success": True,
+                        "message": f"Connected to {dbname}@{host}:{port}",
+                        "latency_ms": latency_ms,
+                        "db_exists": True,
+                    }
+                except Exception as pg_err:
+                    err_str = str(pg_err).lower()
+                    # Detect "database does not exist" vs auth / network errors
+                    if "does not exist" in err_str or "nicht" in err_str:
+                        return {
+                            "success": False,
+                            "message": f"Database '{dbname}' does not exist on {host}:{port}",
+                            "latency_ms": 0,
+                            "db_exists": False,
+                            "server_reachable": True,
+                        }
+                    raise  # re-raise auth / network errors
             else:
-                path = config.get("path", str(DEFAULT_INSTANCE_DB))
-                backend = SQLiteBackend(path)
-
-            backend.fetchone("SELECT 1")
-            latency_ms = round((time.monotonic() - start) * 1000, 2)
-            backend.close()
-            return {"success": True, "message": f"Connected ({engine})", "latency_ms": latency_ms}
+                db_path = Path(config.get("path", str(DEFAULT_INSTANCE_DB)))
+                if db_path.exists():
+                    backend = SQLiteBackend(str(db_path))
+                    backend.fetchone("SELECT 1")
+                    latency_ms = round((time.monotonic() - start) * 1000, 2)
+                    size_bytes = db_path.stat().st_size
+                    backend.close()
+                    return {
+                        "success": True,
+                        "message": f"Database exists ({_fmt_bytes(size_bytes)})",
+                        "latency_ms": latency_ms,
+                        "db_exists": True,
+                    }
+                else:
+                    # File doesn't exist yet — that's OK, it will be created on deploy
+                    parent = db_path.parent
+                    parent_ok = parent.exists() or True  # parent will be auto-created
+                    return {
+                        "success": True,
+                        "message": f"Database will be created at {db_path}",
+                        "latency_ms": 0,
+                        "db_exists": False,
+                        "parent_writable": parent_ok,
+                    }
         except Exception as e:
             return {"success": False, "message": str(e), "latency_ms": 0}
 

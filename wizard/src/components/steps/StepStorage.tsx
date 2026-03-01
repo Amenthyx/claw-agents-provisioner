@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   HardDrive, Database, Share2, CheckCircle, XCircle, Loader2, Info,
   Container, Terminal, AlertTriangle, ArrowRight,
@@ -22,6 +22,7 @@ interface PgReadiness {
   server_reachable: boolean;
   connection_ok: boolean;
   connection_message: string;
+  db_exists?: boolean;
   docker_available: boolean;
   host?: string;
   port?: number;
@@ -45,28 +46,40 @@ export function StepStorage() {
   const instanceEngine = state.storage.instanceDb.engine;
   const sharedEngine = state.storage.sharedDb.engine;
 
+  // Dynamic default paths based on claw name
+  const clawName = state.agentName || 'default';
+  const defaultInstancePath = `./data/${clawName}/instance.db`;
+  const defaultSharedPath = `./data/${clawName}/shared.db`;
+  const instanceSqlitePath = state.storage.instanceDb.sqlite.path || defaultInstancePath;
+  const sharedSqlitePath = state.storage.sharedDb.sqlite.path || defaultSharedPath;
+
   // Whether anything on this page uses PostgreSQL
   const needsPostgres = instanceEngine === 'postgresql'
     || (state.storage.sharedDb.enabled && sharedEngine === 'postgresql');
 
   // ── PostgreSQL readiness check ────────────────────────────
+  // Use a ref to read current config without re-creating the callback on every keystroke
+  const pgConfigRef = useRef(state.storage);
+  pgConfigRef.current = state.storage;
+
   const checkPostgres = useCallback(async () => {
     if (!needsPostgres) return;
     setPgChecking(true);
     setPgSetupResult(null);
     try {
+      const storage = pgConfigRef.current;
       const cfg = instanceEngine === 'postgresql'
-        ? state.storage.instanceDb.postgresql
-        : state.storage.sharedDb.postgresql;
+        ? storage.instanceDb.postgresql
+        : storage.sharedDb.postgresql;
       const result = await api.checkPostgresReadiness(cfg);
       setPgCheck(result);
     } catch {
       setPgCheck(null);
     }
     setPgChecking(false);
-  }, [needsPostgres, instanceEngine, state.storage.instanceDb.postgresql, state.storage.sharedDb.postgresql]);
+  }, [needsPostgres, instanceEngine]);
 
-  // Auto-check when PostgreSQL is selected
+  // Auto-check only when PostgreSQL engine is first selected (not on every keystroke)
   useEffect(() => {
     if (needsPostgres) {
       checkPostgres();
@@ -75,7 +88,8 @@ export function StepStorage() {
       setPgSetupResult(null);
       setPgSetupMode(null);
     }
-  }, [needsPostgres, checkPostgres]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsPostgres]);
 
   // ── Engine selection ──────────────────────────────────────
   const handleInstanceEngine = (engine: StorageEngine) => {
@@ -91,20 +105,55 @@ export function StepStorage() {
     setPgCheck(null);
   };
 
-  // ── Test connection ───────────────────────────────────────
+  // ── Test connection (instance + shared) ──────────────────
+  const [sharedTestResult, setSharedTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
   const testConnection = async () => {
     setTesting(true);
     setTestResult(null);
+    setSharedTestResult(null);
     try {
-      const config = instanceEngine === 'sqlite'
-        ? { engine: 'sqlite' as const, path: state.storage.instanceDb.sqlite.path }
+      // Test instance DB
+      const instConfig = instanceEngine === 'sqlite'
+        ? { engine: 'sqlite' as const, path: instanceSqlitePath }
         : { engine: 'postgresql' as const, ...state.storage.instanceDb.postgresql };
-      const result = await api.testStorageConnection(config);
-      setTestResult(result);
+      const instResult = await api.testStorageConnection(instConfig);
+      setTestResult(instResult);
+
+      // Test shared DB if enabled
+      if (state.storage.sharedDb.enabled) {
+        const sharedConfig = sharedEngine === 'sqlite'
+          ? { engine: 'sqlite' as const, path: sharedSqlitePath }
+          : { engine: 'postgresql' as const, ...state.storage.sharedDb.postgresql };
+        const shResult = await api.testStorageConnection(sharedConfig);
+        setSharedTestResult(shResult);
+      }
     } catch {
       setTestResult({ success: false, message: 'Connection test failed' });
     }
     setTesting(false);
+  };
+
+  // ── Create PostgreSQL database ─────────────────────────────
+  const [creatingDb, setCreatingDb] = useState(false);
+  const [createDbResult, setCreateDbResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const createDatabase = async () => {
+    setCreatingDb(true);
+    setCreateDbResult(null);
+    try {
+      const cfg = instanceEngine === 'postgresql'
+        ? state.storage.instanceDb.postgresql
+        : state.storage.sharedDb.postgresql;
+      const result = await api.createPostgresDatabase(cfg);
+      setCreateDbResult(result);
+      if (result.success) {
+        setTimeout(() => checkPostgres(), 1000);
+      }
+    } catch {
+      setCreateDbResult({ success: false, message: 'Failed to create database' });
+    }
+    setCreatingDb(false);
   };
 
   // ── Setup PostgreSQL (Docker or Local) ────────────────────
@@ -233,8 +282,8 @@ export function StepStorage() {
           <motion.div key="sqlite-inst" variants={fadeIn} initial="initial" animate="animate" exit="exit"
             className="rounded-xl border border-border-base bg-surface-1 p-5 space-y-3">
             <h3 className="text-sm font-medium text-text-primary">SQLite Path</h3>
-            <Input label="Database file path" placeholder="./data/instance.db"
-              value={state.storage.instanceDb.sqlite.path}
+            <Input label="Database file path" placeholder={defaultInstancePath}
+              value={instanceSqlitePath}
               onChange={(e) => setStorageInstance({ sqlite: { path: e.target.value } })} />
           </motion.div>
         ) : (
@@ -277,7 +326,11 @@ export function StepStorage() {
                 {pgCheck.server_reachable && (
                   <StatusItem ok={pgCheck.connection_ok}
                     label="Database connection"
-                    detail={pgCheck.connection_ok ? pgCheck.connection_message : pgCheck.connection_message || 'Authentication or database not found'} />
+                    detail={pgCheck.connection_ok
+                      ? pgCheck.connection_message
+                      : (!pgCheck.db_exists
+                        ? 'Database does not exist — you can create it below'
+                        : pgCheck.connection_message || 'Authentication failed')} />
                 )}
               </div>
             )}
@@ -400,8 +453,41 @@ export function StepStorage() {
               </div>
             )}
 
-            {/* Connection failed (driver + server OK, but auth/db error) */}
-            {pgCheck && pgCheck.driver_installed && pgCheck.server_reachable && !pgCheck.connection_ok && (
+            {/* Server reachable but database doesn't exist — offer to create */}
+            {pgCheck && pgCheck.driver_installed && pgCheck.server_reachable && !pgCheck.connection_ok && !pgCheck.db_exists && (
+              <div className="space-y-3">
+                <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-4 py-2.5">
+                  <AlertTriangle size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-amber-300">Database does not exist</p>
+                    <p className="text-xs text-text-muted mt-1">
+                      {pgCheck.connection_message}
+                    </p>
+                  </div>
+                </div>
+                <Button variant="secondary" size="sm" onClick={createDatabase} disabled={creatingDb}
+                  icon={creatingDb ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />}>
+                  {creatingDb ? 'Creating...' : 'Create Database'}
+                </Button>
+                {createDbResult && (
+                  <div className={`flex items-start gap-2 rounded-lg px-4 py-2.5 ${
+                    createDbResult.success
+                      ? 'bg-green-500/10 border border-green-500/20'
+                      : 'bg-red-500/10 border border-red-500/20'
+                  }`}>
+                    {createDbResult.success
+                      ? <CheckCircle size={15} className="text-green-500 mt-0.5 shrink-0" />
+                      : <XCircle size={15} className="text-red-400 mt-0.5 shrink-0" />}
+                    <p className={`text-sm ${createDbResult.success ? 'text-green-400' : 'text-red-400'}`}>
+                      {createDbResult.message}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Connection failed (driver + server OK, db exists but auth error) */}
+            {pgCheck && pgCheck.driver_installed && pgCheck.server_reachable && !pgCheck.connection_ok && pgCheck.db_exists !== false && (
               <div className="flex items-start gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-2.5">
                 <XCircle size={16} className="text-red-400 shrink-0 mt-0.5" />
                 <div>
@@ -459,8 +545,8 @@ export function StepStorage() {
 
             {sharedEngine === 'sqlite' ? (
               <div className="rounded-xl border border-border-base bg-surface-1 p-5">
-                <Input label="Shared database path" placeholder="./data/shared/shared.db"
-                  value={state.storage.sharedDb.sqlite.path}
+                <Input label="Shared database path" placeholder={defaultSharedPath}
+                  value={sharedSqlitePath}
                   onChange={(e) => setStorageShared({ sqlite: { path: e.target.value } })} />
               </div>
             ) : (
@@ -474,7 +560,7 @@ export function StepStorage() {
       </AnimatePresence>
 
       {/* ── Test Connection ───────────────────────────────────── */}
-      <div className="flex items-center gap-3">
+      <div className="space-y-2">
         <Button variant="secondary" size="sm" onClick={testConnection} disabled={testing}
           icon={testing ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />}>
           {testing ? 'Testing...' : 'Test Connection'}
@@ -485,7 +571,17 @@ export function StepStorage() {
               ? <CheckCircle size={14} className="text-green-500" />
               : <XCircle size={14} className="text-red-500" />}
             <span className={`text-xs ${testResult.success ? 'text-green-500' : 'text-red-500'}`}>
-              {testResult.message}
+              Instance DB: {testResult.message}
+            </span>
+          </div>
+        )}
+        {sharedTestResult && (
+          <div className="flex items-center gap-1.5">
+            {sharedTestResult.success
+              ? <CheckCircle size={14} className="text-green-500" />
+              : <XCircle size={14} className="text-red-500" />}
+            <span className={`text-xs ${sharedTestResult.success ? 'text-green-500' : 'text-red-500'}`}>
+              Shared DB: {sharedTestResult.message}
             </span>
           </div>
         )}

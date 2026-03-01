@@ -77,7 +77,7 @@ export const initialState: WizardState = {
     engine: 'sqlite',
     instanceDb: {
       engine: 'sqlite',
-      sqlite: { path: './data/instance.db' },
+      sqlite: { path: '' },
       postgresql: { host: 'localhost', port: 5432, dbname: 'xclaw', user: 'xclaw', password: '' },
     },
     sharedDb: {

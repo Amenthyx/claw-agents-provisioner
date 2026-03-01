@@ -158,11 +158,13 @@ class TestStorageManager:
         mgr.init_shared_schema()
         shared = mgr.get_shared_db()
         tables = shared.get_tables()
-        expected = ["agents", "cluster_config", "cost_tracking", "rbac_assignments",
-                    "rbac_roles", "security_events", "shared_memory"]
-        for t in expected:
+        # Core tables that must always exist
+        core_tables = ["agents", "cluster_config", "cost_tracking", "rbac_assignments",
+                       "rbac_roles", "security_events", "shared_memory"]
+        for t in core_tables:
             assert t in tables, f"Expected table '{t}' not found"
-        assert len(tables) == 7
+        # Enterprise schema adds many more tables
+        assert len(tables) >= 7
         mgr.close_all()
 
     def test_init_instance_schema(self, tmp_path):
@@ -173,14 +175,27 @@ class TestStorageManager:
         tables = db.get_tables()
         assert "local_config" in tables
         assert "local_logs" in tables
+        # Enterprise schema adds conversations, messages, llm_requests, etc.
+        assert len(tables) >= 2
         mgr.close_all()
 
     def test_test_connection(self, tmp_path):
+        # Test with non-existent file (will be created on deploy)
         config = {"engine": "sqlite", "path": str(tmp_path / "test_conn.db")}
         result = StorageManager.test_connection(config)
         assert result["success"] is True
-        assert result["latency_ms"] >= 0
-        assert "Connected" in result["message"]
+        assert result["db_exists"] is False
+        assert "will be created" in result["message"]
+
+        # Test with existing file
+        db = SQLiteBackend(str(tmp_path / "existing.db"))
+        db.execute("CREATE TABLE test (id INTEGER)")
+        db.close()
+        config2 = {"engine": "sqlite", "path": str(tmp_path / "existing.db")}
+        result2 = StorageManager.test_connection(config2)
+        assert result2["success"] is True
+        assert result2["db_exists"] is True
+        assert "exists" in result2["message"]
 
     def test_get_all_databases_info(self, tmp_path):
         config_file = self._make_config(tmp_path, shared_enabled=True)

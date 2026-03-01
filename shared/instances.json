@@ -1,0 +1,32 @@
+{
+  "instances": [
+    {
+      "id": "inst_local",
+      "name": "Local Dev",
+      "host": "localhost",
+      "wizard_port": 9098,
+      "watchdog_port": 9097,
+      "agent_ports": {
+        "zeroclaw": 3100,
+        "nanoclaw": 3200,
+        "picoclaw": 3300,
+        "openclaw": 3400,
+        "parlant": 8800
+      },
+      "is_self": true
+    }
+  ],
+  "shared_resources": {
+    "ollama": {
+      "host": "localhost",
+      "port": 11434,
+      "shared": true,
+      "note": "Single Ollama instance shared by all claws"
+    },
+    "api_keys": {
+      "shared": true,
+      "source": ".env",
+      "note": "API keys from .env shared across all agent instances"
+    }
+  }
+}

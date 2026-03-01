@@ -1,0 +1,5 @@
+{
+  "channels": {},
+  "fallback_chain": ["telegram", "slack", "discord", "email", "webhook"],
+  "routing_rules": {}
+}
