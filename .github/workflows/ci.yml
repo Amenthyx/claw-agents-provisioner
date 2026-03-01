@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: read
+  security-events: write
+  actions: read
 
 jobs:
   # ---------------------------------------------------------------
@@ -314,3 +316,92 @@ jobs:
           else
             echo "No client assessment files tracked — OK"
           fi
+
+  # ---------------------------------------------------------------
+  # Trivy: container image vulnerability scanning
+  # ---------------------------------------------------------------
+  trivy-container-scan:
+    name: Trivy Container Scan — ${{ matrix.agent }}
+    runs-on: ubuntu-latest
+    needs: docker-build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - agent: zeroclaw
+            dockerfile: zeroclaw/Dockerfile
+            context: zeroclaw/
+          - agent: nanoclaw
+            dockerfile: nanoclaw/Dockerfile
+            context: nanoclaw/
+          - agent: picoclaw
+            dockerfile: picoclaw/Dockerfile
+            context: picoclaw/
+          - agent: openclaw
+            dockerfile: openclaw/Dockerfile
+            context: openclaw/
+          - agent: parlant
+            dockerfile: parlant/Dockerfile
+            context: parlant/
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.agent }} image for scanning
+        run: |
+          docker build \
+            -t claw-${{ matrix.agent }}:ci \
+            -f ${{ matrix.dockerfile }} \
+            ${{ matrix.context }}
+        timeout-minutes: 15
+        continue-on-error: false
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "claw-${{ matrix.agent }}:ci"
+          format: "sarif"
+          output: "trivy-${{ matrix.agent }}.sarif"
+          severity: "HIGH,CRITICAL"
+          exit-code: "1"
+
+      - name: Upload Trivy SARIF results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-${{ matrix.agent }}.sarif"
+          category: "trivy-${{ matrix.agent }}"
+
+      - name: Upload Trivy SARIF as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-sarif-${{ matrix.agent }}
+          path: "trivy-${{ matrix.agent }}.sarif"
+          retention-days: 30
+
+  # ---------------------------------------------------------------
+  # Trivy: filesystem SBOM generation
+  # ---------------------------------------------------------------
+  trivy-sbom:
+    name: SBOM Generation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate SBOM with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "cyclonedx"
+          output: "sbom.cdx.json"
+
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: "sbom.cdx.json"
+          retention-days: 90

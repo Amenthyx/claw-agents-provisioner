@@ -2,43 +2,43 @@
 # Install: pip install -r finetune/requirements.txt
 
 # Core ML framework
-torch>=2.1.0
-torchvision>=0.16.0
+torch==2.1.0
+torchvision==0.16.0
 
 # Hugging Face ecosystem
-transformers>=4.40.0
-peft>=0.10.0
-datasets>=2.19.0
-accelerate>=0.29.0
-tokenizers>=0.19.0
+transformers==4.40.0
+peft==0.10.0
+datasets==2.19.0
+accelerate==0.29.0
+tokenizers==0.19.0
 
 # Quantization (QLoRA)
-bitsandbytes>=0.43.0
+bitsandbytes==0.43.0
 
 # Data handling
-jsonlines>=4.0.0
-pandas>=2.2.0
+jsonlines==4.0.0
+pandas==2.2.0
 
 # Progress and CLI
-tqdm>=4.66.0
-rich>=13.7.0
+tqdm==4.66.0
+rich==13.7.0
 
 # Validation
-jsonschema>=4.21.0
+jsonschema==4.21.0
 
 # Evaluation
-evaluate>=0.4.0
-rouge-score>=0.1.2
-nltk>=3.8.0
+evaluate==0.4.0
+rouge-score==0.1.2
+nltk==3.8.0
 
 # Logging and tracking
-tensorboard>=2.16.0
-wandb>=0.16.0
+tensorboard==2.16.0
+wandb==0.16.0
 
 # HTTP for dataset downloads
-requests>=2.31.0
-huggingface-hub>=0.22.0
+requests==2.31.0
+huggingface-hub==0.22.0
 
 # Configuration
-tomli>=2.0.0
-pyyaml>=6.0.0
+tomli==2.0.0
+pyyaml==6.0.0
