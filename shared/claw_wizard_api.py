@@ -487,7 +487,34 @@ def _read_env_redacted() -> Dict[str, str]:
 
 
 def _read_billing_data() -> Dict[str, Any]:
-    """Read billing reports from data/billing/."""
+    """Read billing reports from data/billing/.
+
+    Tries DAL first (cached 60s), falls back to JSONL files.
+    """
+    # Try DAL for fast aggregation
+    try:
+        from claw_dal import DAL
+        dal = DAL.get_instance()
+        agg = dal.costs.aggregate()
+        reports = []
+        BILLING_DIR.mkdir(parents=True, exist_ok=True)
+        reports_dir = BILLING_DIR / "reports"
+        if reports_dir.exists():
+            for f in sorted(reports_dir.glob("*.json")):
+                try:
+                    reports.append(json.loads(f.read_text(encoding="utf-8")))
+                except (json.JSONDecodeError, OSError):
+                    pass
+        return {
+            "reports": reports,
+            "total_cost": round(agg.get("total_cost", 0), 4),
+            "total_requests": agg.get("total_requests", 0),
+            "currency": "USD",
+        }
+    except Exception:
+        pass
+
+    # Fallback: read from JSONL files
     reports = []
     BILLING_DIR.mkdir(parents=True, exist_ok=True)
     reports_dir = BILLING_DIR / "reports"
@@ -497,7 +524,6 @@ def _read_billing_data() -> Dict[str, Any]:
                 reports.append(json.loads(f.read_text(encoding="utf-8")))
             except (json.JSONDecodeError, OSError):
                 pass
-    # Also check for cost_log.jsonl
     cost_log = BILLING_DIR / "cost_log.jsonl"
     total_cost = 0.0
     total_requests = 0
@@ -925,8 +951,34 @@ def _save_channel_config(data: Dict[str, Any]) -> Dict[str, Any]:
 
 # ── Metrics Aggregation ─────────────────────────────────────────────────
 def _get_dashboard_metrics() -> Dict[str, Any]:
-    """Aggregate watchdog + billing + trigger data."""
-    agents = _get_all_agents_status()
+    """Aggregate watchdog + billing + trigger data.
+
+    Uses DAL for agent list when available (cached 10s).
+    """
+    # Try DAL for agent status (cached, avoids HTTP pings)
+    agents = None
+    try:
+        from claw_dal import DAL
+        dal = DAL.get_instance()
+        rows = dal.agents.list_all()
+        if rows:
+            agents = []
+            for row in rows:
+                status = row.get("status", "stopped")
+                if status == "healthy":
+                    status = "running"
+                elif status in ("unhealthy", "degraded"):
+                    status = "stopped"
+                agents.append({
+                    "id": row.get("agent_id", ""),
+                    "name": row.get("name", ""),
+                    "status": status,
+                    "port": 0,
+                })
+    except Exception:
+        pass
+    if agents is None:
+        agents = _get_all_agents_status()
     running = sum(1 for a in agents if a["status"] == "running")
     billing = _read_billing_data()
     triggers_data = _load_triggers()
@@ -1592,6 +1644,19 @@ def _run_deploy(assessment_json: str) -> None:
 #  Storage / Data Management helpers
 # =========================================================================
 _storage_manager = None
+_dal_instance = None
+
+
+def _get_dal():
+    """Lazy-initialize the DAL singleton (preferred over raw StorageManager)."""
+    global _dal_instance
+    if _dal_instance is None:
+        try:
+            from claw_dal import DAL
+            _dal_instance = DAL.get_instance()
+        except Exception:
+            pass
+    return _dal_instance
 
 
 def _get_storage_manager():
@@ -1665,11 +1730,13 @@ def _check_postgres_readiness(config: Dict[str, Any]) -> Dict[str, Any]:
     # 3) Credential test (only if driver + server both OK)
     connect_ok = False
     connect_msg = ""
+    db_exists = False
     if driver_ok and server_ok:
         try:
             result = mod.StorageManager.test_connection(config)
             connect_ok = result.get("success", False)
             connect_msg = result.get("message", "")
+            db_exists = result.get("db_exists", connect_ok)
         except Exception as e:
             connect_msg = str(e)
 
@@ -1686,6 +1753,7 @@ def _check_postgres_readiness(config: Dict[str, Any]) -> Dict[str, Any]:
         "server_reachable": server_ok,
         "connection_ok": connect_ok,
         "connection_message": connect_msg,
+        "db_exists": db_exists,
         "docker_available": docker_available,
         "host": host,
         "port": port,
@@ -1763,6 +1831,45 @@ def _setup_postgres_docker(config: Dict[str, Any]) -> Dict[str, Any]:
         "success": False,
         "message": "PostgreSQL container started but is not responding yet. Check `docker logs` for details.",
     }
+
+
+def _create_postgres_database(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a PostgreSQL database if it doesn't exist.
+    Connects to the 'postgres' maintenance DB to issue CREATE DATABASE."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("claw_storage", SCRIPT_DIR / "claw_storage.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    if not mod.ensure_psycopg2():
+        return {"success": False, "message": "psycopg2 driver not available"}
+
+    host = config.get("host", "localhost")
+    port = int(config.get("port", 5432))
+    user = config.get("user", "xclaw")
+    password = config.get("password", "")
+    dbname = config.get("dbname", "xclaw")
+
+    try:
+        import psycopg2
+        # Connect to the default 'postgres' maintenance database
+        conn = psycopg2.connect(host=host, port=port, dbname="postgres", user=user, password=password)
+        conn.autocommit = True
+        cur = conn.cursor()
+
+        # Check if database already exists
+        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (dbname,))
+        if cur.fetchone():
+            conn.close()
+            return {"success": True, "message": f"Database '{dbname}' already exists"}
+
+        # Create the database
+        cur.execute(f'CREATE DATABASE "{dbname}" OWNER "{user}"')
+        conn.close()
+        log(f"Created PostgreSQL database '{dbname}' on {host}:{port}")
+        return {"success": True, "message": f"Database '{dbname}' created successfully"}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
 
 
 def _get_data_overview() -> Dict[str, Any]:
@@ -2437,6 +2544,15 @@ class WizardAPIHandler(BaseHTTPRequestHandler):
                         "message": "Could not install psycopg2 driver automatically. Run: pip install psycopg2-binary",
                         "driver_installed": False,
                     })
+
+        elif path == "/api/wizard/storage/create-database":
+            raw = self._read_body()
+            try:
+                body = json.loads(raw) if raw else {}
+            except json.JSONDecodeError:
+                self._json_response({"success": False, "error": "Invalid JSON"}, status=400)
+                return
+            self._json_response(_create_postgres_database(body))
 
         elif path == "/api/dashboard/data/query":
             raw = self._read_body()

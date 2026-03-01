@@ -524,6 +524,12 @@ class SecurityChecker:
         self._compiled_pii_patterns = {}
         self._compiled_secret_patterns = {}
         self._blocked_networks = []
+        self._dal = None
+        try:
+            from claw_dal import DAL
+            self._dal = DAL.get_instance()
+        except Exception:
+            pass
         self._compile_patterns()
 
     def _compile_patterns(self):
@@ -589,27 +595,37 @@ class SecurityChecker:
         # Check scheme
         if scheme and scheme not in ("http", "https", "ftp", "ftps"):
             if scheme in ("javascript", "data", "vbscript"):
-                return {"allowed": False, "reason": f"Dangerous URI scheme: {scheme}", "rule": "dangerous_scheme"}
+                result = {"allowed": False, "reason": f"Dangerous URI scheme: {scheme}", "rule": "dangerous_scheme"}
+                self._log_violation("url_blocked", "error", f"{url} — {result['reason']}")
+                return result
 
         # Check blocked TLDs
         for tld in url_rules.get("blocked_tlds", []):
             if hostname.endswith(tld):
-                return {"allowed": False, "reason": f"Blocked TLD: {tld}", "rule": "blocked_tld"}
+                result = {"allowed": False, "reason": f"Blocked TLD: {tld}", "rule": "blocked_tld"}
+                self._log_violation("url_blocked", "warn", f"{url} — {result['reason']}")
+                return result
 
         # Check blocked domains (with wildcard support)
         for domain in url_rules.get("blocked_domains", []):
             if domain.startswith("*."):
                 suffix = domain[1:]  # .onion
                 if hostname.endswith(suffix) or hostname == domain[2:]:
-                    return {"allowed": False, "reason": f"Blocked domain pattern: {domain}", "rule": "blocked_domain"}
+                    result = {"allowed": False, "reason": f"Blocked domain pattern: {domain}", "rule": "blocked_domain"}
+                    self._log_violation("url_blocked", "warn", f"{url} — {result['reason']}")
+                    return result
             else:
                 if hostname == domain or hostname.endswith("." + domain):
-                    return {"allowed": False, "reason": f"Blocked domain: {domain}", "rule": "blocked_domain"}
+                    result = {"allowed": False, "reason": f"Blocked domain: {domain}", "rule": "blocked_domain"}
+                    self._log_violation("url_blocked", "warn", f"{url} — {result['reason']}")
+                    return result
 
         # Check URL regex patterns
         for pattern in self._compiled_url_patterns:
             if pattern.search(url):
-                return {"allowed": False, "reason": f"Matches blocked URL pattern", "rule": "blocked_url_pattern"}
+                result = {"allowed": False, "reason": f"Matches blocked URL pattern", "rule": "blocked_url_pattern"}
+                self._log_violation("url_blocked", "warn", f"{url} — {result['reason']}")
+                return result
 
         # Check if IP-based URL resolves to forbidden range
         if hostname:
@@ -617,11 +633,27 @@ class SecurityChecker:
                 addr = ipaddress.ip_address(hostname)
                 for network in self._blocked_networks:
                     if addr in network:
-                        return {"allowed": False, "reason": f"IP {hostname} is in forbidden range {network}", "rule": "forbidden_ip"}
+                        result = {"allowed": False, "reason": f"IP {hostname} is in forbidden range {network}", "rule": "forbidden_ip"}
+                        self._log_violation("url_blocked", "error", f"{url} — {result['reason']}")
+                        return result
             except ValueError:
                 pass  # not an IP address, that's fine
 
         return {"allowed": True, "reason": "URL passed all checks"}
+
+    def _log_violation(self, event_type: str, severity: str, detail: str,
+                       agent_id: str = "security_checker") -> None:
+        """Log a security violation to DAL if available."""
+        if self._dal:
+            try:
+                self._dal.security_events.log_event(
+                    agent_id=agent_id,
+                    event_type=event_type,
+                    severity=severity,
+                    detail=detail,
+                )
+            except Exception:
+                pass
 
     # ─── Content Checking ────────────────────────────────────────────────
 
@@ -661,10 +693,17 @@ class SecurityChecker:
                     })
                     break
 
-        return {
+        result = {
             "allowed": len(violations) == 0,
             "violations": violations,
         }
+        if violations:
+            self._log_violation(
+                "content_violation", "error",
+                f"{len(violations)} violation(s): "
+                + ", ".join(v.get("category", "") for v in violations[:5]),
+            )
+        return result
 
     # ─── PII Detection ───────────────────────────────────────────────────
 

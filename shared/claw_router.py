@@ -300,7 +300,7 @@ MAX_RECENT_LOGS = 200
 
 
 def log_usage(entry: Dict[str, Any]) -> None:
-    """Append a usage entry to the JSONL log and in-memory buffer."""
+    """Append a usage entry to DAL + in-memory buffer."""
     entry["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
     # In-memory ring buffer for /api/router/logs
@@ -309,13 +309,30 @@ def log_usage(entry: Dict[str, Any]) -> None:
         if len(_recent_logs) > MAX_RECENT_LOGS:
             del _recent_logs[: len(_recent_logs) - MAX_RECENT_LOGS]
 
-    # Persist to disk
+    # Persist via DAL
     try:
-        USAGE_LOG_DIR.mkdir(parents=True, exist_ok=True)
-        with open(USAGE_LOG_FILE, "a") as f:
-            f.write(json.dumps(entry) + "\n")
-    except IOError:
-        pass  # Best-effort logging
+        from claw_dal import DAL
+        dal = DAL.get_instance()
+        dal.llm_requests.record(
+            provider=entry.get("provider", "unknown"),
+            model=entry.get("model", "unknown"),
+            status_code=entry.get("status", 200),
+            latency_ms=entry.get("latency_ms", 0),
+            routed_via=entry.get("route", ""))
+        if entry.get("status", 0) < 400:
+            dal.costs.record_cost(
+                agent_id="router",
+                model=entry.get("model", "unknown"),
+                provider=entry.get("provider", "unknown"),
+                avg_latency_ms=entry.get("latency_ms", 0))
+    except Exception:
+        # Fallback: persist to disk
+        try:
+            USAGE_LOG_DIR.mkdir(parents=True, exist_ok=True)
+            with open(USAGE_LOG_FILE, "a") as f:
+                f.write(json.dumps(entry) + "\n")
+        except IOError:
+            pass
 
 
 def get_recent_logs(tail: int = 20) -> List[Dict[str, Any]]:

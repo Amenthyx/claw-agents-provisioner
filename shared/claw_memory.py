@@ -98,21 +98,39 @@ def info(msg: str) -> None:
 # ConversationStore — SQLite-backed conversation storage
 # -------------------------------------------------------------------------
 class ConversationStore:
-    """Thread-safe SQLite store for conversations, messages, and context shares."""
+    """Conversation store backed by the DAL.
+
+    Delegates to ``DAL.conversations`` and ``DAL.shared_memory`` while
+    maintaining the same public API so the HTTP handler keeps working.
+    Falls back to a standalone SQLite store if the DAL is unavailable.
+    """
 
     def __init__(self, db_path: Optional[Path] = None) -> None:
         self.db_path = db_path or DB_FILE
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._lock = threading.Lock()
-        self._conn = sqlite3.connect(
-            str(self.db_path),
-            check_same_thread=False,
-            isolation_level=None,
-        )
-        self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA foreign_keys=ON")
-        self._init_schema()
+        self._dal = None
+        try:
+            from claw_dal import DAL
+            self._dal = DAL.get_instance()
+            log("ConversationStore using DAL")
+        except Exception:
+            pass
+
+        # Fallback: direct SQLite if DAL unavailable
+        if self._dal is None:
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            self._lock = threading.Lock()
+            self._conn = sqlite3.connect(
+                str(self.db_path),
+                check_same_thread=False,
+                isolation_level=None,
+            )
+            self._conn.row_factory = sqlite3.Row
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA foreign_keys=ON")
+            self._init_schema()
+        else:
+            self._lock = threading.Lock()
+            self._conn = None
 
     def _init_schema(self) -> None:
         """Create tables if they do not exist."""
@@ -159,6 +177,10 @@ class ConversationStore:
     def create_conversation(self, agent_id: str,
                             conversation_id: Optional[str] = None) -> Dict[str, Any]:
         """Create a new conversation and return its record."""
+        if self._dal:
+            return self._dal.conversations.create(
+                agent_id=agent_id, conversation_id=conversation_id)
+
         conv_id = conversation_id or str(uuid.uuid4())
         now = datetime.now(timezone.utc).isoformat()
 
@@ -179,6 +201,9 @@ class ConversationStore:
 
     def get_conversation(self, conv_id: str) -> Optional[Dict[str, Any]]:
         """Return a conversation with all its messages, or None if not found."""
+        if self._dal:
+            return self._dal.conversations.get(conv_id)
+
         with self._lock:
             row = self._conn.execute(
                 "SELECT * FROM conversations WHERE id = ?", (conv_id,)
@@ -204,6 +229,9 @@ class ConversationStore:
 
     def delete_conversation(self, conv_id: str) -> bool:
         """Delete a conversation and its messages. Returns True if deleted."""
+        if self._dal:
+            return self._dal.conversations.delete(conv_id)
+
         with self._lock:
             cursor = self._conn.execute(
                 "DELETE FROM conversations WHERE id = ?", (conv_id,)
@@ -213,6 +241,10 @@ class ConversationStore:
     def list_conversations(self, agent_id: Optional[str] = None,
                            limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
         """List conversations, optionally filtered by agent_id."""
+        if self._dal:
+            return self._dal.conversations.list_conversations(
+                agent_id=agent_id, limit=limit, offset=offset)
+
         with self._lock:
             if agent_id:
                 rows = self._conn.execute(
@@ -234,6 +266,10 @@ class ConversationStore:
     def add_message(self, conv_id: str, role: str, content: str,
                     tokens: int = 0) -> Optional[Dict[str, Any]]:
         """Add a message to a conversation. Returns the message or None if conversation missing."""
+        if self._dal:
+            return self._dal.conversations.add_message(
+                conv_id, role, content, input_tokens=tokens)
+
         now = datetime.now(timezone.utc).isoformat()
 
         with self._lock:
@@ -281,6 +317,17 @@ class ConversationStore:
                       conversation_id: str,
                       context_summary: str) -> Dict[str, Any]:
         """Share context from one agent to another."""
+        if self._dal:
+            now = datetime.now(timezone.utc).isoformat()
+            mem_id = self._dal.shared_memory.share(
+                from_agent=from_agent, content=context_summary,
+                to_agent=to_agent, conversation_id=conversation_id)
+            return {
+                "id": mem_id, "from_agent": from_agent,
+                "to_agent": to_agent, "conversation_id": conversation_id,
+                "context_summary": context_summary, "shared_at": now,
+            }
+
         now = datetime.now(timezone.utc).isoformat()
 
         with self._lock:
@@ -303,6 +350,9 @@ class ConversationStore:
     def get_shared_context(self, to_agent: str,
                            limit: int = 20) -> List[Dict[str, Any]]:
         """Retrieve context shared with a specific agent."""
+        if self._dal:
+            return self._dal.shared_memory.get_for_agent(to_agent, limit)
+
         with self._lock:
             rows = self._conn.execute(
                 "SELECT * FROM context_shares WHERE to_agent = ? "
@@ -317,6 +367,10 @@ class ConversationStore:
     def search(self, query: str, agent_id: Optional[str] = None,
                limit: int = 50) -> List[Dict[str, Any]]:
         """Full-text search across message content using LIKE."""
+        if self._dal:
+            return self._dal.conversations.search(
+                query, agent_id=agent_id, limit=limit)
+
         pattern = f"%{query}%"
 
         with self._lock:
@@ -347,6 +401,17 @@ class ConversationStore:
 
     def get_stats(self) -> Dict[str, Any]:
         """Return usage statistics."""
+        if self._dal:
+            stats = self._dal.conversations.get_stats()
+            stats["context_shares"] = 0
+            stats["unique_agents"] = 0
+            stats["oldest_conversation"] = None
+            stats["newest_activity"] = None
+            stats["db_size_bytes"] = 0
+            stats["db_size_mb"] = 0
+            stats["db_path"] = "DAL (enterprise)"
+            return stats
+
         with self._lock:
             conv_count = self._conn.execute(
                 "SELECT COUNT(*) AS cnt FROM conversations"
@@ -395,6 +460,9 @@ class ConversationStore:
 
     def prune(self, days: int = DEFAULT_RETENTION_DAYS) -> int:
         """Delete conversations older than the specified number of days. Returns count deleted."""
+        if self._dal:
+            return self._dal.conversations.prune(days)
+
         threshold = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
         with self._lock:
@@ -486,8 +554,9 @@ class ConversationStore:
 
     def close(self) -> None:
         """Close the database connection."""
-        with self._lock:
-            self._conn.close()
+        if self._conn:
+            with self._lock:
+                self._conn.close()
 
 
 # -------------------------------------------------------------------------

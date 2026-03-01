@@ -135,10 +135,16 @@ def _ensure_dirs() -> None:
 # UsageLogger — append records to JSONL
 # -------------------------------------------------------------------------
 class UsageLogger:
-    """Appends per-request usage records to a JSONL file."""
+    """Usage logger backed by DAL.  Falls back to JSONL file if DAL unavailable."""
 
     def __init__(self, log_path: Optional[Path] = None):
         self.log_path = log_path or USAGE_LOG_FILE
+        self._dal = None
+        try:
+            from claw_dal import DAL
+            self._dal = DAL.get_instance()
+        except Exception:
+            pass
         _ensure_dirs()
 
     def record(
@@ -171,13 +177,35 @@ class UsageLogger:
         if request_type:
             record["request_type"] = request_type
 
-        with open(self.log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(record) + "\n")
+        # Write to DAL
+        if self._dal:
+            calculator = CostCalculator()
+            cost = calculator.cost_for_record(record)
+            self._dal.costs.record_cost(
+                agent_id=agent_id or "billing",
+                model=model, provider=provider,
+                input_tokens=input_tokens, output_tokens=output_tokens,
+                cost_usd=cost, avg_latency_ms=float(response_time_ms))
+        else:
+            # Fallback: JSONL
+            with open(self.log_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record) + "\n")
 
         return record
 
     def read_all(self) -> List[Dict[str, Any]]:
-        """Read all records from the log file."""
+        """Read all records — from DAL or JSONL fallback."""
+        if self._dal:
+            rows = self._dal.costs.recent(limit=10000)
+            return [
+                {"timestamp": r.get("timestamp", ""), "model": r.get("model", ""),
+                 "provider": r.get("provider", ""), "type": "cloud",
+                 "input_tokens": r.get("input_tokens", 0),
+                 "output_tokens": r.get("output_tokens", 0),
+                 "response_time_ms": int(r.get("avg_latency_ms", 0)),
+                 "agent_id": r.get("agent_id", ""), "task_type": ""}
+                for r in rows
+            ]
         records: List[Dict[str, Any]] = []
         if not self.log_path.exists():
             return records
@@ -210,6 +238,9 @@ class UsageLogger:
 
     def record_count(self) -> int:
         """Count total records without loading all into memory."""
+        if self._dal:
+            agg = self._dal.costs.aggregate()
+            return agg.get("total_requests", 0)
         if not self.log_path.exists():
             return 0
         count = 0

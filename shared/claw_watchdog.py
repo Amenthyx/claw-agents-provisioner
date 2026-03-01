@@ -328,11 +328,33 @@ class Watchdog:
         self.agents: dict[str, AgentState] = {}
         self.connectivity_state: dict[str, dict] = {}
         self.started_at = None
+        self._dal = None
+
+        # Try to initialize DAL for persistence
+        try:
+            from claw_dal import DAL
+            self._dal = DAL.get_instance()
+            logger.info("DAL connected — health data will persist")
+        except Exception:
+            logger.info("DAL not available — health data in-memory only")
 
         # Initialize agent states
         for agent_cfg in config.get("agents", []):
             name = agent_cfg["name"]
             self.agents[name] = AgentState(name)
+
+        # Recover previous state from DAL on restart
+        if self._dal:
+            try:
+                for row in self._dal.agents.list_all():
+                    name = row.get("name", "")
+                    if name in self.agents:
+                        prev_status = row.get("status", "unknown")
+                        if prev_status in ("healthy", "unhealthy", "degraded"):
+                            self.agents[name].status = prev_status
+                        self.agents[name].last_healthy = row.get("last_seen")
+            except Exception as e:
+                logger.debug(f"Could not recover state from DAL: {e}")
 
     def _now(self) -> str:
         return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -390,6 +412,21 @@ class Watchdog:
         if container:
             state.resources = check_container_resources(container)
 
+        # Persist check results to DAL
+        if self._dal:
+            try:
+                health_detail = json.dumps(state.checks)
+                self._dal.agents.update_status(
+                    name, state.status if state.status != "unknown" else "healthy" if all_ok else "degraded",
+                    health_detail=health_detail,
+                )
+                self._dal.performance.record(
+                    "health_check", 1.0 if all_ok else 0.0,
+                    tags={"agent": name},
+                )
+            except Exception as e:
+                logger.debug(f"DAL persist failed for {name}: {e}")
+
         # Update state
         previous_status = state.status
         threshold = self.config.get("failure_threshold", 3)
@@ -443,6 +480,20 @@ class Watchdog:
                         f"ALERT  {name}  failures={state.consecutive_failures}"
                         f"  checks={failed_checks}"
                     )
+                    # Log security event for sustained failure
+                    if self._dal:
+                        try:
+                            self._dal.security_events.log_event(
+                                agent_id=name,
+                                event_type="agent_health_failure",
+                                severity="error",
+                                details=json.dumps({
+                                    "failed_checks": failed_checks,
+                                    "consecutive": state.consecutive_failures,
+                                }),
+                            )
+                        except Exception:
+                            pass
                     self._alert(
                         f"*ALERT*  `{name}` is *DOWN*\n"
                         f"Container: `{container}`\n"

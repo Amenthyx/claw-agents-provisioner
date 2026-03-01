@@ -135,7 +135,43 @@ def check_agent_health(port: int) -> str:
 
 
 def get_all_agents_status() -> List[Dict[str, Any]]:
-    """Return status for all agent platforms."""
+    """Return status for all agent platforms.
+
+    Tries DAL first (cached 10s) for fast reads, falls back to HTTP pings.
+    """
+    # Try DAL for cached agent status
+    try:
+        from claw_dal import DAL
+        dal = DAL.get_instance()
+        rows = dal.agents.list_all()
+        if rows:
+            results = []
+            known_ids = {a["id"] for a in AGENT_PLATFORMS}
+            for row in rows:
+                agent_id = row.get("agent_id", "")
+                # Match to platform metadata
+                plat = next((a for a in AGENT_PLATFORMS if a["id"] == agent_id), None)
+                status = row.get("status", "stopped")
+                if status not in ("running", "healthy", "stopped", "error", "degraded", "unhealthy"):
+                    status = "stopped"
+                if status in ("healthy",):
+                    status = "running"
+                if status in ("unhealthy", "degraded"):
+                    status = "stopped"
+                entry = {**(plat or {}), "status": status}
+                if not plat:
+                    entry.update({"id": agent_id, "name": row.get("name", agent_id), "port": 0})
+                results.append(entry)
+                known_ids.discard(agent_id)
+            # Add platforms not in DAL
+            for agent in AGENT_PLATFORMS:
+                if agent["id"] in known_ids:
+                    results.append({**agent, "status": "stopped"})
+            return results
+    except Exception:
+        pass
+
+    # Fallback: HTTP ping each agent
     results = []
     threads: List[Tuple[threading.Thread, Dict[str, Any]]] = []
 
@@ -232,7 +268,46 @@ def list_adapters() -> List[Dict[str, Any]]:
 
 
 def read_billing_data() -> Dict[str, Any]:
-    """Read billing reports from data/billing/."""
+    """Read billing reports from data/billing/.
+
+    Tries DAL first (cached 60s) for fast aggregation, falls back to JSONL files.
+    """
+    # Try DAL for cost aggregation
+    try:
+        from claw_dal import DAL
+        dal = DAL.get_instance()
+        agg = dal.costs.aggregate()
+        result = {
+            "reports": [],
+            "usage_log_exists": True,
+            "total_records": agg.get("total_requests", 0),
+            "total_cost": agg.get("total_cost", 0),
+            "currency": "USD",
+        }
+        # Read billing config for thresholds
+        config_path = BILLING_DIR / "billing_config.json"
+        config = read_json_file(config_path)
+        if config:
+            result["config"] = config
+        # Still load report files (they contain generated reports, not raw data)
+        reports_dir = BILLING_DIR / "reports"
+        if reports_dir.exists():
+            try:
+                for entry in sorted(reports_dir.iterdir(), reverse=True):
+                    if entry.suffix == ".json":
+                        report = read_json_file(entry)
+                        if report:
+                            report["filename"] = entry.name
+                            result["reports"].append(report)
+                        if len(result["reports"]) >= 10:
+                            break
+            except (IOError, OSError):
+                pass
+        return result
+    except Exception:
+        pass
+
+    # Fallback: read from JSONL files
     result: Dict[str, Any] = {
         "reports": [],
         "usage_log_exists": False,

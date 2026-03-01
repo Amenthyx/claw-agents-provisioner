@@ -256,11 +256,21 @@ def _init_db(db_path: Path) -> sqlite3.Connection:
 #  AgentRegistry — CRUD for agents table, health check integration
 # =========================================================================
 class AgentRegistry:
-    """Manages agent registration, status tracking, and health checks."""
+    """Manages agent registration, status tracking, and health checks.
+
+    Uses DAL when available, falls back to direct SQLite connection.
+    """
 
     def __init__(self, conn: sqlite3.Connection):
         self._conn = conn
         self._lock = threading.Lock()
+        self._dal = None
+        try:
+            from claw_dal import DAL
+            self._dal = DAL.get_instance()
+            log("AgentRegistry using DAL")
+        except Exception:
+            pass
 
     def register(self, platform: str, endpoint: str, port: int,
                  capabilities: List[str], max_load: int = 10) -> str:
@@ -268,6 +278,12 @@ class AgentRegistry:
         agent_id = platform
         now = _now()
         caps_json = json.dumps(capabilities)
+
+        if self._dal:
+            self._dal.agents.register(
+                agent_id=agent_id, name=platform, platform=platform,
+                host="localhost", port=port, capabilities=capabilities)
+            return agent_id
 
         with self._lock:
             existing = self._conn.execute(
@@ -292,6 +308,9 @@ class AgentRegistry:
 
     def update_status(self, agent_id: str, status: str) -> bool:
         """Update the status of an agent (healthy, unhealthy, unknown)."""
+        if self._dal:
+            return self._dal.agents.update_status(agent_id, status)
+
         with self._lock:
             cursor = self._conn.execute(
                 "UPDATE agents SET status = ? WHERE id = ?",
@@ -302,6 +321,9 @@ class AgentRegistry:
 
     def get_agent(self, agent_id: str) -> Optional[Dict]:
         """Get a single agent by ID."""
+        if self._dal:
+            return self._dal.agents.get(agent_id)
+
         row = self._conn.execute(
             "SELECT * FROM agents WHERE id = ?", (agent_id,)
         ).fetchone()
@@ -309,6 +331,9 @@ class AgentRegistry:
 
     def get_all(self) -> List[Dict]:
         """Get all registered agents."""
+        if self._dal:
+            return self._dal.agents.list_all()
+
         rows = self._conn.execute(
             "SELECT * FROM agents ORDER BY platform"
         ).fetchall()
@@ -316,6 +341,9 @@ class AgentRegistry:
 
     def get_available(self, capability: Optional[str] = None) -> List[Dict]:
         """Get agents sorted by load, optionally filtered by capability."""
+        if self._dal:
+            return self._dal.agents.list_available(capability)
+
         agents = self.get_all()
         available = []
         for agent in agents:

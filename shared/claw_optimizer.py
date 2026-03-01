@@ -194,74 +194,47 @@ def _provider_from_model(model: str) -> str:
 # ═════════════════════════════════════════════════════════════════════════════
 
 class CostTracker:
-    """Tracks API costs in SQLite.  Thread-safe via per-call connections."""
+    """Tracks API costs via DAL.  Falls back to standalone SQLite if DAL unavailable."""
 
-    def __init__(self, db_path: str):
-        self.db_path = db_path
-        self._init_db()
-
-    def _init_db(self):
-        con = sqlite3.connect(self.db_path)
-        con.execute("""
-            CREATE TABLE IF NOT EXISTS cost_log (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                ts          TEXT    NOT NULL,
-                model       TEXT    NOT NULL,
-                provider    TEXT    NOT NULL,
-                input_tokens  INTEGER NOT NULL DEFAULT 0,
-                output_tokens INTEGER NOT NULL DEFAULT 0,
-                cost_usd    REAL    NOT NULL DEFAULT 0.0,
-                agent       TEXT    DEFAULT '',
-                task        TEXT    DEFAULT '',
-                cached      INTEGER DEFAULT 0
-            )
-        """)
-        con.execute("""
-            CREATE INDEX IF NOT EXISTS idx_cost_ts ON cost_log(ts)
-        """)
-        con.commit()
-        con.close()
+    def __init__(self, db_path: str = ""):
+        self._dal = None
+        try:
+            from claw_dal import DAL
+            self._dal = DAL.get_instance()
+        except Exception:
+            pass
 
     def log(self, model: str, provider: str, input_tokens: int,
             output_tokens: int, cost_usd: float, agent: str = "",
             task: str = "", cached: bool = False):
-        con = sqlite3.connect(self.db_path)
-        con.execute(
-            "INSERT INTO cost_log (ts, model, provider, input_tokens, "
-            "output_tokens, cost_usd, agent, task, cached) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (_now_iso(), model, provider, input_tokens, output_tokens,
-             cost_usd, agent, task, 1 if cached else 0),
-        )
-        con.commit()
-        con.close()
-
-    def _sum_since(self, since_iso: str) -> float:
-        con = sqlite3.connect(self.db_path)
-        row = con.execute(
-            "SELECT COALESCE(SUM(cost_usd), 0) FROM cost_log WHERE ts >= ?",
-            (since_iso,),
-        ).fetchone()
-        con.close()
-        return row[0] if row else 0.0
+        if self._dal:
+            self._dal.costs.record_cost(
+                agent_id=agent or "optimizer",
+                model=model, provider=provider,
+                input_tokens=input_tokens, output_tokens=output_tokens,
+                cost_usd=cost_usd,
+                cache_savings=cost_usd if cached else 0.0)
 
     def daily_spend(self) -> float:
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00Z")
-        return self._sum_since(today)
+        if self._dal:
+            return self._dal.costs.daily_spend()
+        return 0.0
 
     def weekly_spend(self) -> float:
-        now = datetime.now(timezone.utc)
-        start = (now - timedelta(days=now.weekday())).strftime(
-            "%Y-%m-%dT00:00:00Z")
-        return self._sum_since(start)
+        if self._dal:
+            return self._dal.costs.weekly_spend()
+        return 0.0
 
     def monthly_spend(self) -> float:
-        month_start = datetime.now(timezone.utc).strftime(
-            "%Y-%m-01T00:00:00Z")
-        return self._sum_since(month_start)
+        if self._dal:
+            return self._dal.costs.monthly_spend()
+        return 0.0
 
     def total_spend(self) -> float:
-        return self._sum_since("1970-01-01T00:00:00Z")
+        if self._dal:
+            today = datetime.now(timezone.utc).strftime("%Y-01-01T00:00:00Z")
+            return self._dal.costs._sum_since("1970-01-01T00:00:00Z")
+        return 0.0
 
     def summary(self) -> dict:
         return {
@@ -272,17 +245,17 @@ class CostTracker:
         }
 
     def recent(self, limit: int = 20) -> list:
-        con = sqlite3.connect(self.db_path)
-        rows = con.execute(
-            "SELECT ts, model, input_tokens, output_tokens, cost_usd, agent "
-            "FROM cost_log ORDER BY id DESC LIMIT ?", (limit,),
-        ).fetchall()
-        con.close()
-        return [
-            {"ts": r[0], "model": r[1], "input_tokens": r[2],
-             "output_tokens": r[3], "cost_usd": r[4], "agent": r[5]}
-            for r in rows
-        ]
+        if self._dal:
+            rows = self._dal.costs.recent(limit)
+            return [
+                {"ts": r.get("timestamp", ""), "model": r.get("model", ""),
+                 "input_tokens": r.get("input_tokens", 0),
+                 "output_tokens": r.get("output_tokens", 0),
+                 "cost_usd": r.get("cost_usd", 0),
+                 "agent": r.get("agent_id", "")}
+                for r in rows
+            ]
+        return []
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -290,96 +263,42 @@ class CostTracker:
 # ═════════════════════════════════════════════════════════════════════════════
 
 class ResponseCache:
-    """Cache responses keyed by message hash, with trigram lookup."""
+    """Cache responses via DAL's response_cache table."""
 
-    def __init__(self, db_path: str):
-        self.db_path = db_path
-        self._init_db()
-
-    def _init_db(self):
-        con = sqlite3.connect(self.db_path)
-        con.execute("""
-            CREATE TABLE IF NOT EXISTS cache (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                msg_hash    TEXT    NOT NULL,
-                message     TEXT    NOT NULL,
-                response    TEXT    NOT NULL,
-                model       TEXT    NOT NULL,
-                ts          TEXT    NOT NULL,
-                ttl_seconds INTEGER NOT NULL DEFAULT 3600
-            )
-        """)
-        con.execute("""
-            CREATE INDEX IF NOT EXISTS idx_cache_hash ON cache(msg_hash)
-        """)
-        con.commit()
-        con.close()
+    def __init__(self, db_path: str = ""):
+        self._dal = None
+        try:
+            from claw_dal import DAL
+            self._dal = DAL.get_instance()
+        except Exception:
+            pass
 
     def get_exact(self, msg_hash: str) -> str:
         """Return cached response for exact hash match, or None."""
-        con = sqlite3.connect(self.db_path)
-        row = con.execute(
-            "SELECT response, ts, ttl_seconds FROM cache "
-            "WHERE msg_hash = ? ORDER BY id DESC LIMIT 1",
-            (msg_hash,),
-        ).fetchone()
-        con.close()
-        if not row:
-            return None
-        # check TTL
-        try:
-            cached_at = datetime.fromisoformat(
-                row[1].replace("Z", "+00:00"))
-            age = (datetime.now(timezone.utc) - cached_at).total_seconds()
-            if age > row[2]:
-                return None
-        except Exception:
-            pass
-        return row[0]
+        if self._dal:
+            return self._dal.response_cache.get_exact(msg_hash)
+        return None
 
     def get_similar(self, message: str, threshold: float = 0.85,
                     ttl_seconds: int = 3600) -> str:
         """Search cache for semantically similar message via trigrams."""
-        con = sqlite3.connect(self.db_path)
-        now = datetime.now(timezone.utc)
-        cutoff = (now - timedelta(seconds=ttl_seconds)).strftime(
-            "%Y-%m-%dT%H:%M:%SZ")
-        rows = con.execute(
-            "SELECT message, response, ts FROM cache WHERE ts >= ? "
-            "ORDER BY id DESC LIMIT 200",
-            (cutoff,),
-        ).fetchall()
-        con.close()
-
-        best_score = 0.0
-        best_response = None
-        for row in rows:
-            score = _trigram_similarity(message, row[0])
-            if score > best_score:
-                best_score = score
-                best_response = row[1]
-
-        if best_score >= threshold:
-            return best_response
+        if self._dal:
+            return self._dal.response_cache.get_similar(
+                message, threshold, ttl_seconds)
         return None
 
     def put(self, message: str, response: str, model: str,
             ttl_seconds: int = 3600):
         msg_hash = _message_hash(message)
-        con = sqlite3.connect(self.db_path)
-        con.execute(
-            "INSERT INTO cache (msg_hash, message, response, model, ts, "
-            "ttl_seconds) VALUES (?, ?, ?, ?, ?, ?)",
-            (msg_hash, message, response, model, _now_iso(), ttl_seconds),
-        )
-        con.commit()
-        con.close()
+        if self._dal:
+            self._dal.response_cache.put(
+                prompt_hash=msg_hash, model=model, response=response,
+                ttl_seconds=ttl_seconds)
 
     def stats(self) -> dict:
-        con = sqlite3.connect(self.db_path)
-        total = con.execute("SELECT COUNT(*) FROM cache").fetchone()[0]
-        con.close()
-        return {"total_entries": total}
+        if self._dal:
+            return self._dal.response_cache.stats()
+        return {"total_entries": 0}
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -1112,31 +1031,23 @@ class CostAttributionLogger(OptimizationRule):
     def log_call(self, model: str, input_tokens: int, output_tokens: int,
                  cost_usd: float, agent: str, task: str, cached: bool,
                  context: dict):
-        """Log a completed API call to both SQLite and JSONL."""
+        """Log a completed API call via DAL (cost_tracking + llm_requests)."""
         provider = _provider_from_model(model)
         tracker = context.get("cost_tracker")  # type: CostTracker
         if tracker:
             tracker.log(model, provider, input_tokens, output_tokens,
                         cost_usd, agent, task, cached)
 
-        # Append to JSONL
-        if self.jsonl_path:
-            entry = {
-                "ts": _now_iso(),
-                "model": model,
-                "provider": provider,
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "cost_usd": cost_usd,
-                "agent": agent,
-                "task": task,
-                "cached": cached,
-            }
-            try:
-                with open(self.jsonl_path, "a", encoding="utf-8") as f:
-                    f.write(json.dumps(entry) + "\n")
-            except Exception as e:
-                logger.warning(f"[CostLogger] Failed to write JSONL: {e}")
+        # Also record as LLM request in instance DB
+        try:
+            from claw_dal import DAL
+            dal = DAL.get_instance()
+            dal.llm_requests.record(
+                provider=provider, model=model,
+                input_tokens=input_tokens, output_tokens=output_tokens,
+                cost_usd=cost_usd, cache_hit=cached)
+        except Exception:
+            pass
 
         self.hits += 1
 
