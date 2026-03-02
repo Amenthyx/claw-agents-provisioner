@@ -240,10 +240,10 @@ describe('wizardReducer', () => {
         standard: 'gdpr',
         config: { enabled: true, acknowledgedRules: ['gdpr-1'] },
       });
-      expect(state.complianceConfig.gdpr.enabled).toBe(true);
-      expect(state.complianceConfig.gdpr.acknowledgedRules).toEqual(['gdpr-1']);
+      expect(state.complianceConfig.gdpr!.enabled).toBe(true);
+      expect(state.complianceConfig.gdpr!.acknowledgedRules).toEqual(['gdpr-1']);
       // Other standards unchanged
-      expect(state.complianceConfig.hipaa.enabled).toBe(false);
+      expect(state.complianceConfig.hipaa!.enabled).toBe(false);
     });
   });
 
@@ -296,8 +296,8 @@ describe('wizardReducer', () => {
         channelId: 'telegram',
         config: { enabled: false },
       });
-      expect(state.channels.telegram.enabled).toBe(false);
-      expect(state.channels.telegram.config).toEqual({ botToken: 'abc' });
+      expect(state.channels.telegram!.enabled).toBe(false);
+      expect(state.channels.telegram!.config).toEqual({ botToken: 'abc' });
     });
   });
 
