@@ -250,7 +250,7 @@ def get_all_agents_status() -> List[Dict[str, Any]]:
             # Also add deployed claws not in DAL
             results = _merge_deployed_claws(results)
             return results
-    except (ImportError, RuntimeError, OSError, KeyError):
+    except Exception:
         pass
 
     # Fallback: HTTP ping each platform agent
@@ -516,7 +516,7 @@ class ActivityAggregator:
                 total_row = dal.llm_requests._fetchone(
                     "SELECT COUNT(*) AS cnt FROM llm_requests", ())
                 result["total_requests"] = total_row["cnt"] if total_row else 0
-            except (ImportError, RuntimeError, OSError, KeyError):
+            except Exception:
                 pass
             return result
 
@@ -680,7 +680,7 @@ class ActivityAggregator:
             since = time.strftime(
                 "%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 60))
             rpm_val = dal.llm_requests.count_since(since)
-        except (ImportError, RuntimeError, OSError, KeyError):
+        except Exception:
             pass
 
         # Broadcast fleet snapshot
@@ -838,7 +838,7 @@ def read_billing_data() -> Dict[str, Any]:
             except (IOError, OSError):
                 pass
         return result
-    except (ImportError, RuntimeError, OSError, KeyError):
+    except Exception:
         pass
 
     # Fallback: read from JSONL files
@@ -2646,7 +2646,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
 
     server_version = "XClawDashboard/1.0"
     metrics: Optional[MetricsCollector] = None
-    rate_limiter: RateLimiter = RateLimiter()
+    rate_limiter: RateLimiter = RateLimiter(max_requests=300)
 
     def log_message(self, format: str, *args: Any) -> None:
         """Suppress default request logging in favor of custom output."""
@@ -2983,7 +2983,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             result["model_usage"] = dal.llm_requests.aggregate_by_model()
             result["log_levels"] = dal.local_logs.count_by_level()
             result["cache"] = dal.response_cache.stats()
-        except (ImportError, RuntimeError, OSError, KeyError):
+        except Exception:
             pass
         self._send_json(result)
 
@@ -2994,7 +2994,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             dal = DAL.get_instance()
             deployments = dal.deployments.get_recent(10)
             self._send_json(deployments)
-        except (ImportError, RuntimeError, OSError, KeyError, AttributeError):
+        except Exception:
             self._send_json([])
 
     def _handle_get_logs(self) -> None:
@@ -3013,7 +3013,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             dal = DAL.get_instance()
             logs = dal.local_logs.query(component=agent, limit=limit)
             self._send_json(logs)
-        except (ImportError, RuntimeError, OSError, KeyError, AttributeError):
+        except Exception:
             self._send_json([])
 
     def _handle_get_router(self) -> None:
@@ -3043,7 +3043,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             dal = DAL.get_instance()
             result["events"] = dal.security_events.get_recent(50)
             result["summary"] = dal.security_events.get_summary()
-        except (ImportError, RuntimeError, OSError, KeyError, AttributeError):
+        except Exception:
             pass
         self._send_json(result)
 
@@ -3060,7 +3060,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             result["daily_spend"] = dal.costs.daily_spend()
             result["weekly_spend"] = dal.costs.weekly_spend()
             result["monthly_spend"] = dal.costs.monthly_spend()
-        except (ImportError, RuntimeError, OSError, KeyError, AttributeError):
+        except Exception:
             pass
         # Read billing config for budget limits
         config = read_json_file(BILLING_DIR / "billing_config.json")
@@ -3076,7 +3076,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             dal = DAL.get_instance()
             result["audit"] = dal.audit.query(limit=30)
             result["alerts"] = dal.alerts.get_history(20)
-        except (ImportError, RuntimeError, OSError, KeyError, AttributeError):
+        except Exception:
             pass
         self._send_json(result)
 
@@ -3205,7 +3205,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             result["conversations"] = dal.conversations.list_conversations(
                 agent_id=claw_id, limit=20)
             result["recent_requests"] = dal.llm_requests.get_recent(20)
-        except (ImportError, RuntimeError, OSError, KeyError, AttributeError):
+        except Exception:
             pass
 
         self._send_json(result)
@@ -3217,7 +3217,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             dal = DAL.get_instance()
             requests = dal.llm_requests.get_recent(50)
             self._send_json(requests)
-        except (ImportError, RuntimeError, OSError, KeyError, AttributeError):
+        except Exception:
             self._send_json([])
 
     # ----- API Docs -----
