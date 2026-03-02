@@ -4,9 +4,41 @@ Shared pytest fixtures for Claw Agents Provisioner test suite.
 
 import json
 import os
+import sys
 import tempfile
+from pathlib import Path
 
 import pytest
+
+# Ensure shared/ is importable
+sys.path.insert(0, str(Path(__file__).parent.parent / "shared"))
+
+
+@pytest.fixture(autouse=True)
+def _isolate_dal():
+    """Reset the DAL singleton before and after every test.
+
+    This prevents shared state from leaking between tests.  The singleton
+    is cleared so each test starts without a cached DAL instance.
+    Tests that need a working DAL (e.g. test_claw_dal.py) set up their
+    own config via monkeypatch.  Tests that don't need DAL rely on the
+    except-Exception guards in UsageLogger, SecurityChecker, etc. to
+    gracefully fall back when DAL initialization fails.
+    """
+    import claw_dal
+    # Reset before the test
+    try:
+        claw_dal.DAL.reset_instance()
+    except Exception:
+        claw_dal.DAL._instance = None
+
+    yield
+
+    # Reset after the test
+    try:
+        claw_dal.DAL.reset_instance()
+    except Exception:
+        claw_dal.DAL._instance = None
 
 
 @pytest.fixture

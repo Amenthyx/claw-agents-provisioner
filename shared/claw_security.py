@@ -533,7 +533,7 @@ class SecurityChecker:
         try:
             from claw_dal import DAL
             self._dal = DAL.get_instance()
-        except (ImportError, RuntimeError, OSError):
+        except Exception:
             pass
         self._compile_patterns()
 
@@ -655,9 +655,9 @@ class SecurityChecker:
                     agent_id=agent_id,
                     event_type=event_type,
                     severity=severity,
-                    detail=detail,
+                    details=detail,
                 )
-            except (RuntimeError, OSError, KeyError):
+            except Exception:
                 pass
 
         audit = get_audit_logger()

@@ -162,7 +162,7 @@ class UsageLogger:
         try:
             from claw_dal import DAL
             self._dal = DAL.get_instance()
-        except (ImportError, RuntimeError, OSError):
+        except Exception:
             pass
         _ensure_dirs()
 
@@ -196,16 +196,23 @@ class UsageLogger:
         if request_type:
             record["request_type"] = request_type
 
-        # Write to DAL
+        # Write to DAL (with JSONL fallback on failure)
+        dal_ok = False
         if self._dal:
-            calculator = CostCalculator()
-            cost = calculator.cost_for_record(record)
-            self._dal.costs.record_cost(
-                agent_id=agent_id or "billing",
-                model=model, provider=provider,
-                input_tokens=input_tokens, output_tokens=output_tokens,
-                cost_usd=cost, avg_latency_ms=float(response_time_ms))
-        else:
+            try:
+                calculator = CostCalculator()
+                cost = calculator.cost_for_record(record)
+                self._dal.costs.record_cost(
+                    agent_id=agent_id or "billing",
+                    model=model, provider=provider,
+                    input_tokens=input_tokens, output_tokens=output_tokens,
+                    cost_usd=cost, avg_latency_ms=float(response_time_ms))
+                dal_ok = True
+            except Exception:
+                # DAL write failed — disable DAL so read_all() also
+                # uses JSONL fallback for consistency.
+                self._dal = None
+        if not dal_ok:
             # Fallback: JSONL
             with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record) + "\n")
