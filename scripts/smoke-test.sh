@@ -13,9 +13,15 @@
 #   4. Critical files exist
 #   5. Port conflicts check
 #   6. Environment template valid
+#   7. Service health endpoints (--live mode)
+#   8. Chat round-trip test (--live mode)
+#   9. Memory write/read cycle (--live mode)
+#  10. RAG ingest/search cycle (--live mode)
 #
 # Usage:
-#   bash scripts/smoke-test.sh
+#   bash scripts/smoke-test.sh              # Pre-deployment checks only
+#   bash scripts/smoke-test.sh --live       # Include live service checks
+#   bash scripts/smoke-test.sh --live --token <TOKEN>
 #
 # Exit code:
 #   0 — All checks passed
@@ -46,13 +52,44 @@ pass() { echo -e "${GREEN}  PASS${NC}  $*"; PASS=$((PASS + 1)); }
 fail() { echo -e "${RED}  FAIL${NC}  $*"; FAIL=$((FAIL + 1)); }
 skip() { echo -e "${YELLOW}  SKIP${NC}  $*"; SKIP=$((SKIP + 1)); }
 
+# ── Parse arguments ──────────────────────────────────────────────────
+
+LIVE_MODE=0
+AUTH_TOKEN="${CLAW_AUTH_TOKEN:-}"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --live)
+            LIVE_MODE=1
+            shift
+            ;;
+        --token)
+            AUTH_TOKEN="$2"
+            shift 2
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+# Service ports (override via environment)
+ROUTER_PORT="${CLAW_GATEWAY_PORT:-9095}"
+MEMORY_PORT="${CLAW_MEMORY_PORT:-9096}"
+RAG_PORT="${CLAW_RAG_PORT:-9097}"
+DASHBOARD_PORT="${CLAW_DASHBOARD_PORT:-9099}"
+HEALTH_PORT="${CLAW_HEALTH_PORT:-9094}"
+ORCHESTRATOR_PORT="${CLAW_ORCHESTRATOR_PORT:-9100}"
+
+BASE_HOST="${CLAW_BASE_HOST:-localhost}"
+
 echo -e "${BOLD}=== Claw Agents Provisioner — Smoke Test ===${NC}"
 echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 echo ""
 
 # ── 1. Python shared modules compile ────────────────────────────────
 
-echo -e "${BOLD}[1/6] Python module compilation${NC}"
+echo -e "${BOLD}[1/10] Python module compilation${NC}"
 
 COMPILE_FAIL=0
 for f in "${PROJECT_ROOT}"/shared/*.py; do
@@ -70,7 +107,7 @@ done
 # ── 2. Python shared modules import ─────────────────────────────────
 
 echo ""
-echo -e "${BOLD}[2/6] Python module imports${NC}"
+echo -e "${BOLD}[2/10] Python module imports${NC}"
 
 CRITICAL_MODULES=(
     "claw_vault"
@@ -98,7 +135,7 @@ cd "${PROJECT_ROOT}"
 # ── 3. CLI tools respond ────────────────────────────────────────────
 
 echo ""
-echo -e "${BOLD}[3/6] CLI tool health${NC}"
+echo -e "${BOLD}[3/10] CLI tool health${NC}"
 
 CLI_TOOLS=(
     "shared/claw_vault.py"
@@ -121,7 +158,7 @@ done
 # ── 4. Critical files exist ─────────────────────────────────────────
 
 echo ""
-echo -e "${BOLD}[4/6] Critical files${NC}"
+echo -e "${BOLD}[4/10] Critical files${NC}"
 
 CRITICAL_FILES=(
     ".env.template"
@@ -150,7 +187,7 @@ done
 # ── 5. Docker Compose validation ────────────────────────────────────
 
 echo ""
-echo -e "${BOLD}[5/6] Docker Compose${NC}"
+echo -e "${BOLD}[5/10] Docker Compose${NC}"
 
 if command -v docker &>/dev/null; then
     TEMP_ENV=""
@@ -178,7 +215,7 @@ fi
 # ── 6. Environment template validation ──────────────────────────────
 
 echo ""
-echo -e "${BOLD}[6/6] Environment template${NC}"
+echo -e "${BOLD}[6/10] Environment template${NC}"
 
 if [ -f "${PROJECT_ROOT}/.env.template" ]; then
     # Check it parses as valid KEY=VALUE
@@ -201,6 +238,176 @@ if [ -f "${PROJECT_ROOT}/.env.template" ]; then
     fi
 else
     fail ".env.template not found"
+fi
+
+# ── 7. Live service health endpoints (--live mode) ────────────────
+
+if [ "${LIVE_MODE}" -eq 1 ]; then
+
+echo ""
+echo -e "${BOLD}[7/10] Service health endpoints${NC}"
+
+# Build auth header if token provided
+AUTH_HEADER=""
+if [ -n "${AUTH_TOKEN}" ]; then
+    AUTH_HEADER="-H \"Authorization: Bearer ${AUTH_TOKEN}\""
+fi
+
+declare -A SERVICE_PORTS
+SERVICE_PORTS[router]="${ROUTER_PORT}"
+SERVICE_PORTS[memory]="${MEMORY_PORT}"
+SERVICE_PORTS[rag]="${RAG_PORT}"
+SERVICE_PORTS[dashboard]="${DASHBOARD_PORT}"
+SERVICE_PORTS[health]="${HEALTH_PORT}"
+SERVICE_PORTS[orchestrator]="${ORCHESTRATOR_PORT}"
+
+for svc in router memory rag dashboard health orchestrator; do
+    PORT="${SERVICE_PORTS[$svc]}"
+    URL="http://${BASE_HOST}:${PORT}/health"
+
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+        -H "Authorization: Bearer ${AUTH_TOKEN}" \
+        --connect-timeout 5 --max-time 10 \
+        "${URL}" 2>/dev/null || echo "000")
+
+    if [ "${HTTP_CODE}" = "200" ]; then
+        pass "Health OK: ${svc} (:${PORT}) -> ${HTTP_CODE}"
+    elif [ "${HTTP_CODE}" = "000" ]; then
+        fail "Unreachable: ${svc} (:${PORT})"
+    else
+        fail "Health FAIL: ${svc} (:${PORT}) -> ${HTTP_CODE}"
+    fi
+done
+
+# ── 8. Chat round-trip (router -> LLM) ──────────────────────────
+
+echo ""
+echo -e "${BOLD}[8/10] Chat round-trip test${NC}"
+
+CHAT_URL="http://${BASE_HOST}:${ROUTER_PORT}/v1/chat/completions"
+CHAT_PAYLOAD='{"model":"auto","messages":[{"role":"user","content":"smoke test ping"}],"max_tokens":10}'
+
+CHAT_RESP=$(curl -s -w "\n%{http_code}" \
+    -X POST "${CHAT_URL}" \
+    -H "Authorization: Bearer ${AUTH_TOKEN}" \
+    -H "Content-Type: application/json" \
+    --connect-timeout 10 --max-time 30 \
+    -d "${CHAT_PAYLOAD}" 2>/dev/null || echo -e "\n000")
+
+CHAT_BODY=$(echo "${CHAT_RESP}" | head -n -1)
+CHAT_CODE=$(echo "${CHAT_RESP}" | tail -n 1)
+
+if [ "${CHAT_CODE}" = "200" ]; then
+    # Check response has choices
+    if echo "${CHAT_BODY}" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'choices' in d" 2>/dev/null; then
+        pass "Chat round-trip: status=${CHAT_CODE}, has choices"
+    else
+        fail "Chat round-trip: status=${CHAT_CODE}, missing choices in response"
+    fi
+elif [ "${CHAT_CODE}" = "000" ]; then
+    fail "Chat round-trip: router unreachable at :${ROUTER_PORT}"
+else
+    fail "Chat round-trip: status=${CHAT_CODE}"
+fi
+
+# ── 9. Memory write/read cycle ──────────────────────────────────
+
+echo ""
+echo -e "${BOLD}[9/10] Memory write/read cycle${NC}"
+
+MEM_BASE="http://${BASE_HOST}:${MEMORY_PORT}"
+MEM_CONV_ID="smoke-test-$(date +%s)"
+MEM_PAYLOAD=$(python3 -c "
+import json; print(json.dumps({
+    'conversation_id': '${MEM_CONV_ID}',
+    'agent_id': 'smoke-test-agent',
+    'messages': [{'role':'user','content':'smoke test message','timestamp':'$(date -u +%Y-%m-%dT%H:%M:%SZ)'}]
+}))
+" 2>/dev/null || echo '{}')
+
+# Write
+MEM_WRITE_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+    -X POST "${MEM_BASE}/api/memory/conversations" \
+    -H "Authorization: Bearer ${AUTH_TOKEN}" \
+    -H "Content-Type: application/json" \
+    --connect-timeout 5 --max-time 10 \
+    -d "${MEM_PAYLOAD}" 2>/dev/null || echo "000")
+
+if [ "${MEM_WRITE_CODE}" = "200" ] || [ "${MEM_WRITE_CODE}" = "201" ]; then
+    pass "Memory write: status=${MEM_WRITE_CODE}"
+elif [ "${MEM_WRITE_CODE}" = "000" ]; then
+    fail "Memory write: service unreachable at :${MEMORY_PORT}"
+else
+    fail "Memory write: status=${MEM_WRITE_CODE}"
+fi
+
+# Read
+MEM_READ_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+    -X GET "${MEM_BASE}/api/memory/conversations" \
+    -H "Authorization: Bearer ${AUTH_TOKEN}" \
+    --connect-timeout 5 --max-time 10 2>/dev/null || echo "000")
+
+if [ "${MEM_READ_CODE}" = "200" ]; then
+    pass "Memory read: status=${MEM_READ_CODE}"
+elif [ "${MEM_READ_CODE}" = "000" ]; then
+    fail "Memory read: service unreachable at :${MEMORY_PORT}"
+else
+    fail "Memory read: status=${MEM_READ_CODE}"
+fi
+
+# ── 10. RAG ingest/search cycle ─────────────────────────────────
+
+echo ""
+echo -e "${BOLD}[10/10] RAG ingest/search cycle${NC}"
+
+RAG_BASE="http://${BASE_HOST}:${RAG_PORT}"
+RAG_DOC_ID="smoke-test-doc-$(date +%s)"
+RAG_INGEST_PAYLOAD=$(python3 -c "
+import json; print(json.dumps({
+    'document_id': '${RAG_DOC_ID}',
+    'title': 'Smoke Test Document',
+    'content': 'This is a smoke test document for verifying RAG pipeline ingestion.',
+    'metadata': {'source': 'smoke-test'}
+}))
+" 2>/dev/null || echo '{}')
+
+# Ingest
+RAG_INGEST_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+    -X POST "${RAG_BASE}/api/rag/ingest" \
+    -H "Authorization: Bearer ${AUTH_TOKEN}" \
+    -H "Content-Type: application/json" \
+    --connect-timeout 5 --max-time 10 \
+    -d "${RAG_INGEST_PAYLOAD}" 2>/dev/null || echo "000")
+
+if [ "${RAG_INGEST_CODE}" = "200" ] || [ "${RAG_INGEST_CODE}" = "201" ]; then
+    pass "RAG ingest: status=${RAG_INGEST_CODE}"
+elif [ "${RAG_INGEST_CODE}" = "000" ]; then
+    fail "RAG ingest: service unreachable at :${RAG_PORT}"
+else
+    fail "RAG ingest: status=${RAG_INGEST_CODE}"
+fi
+
+# Search
+RAG_SEARCH_PAYLOAD='{"query":"smoke test document","top_k":3}'
+RAG_SEARCH_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+    -X POST "${RAG_BASE}/api/rag/search" \
+    -H "Authorization: Bearer ${AUTH_TOKEN}" \
+    -H "Content-Type: application/json" \
+    --connect-timeout 5 --max-time 10 \
+    -d "${RAG_SEARCH_PAYLOAD}" 2>/dev/null || echo "000")
+
+if [ "${RAG_SEARCH_CODE}" = "200" ]; then
+    pass "RAG search: status=${RAG_SEARCH_CODE}"
+elif [ "${RAG_SEARCH_CODE}" = "000" ]; then
+    fail "RAG search: service unreachable at :${RAG_PORT}"
+else
+    fail "RAG search: status=${RAG_SEARCH_CODE}"
+fi
+
+else
+    # Not in --live mode
+    echo ""
+    echo -e "${YELLOW}Sections 7-10 skipped (use --live for post-deployment checks)${NC}"
 fi
 
 # ── Summary ──────────────────────────────────────────────────────────
