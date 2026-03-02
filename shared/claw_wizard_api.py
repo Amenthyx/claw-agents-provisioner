@@ -987,7 +987,7 @@ def _load_instances() -> Dict[str, Any]:
             "name": "Local Dev",
             "host": "localhost",
             "wizard_port": 9098,
-            "watchdog_port": 9097,
+            "watchdog_port": 9090,
             "agent_ports": {p["id"]: p["port"] for p in PLATFORMS},
             "is_self": True,
         }],
@@ -1012,7 +1012,7 @@ def _check_instance_health(instance: Dict[str, Any]) -> Dict[str, Any]:
     """Probe remote wizard API + watchdog."""
     host = instance.get("host", "localhost")
     wiz_port = instance.get("wizard_port", 9098)
-    wd_port = instance.get("watchdog_port", 9097)
+    wd_port = instance.get("watchdog_port", 9090)
 
     wizard_ok = _check_port(wiz_port, host)
     watchdog_ok = _check_port(wd_port, host)
@@ -1209,9 +1209,9 @@ def _get_dashboard_metrics() -> Dict[str, Any]:
 
     # Try to get watchdog metrics
     watchdog_data = None
-    if _check_port(9097):
+    if _check_port(9090):
         try:
-            resp = urllib.request.urlopen("http://127.0.0.1:9097/api/status", timeout=3)
+            resp = urllib.request.urlopen("http://127.0.0.1:9090/api/status", timeout=3)
             watchdog_data = json.loads(resp.read().decode())
         except (urllib.error.URLError, urllib.error.HTTPError, OSError, json.JSONDecodeError):
             pass
@@ -1229,7 +1229,7 @@ def _get_dashboard_metrics() -> Dict[str, Any]:
         "services": {
             "gateway": _check_port(9095),
             "optimizer": _check_port(9091),
-            "watchdog": _check_port(9097),
+            "watchdog": _check_port(9090),
             "wizard": True,
             "ollama": _check_port(11434),
         },
@@ -1801,7 +1801,7 @@ def _run_deploy_inner(assessment_json: str) -> None:
     # Resolve all service ports from wizard config (not hardcoded)
     gateway_port = int(port_config.get("gatewayPort") or gateway_cfg.get("port") or 9095)
     optimizer_port = int(port_config.get("optimizerPort") or 9091)
-    watchdog_port = int(port_config.get("watchdogPort") or 9097)
+    watchdog_port = int(port_config.get("watchdogPort") or 9090)
 
     # Generate a unique container name from the agent name + timestamp hash.
     # Format: xclaw-{agent_name}-{4-hex-suffix}  e.g. xclaw-my-agent-a3f1
@@ -2875,9 +2875,9 @@ def _get_all_occupied_ports() -> set:
     occupied |= _get_config_occupied_ports()
 
     # 3. TCP probe on the common port ranges (agent 3100-3199, gateway 9095-9195,
-    #    optimizer 9091-9191, watchdog 9097-9197, parlant 8800-8899)
+    #    optimizer 9091-9191, watchdog 9090-9190, parlant 8800-8899)
     #    Only probe a focused set to keep startup fast.
-    probe_ranges = list(range(3100, 3200)) + list(range(8800, 8900)) + list(range(9091, 9200))
+    probe_ranges = list(range(3100, 3200)) + list(range(8800, 8900)) + list(range(9090, 9200))
     for port in probe_ranges:
         if port in occupied:
             continue
@@ -3041,7 +3041,7 @@ def _allocate_ports_for_claw(platform: str) -> Dict[str, int]:
     agent_port = _first_free(base_port, base_port + 100)
     gateway_port = _first_free(9095, 9195)
     optimizer_port = _first_free(9091, 9191)
-    watchdog_port = _first_free(9097, 9197)
+    watchdog_port = _first_free(9090, 9190)
 
     # Mark these as occupied immediately so concurrent deploys don't collide
     occupied.update({agent_port, gateway_port, optimizer_port, watchdog_port})
@@ -3145,7 +3145,7 @@ class WizardAPIHandler(BaseHTTPRequestHandler):
                 "services": {
                     "gateway": _check_port(9095),
                     "optimizer": _check_port(9091),
-                    "watchdog": _check_port(9097),
+                    "watchdog": _check_port(9090),
                     "wizard": True,
                 },
             })

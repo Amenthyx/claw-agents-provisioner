@@ -43,7 +43,7 @@ export function StepDeploy() {
   );
   const gatewayPort = state.portConfig?.gatewayPort || state.gateway?.port || 9095;
   const optimizerPort = state.portConfig?.optimizerPort || 9091;
-  const watchdogPort = state.portConfig?.watchdogPort || 9097;
+  const watchdogPort = state.portConfig?.watchdogPort || 9090;
 
   const fallbackEndpoints = [
     { name: 'Agent Platform', url: `http://localhost:${agentPort}` },

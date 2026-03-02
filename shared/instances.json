@@ -5,7 +5,7 @@
       "name": "Local Dev",
       "host": "localhost",
       "wizard_port": 9098,
-      "watchdog_port": 9097,
+      "watchdog_port": 9090,
       "agent_ports": {
         "zeroclaw": 3100,
         "nanoclaw": 3200,

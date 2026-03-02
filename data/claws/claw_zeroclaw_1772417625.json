@@ -1,0 +1,87 @@
+{
+  "id": "claw_zeroclaw_1772417625",
+  "name": "clawdeploy",
+  "platform": "zeroclaw",
+  "container_name": "xclaw-clawdeploy-7c5b",
+  "container_id": "dbb31ca0c150",
+  "image": "xclaw:zeroclaw",
+  "agent_port": 3125,
+  "gateway_port": 9095,
+  "optimizer_port": 9091,
+  "watchdog_port": 9090,
+  "llm_provider": "local",
+  "runtime": "ollama",
+  "security_enabled": true,
+  "security_features": [
+    "content-rules",
+    "pii-detection",
+    "network-rules"
+  ],
+  "selected_models": [
+    "phi3",
+    "llama3.2:3b"
+  ],
+  "strategy": {
+    "optimization": "balanced",
+    "rules": [
+      {
+        "taskCategory": "chat",
+        "primaryModel": "llama3.2:3b",
+        "fallbackModel": "phi3"
+      },
+      {
+        "taskCategory": "reasoning",
+        "primaryModel": "phi3",
+        "fallbackModel": "llama3.2:3b"
+      },
+      {
+        "taskCategory": "coding",
+        "primaryModel": "phi3",
+        "fallbackModel": "llama3.2:3b"
+      },
+      {
+        "taskCategory": "creative",
+        "primaryModel": "llama3.2:3b",
+        "fallbackModel": "phi3"
+      },
+      {
+        "taskCategory": "analysis",
+        "primaryModel": "phi3",
+        "fallbackModel": "llama3.2:3b"
+      },
+      {
+        "taskCategory": "translation",
+        "primaryModel": "llama3.2:3b",
+        "fallbackModel": "phi3"
+      }
+    ]
+  },
+  "cloud_providers": [],
+  "gateway": {
+    "port": 9095,
+    "rateLimit": 120,
+    "failover": "local-first",
+    "routing": "auto",
+    "customLocalEndpoint": ""
+  },
+  "storage": {
+    "engine": "sqlite",
+    "instance_db": {
+      "engine": "sqlite",
+      "path": ""
+    },
+    "shared_db": {
+      "enabled": true,
+      "engine": "sqlite",
+      "path": "./data/shared/shared.db"
+    }
+  },
+  "channels": {
+    "telegram": {
+      "botToken": "8407043259:AAEfGWY19jnqU_lWUuzYujB_kj8T7uX5uPw",
+      "chatId": "-1005199841004"
+    }
+  },
+  "created_at": "2026-03-02T02:13:45Z",
+  "status": "running"
+}

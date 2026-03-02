@@ -1,0 +1,6 @@
+{
+  "agent": 3100,
+  "gateway": 9095,
+  "optimizer": 9091,
+  "watchdog": 9090
+}

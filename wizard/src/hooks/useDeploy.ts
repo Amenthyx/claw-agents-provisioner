@@ -54,7 +54,7 @@ function resolvePorts(config?: Record<string, unknown>): {
     agent:     Number(portConfig['agentPort']) || getDefaultAgentPort(config?.['platform'] as string),
     gateway:   Number(portConfig['gatewayPort']) || Number(gateway['port']) || 9095,
     optimizer: Number(portConfig['optimizerPort']) || 9091,
-    watchdog:  Number(portConfig['watchdogPort']) || 9097,
+    watchdog:  Number(portConfig['watchdogPort']) || 9090,
   };
 }
 

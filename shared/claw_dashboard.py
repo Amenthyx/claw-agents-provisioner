@@ -101,16 +101,16 @@ HEALTH_TIMEOUT = 2  # seconds
 
 # Internal service ports (set by deploy pipeline)
 ROUTER_PORT = int(os.environ.get("CLAW_GATEWAY_PORT", "9095"))
-WATCHDOG_PORT = int(os.environ.get("CLAW_WATCHDOG_PORT", "9097"))
+WATCHDOG_PORT = int(os.environ.get("CLAW_WATCHDOG_PORT", "9090"))
 OPTIMIZER_PORT = int(os.environ.get("CLAW_OPTIMIZER_PORT", "9091"))
 
 # Agent platform definitions
 _AGENT_PLATFORMS_BASE: List[Dict[str, Any]] = [
-    {"id": "zeroclaw",  "name": "ZeroClaw",  "lang": "Rust",       "port": 3100, "memory": "512 MB"},
-    {"id": "nanoclaw",  "name": "NanoClaw",  "lang": "TypeScript", "port": 3200, "memory": "1 GB"},
-    {"id": "picoclaw",  "name": "PicoClaw",  "lang": "Go",         "port": 3300, "memory": "128 MB"},
-    {"id": "openclaw",  "name": "OpenClaw",  "lang": "Node.js",    "port": 3400, "memory": "4 GB"},
-    {"id": "parlant",   "name": "Parlant",   "lang": "Python",     "port": 8800, "memory": "2 GB"},
+    {"id": "zeroclaw",  "name": "ZeroClaw",  "lang": "Rust",       "port": int(os.environ.get("CLAW_ZEROCLAW_PORT", "3100")), "memory": "512 MB"},
+    {"id": "nanoclaw",  "name": "NanoClaw",  "lang": "TypeScript", "port": int(os.environ.get("CLAW_NANOCLAW_PORT", "3200")), "memory": "1 GB"},
+    {"id": "picoclaw",  "name": "PicoClaw",  "lang": "Go",         "port": int(os.environ.get("CLAW_PICOCLAW_PORT", "3300")), "memory": "128 MB"},
+    {"id": "openclaw",  "name": "OpenClaw",  "lang": "Node.js",    "port": int(os.environ.get("CLAW_OPENCLAW_PORT", "3400")), "memory": "4 GB"},
+    {"id": "parlant",   "name": "Parlant",   "lang": "Python",     "port": int(os.environ.get("CLAW_PARLANT_PORT",  "8800")), "memory": "2 GB"},
 ]
 
 # Override port for the active agent from env (set by deploy pipeline)

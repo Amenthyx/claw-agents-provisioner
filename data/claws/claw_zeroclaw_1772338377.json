@@ -1,0 +1,88 @@
+{
+  "id": "claw_zeroclaw_1772338377",
+  "name": "xxx",
+  "platform": "zeroclaw",
+  "container_name": "xclaw-xxx",
+  "container_id": "459c869c18cb",
+  "image": "xclaw:zeroclaw",
+  "agent_port": 3108,
+  "gateway_port": 9095,
+  "optimizer_port": 9091,
+  "watchdog_port": 9090,
+  "llm_provider": "local",
+  "runtime": "ollama",
+  "security_enabled": true,
+  "security_features": [
+    "content-rules",
+    "pii-detection",
+    "network-rules"
+  ],
+  "selected_models": [
+    "deepseek-r1:7b",
+    "llama3.2:3b",
+    "qwen3:1.7b"
+  ],
+  "strategy": {
+    "optimization": "balanced",
+    "rules": [
+      {
+        "taskCategory": "chat",
+        "primaryModel": "llama3.2:3b",
+        "fallbackModel": "qwen3:1.7b"
+      },
+      {
+        "taskCategory": "reasoning",
+        "primaryModel": "deepseek-r1:7b",
+        "fallbackModel": "llama3.2:3b"
+      },
+      {
+        "taskCategory": "coding",
+        "primaryModel": "deepseek-r1:7b",
+        "fallbackModel": "llama3.2:3b"
+      },
+      {
+        "taskCategory": "creative",
+        "primaryModel": "llama3.2:3b",
+        "fallbackModel": "qwen3:1.7b"
+      },
+      {
+        "taskCategory": "analysis",
+        "primaryModel": "deepseek-r1:7b",
+        "fallbackModel": "llama3.2:3b"
+      },
+      {
+        "taskCategory": "translation",
+        "primaryModel": "llama3.2:3b",
+        "fallbackModel": "qwen3:1.7b"
+      }
+    ]
+  },
+  "cloud_providers": [],
+  "gateway": {
+    "port": 9095,
+    "rateLimit": 120,
+    "failover": "local-first",
+    "routing": "auto",
+    "customLocalEndpoint": ""
+  },
+  "storage": {
+    "engine": "sqlite",
+    "instance_db": {
+      "engine": "sqlite",
+      "path": ""
+    },
+    "shared_db": {
+      "enabled": true,
+      "engine": "sqlite",
+      "path": "./data/shared/shared.db"
+    }
+  },
+  "channels": {
+    "telegram": {
+      "chatId": "-1005199841004",
+      "botToken": "8407043259:AAEfGWY19jnqU_lWUuzYujB_kj8T7uX5uPw"
+    }
+  },
+  "created_at": "2026-03-01T04:12:57Z",
+  "status": "removed"
+}

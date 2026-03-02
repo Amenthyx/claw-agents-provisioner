@@ -97,9 +97,10 @@ class AgentHandler(BaseHTTPRequestHandler):
         agent_port = os.environ.get("CLAW_AGENT_PORT", "3100")
         gateway_port = os.environ.get("CLAW_GATEWAY_PORT", "9095")
         optimizer_port = os.environ.get("CLAW_OPTIMIZER_PORT", "9091")
-        watchdog_port = os.environ.get("CLAW_WATCHDOG_PORT", "9097")
+        watchdog_port = os.environ.get("CLAW_WATCHDOG_PORT", "9090")
         storage_engine = os.environ.get("CLAW_STORAGE_ENGINE", "sqlite")
         security_enabled = os.environ.get("CLAW_SECURITY_ENABLED", "true")
+        dashboard_port = os.environ.get("CLAW_DASHBOARD_PORT", "9099")
         strategy_opt = os.environ.get("CLAW_STRATEGY_OPTIMIZATION", "balanced")
         models_env = os.environ.get("CLAW_OLLAMA_MODELS", "")
         models_list = [m.strip() for m in models_env.split(",") if m.strip()] if models_env else []
@@ -162,7 +163,7 @@ a{{color:#00d4aa;text-decoration:none}} a:hover{{text-decoration:underline}}
       <li><span class="status" id="s-optimizer"></span>Optimizer <span style="margin-left:auto;font-family:monospace;font-size:12px">:{optimizer_port}</span></li>
       <li><span class="status" id="s-watchdog"></span>Watchdog <span style="margin-left:auto;font-family:monospace;font-size:12px">:{watchdog_port}</span></li>
       <li><span class="status" id="s-ollama"></span>LLM Runtime <span style="margin-left:auto;font-family:monospace;font-size:12px">:11434</span></li>
-      <li><span class="status" id="s-dashboard"></span>Dashboard <span style="margin-left:auto;font-family:monospace;font-size:12px">:9099</span></li>
+      <li><span class="status" id="s-dashboard"></span>Dashboard <span style="margin-left:auto;font-family:monospace;font-size:12px">:{dashboard_port}</span></li>
     </ul>
   </div>
   <div class="card">
@@ -174,7 +175,7 @@ a{{color:#00d4aa;text-decoration:none}} a:hover{{text-decoration:underline}}
     <div class="row"><span class="label">Health</span><a href="/health">/health</a></div>
     <div class="row"><span class="label">Chat API</span><a href="/v1/chat/completions">/v1/chat/completions</a></div>
     <div class="row"><span class="label">Models</span><a href="/v1/models">/v1/models</a></div>
-    <div class="row"><span class="label">Fleet Dashboard</span><a href="http://localhost:9099">:9099</a></div>
+    <div class="row"><span class="label">Fleet Dashboard</span><a href="http://localhost:{dashboard_port}">:{dashboard_port}</a></div>
     <div class="row"><span class="label">Gateway</span><a href="http://localhost:{gateway_port}/health">:{gateway_port}</a></div>
   </div>
 </div>
@@ -182,7 +183,7 @@ a{{color:#00d4aa;text-decoration:none}} a:hover{{text-decoration:underline}}
 async function check(id,port){{try{{const r=await fetch('http://localhost:'+port+'/health',{{mode:'no-cors',signal:AbortSignal.timeout(2000)}});document.getElementById(id).className='status ok'}}catch{{document.getElementById(id).className='status err'}}}}
 check('s-agent',{agent_port});check('s-gateway',{gateway_port});check('s-optimizer',{optimizer_port});check('s-watchdog',{watchdog_port});
 fetch('http://localhost:11434/api/tags',{{mode:'no-cors',signal:AbortSignal.timeout(2000)}}).then(()=>document.getElementById('s-ollama').className='status ok').catch(()=>document.getElementById('s-ollama').className='status err');
-fetch('http://localhost:9099/',{{mode:'no-cors',signal:AbortSignal.timeout(2000)}}).then(()=>document.getElementById('s-dashboard').className='status ok').catch(()=>document.getElementById('s-dashboard').className='status err');
+fetch('http://localhost:{dashboard_port}/',{{mode:'no-cors',signal:AbortSignal.timeout(2000)}}).then(()=>document.getElementById('s-dashboard').className='status ok').catch(()=>document.getElementById('s-dashboard').className='status err');
 setInterval(()=>{{check('s-agent',{agent_port});check('s-gateway',{gateway_port});check('s-optimizer',{optimizer_port});check('s-watchdog',{watchdog_port})}},10000);
 </script></body></html>"""
         body = html.encode("utf-8")

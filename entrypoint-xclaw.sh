@@ -133,7 +133,7 @@ else
 fi
 
 # ── 5. Start Watchdog ────────────────────────────────────────────────
-log "[5/7] Starting watchdog on :9097"
+log "[5/7] Starting watchdog on :9090"
 if [ -f "${SHARED_DIR}/claw_watchdog.py" ]; then
     # Generate watchdog config
     cat > "${DATA_DIR}/watchdog.json" <<WDEOF
@@ -142,7 +142,7 @@ if [ -f "${SHARED_DIR}/claw_watchdog.py" ]; then
     "failure_threshold": 3,
     "alert_cooldown": 300,
     "auto_restart": true,
-    "dashboard_port": 9097,
+    "dashboard_port": 9090,
     "agents": [
         {
             "name": "${AGENT}-agent",
@@ -191,7 +191,7 @@ log "=================================================="
 log "  Agent (${AGENT}):    http://localhost:${AGENT_PORT}"
 log "  Gateway Router:      http://localhost:9095"
 log "  Optimizer:           http://localhost:9091"
-log "  Watchdog:            http://localhost:9097"
+log "  Watchdog:            http://localhost:9090"
 log "  Dashboard:           http://localhost:9099"
 log "  Wizard API:          http://localhost:9098"
 log ""

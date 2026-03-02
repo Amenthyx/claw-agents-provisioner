@@ -6,7 +6,7 @@
 #   - Security gate (inbound + outbound)
 #   - Gateway router (:9095)
 #   - Optimizer pipeline (:9091)
-#   - Watchdog health monitor (:9097)
+#   - Watchdog health monitor (:9090)
 #   - Wizard API (:9098)
 #   - Dashboard (:9099)
 #
@@ -91,7 +91,7 @@ EXPOSE 9095
 #   Optimizer
 EXPOSE 9091
 #   Watchdog
-EXPOSE 9097
+EXPOSE 9090
 #   Wizard API
 EXPOSE 9098
 #   Dashboard

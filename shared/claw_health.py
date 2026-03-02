@@ -8,13 +8,20 @@ services and exposes an aggregated health endpoint.  A background thread
 periodically polls each service's /health endpoint and caches the results
 so that API responses are instant.
 
-Services monitored:
-  router       — port 9095  (Live Model Router)
-  memory       — port 9096  (Memory Service)
-  rag          — port 9097  (RAG Service)
-  wizard       — port 9098  (Setup Wizard API)
-  dashboard    — port 9099  (Enterprise Dashboard)
-  orchestrator — port 9100  (Multi-Agent Orchestrator)
+Services monitored (ports resolved via env vars, then port_map.json, then defaults):
+  router       — CLAW_GATEWAY_PORT       (default 9095)  Gateway Router
+  memory       — CLAW_MEMORY_PORT        (default 9096)  Memory Service
+  rag          — CLAW_RAG_PORT           (default 9097)  RAG Service
+  wizard       — CLAW_WIZARD_PORT        (default 9098)  Setup Wizard API
+  dashboard    — CLAW_DASHBOARD_PORT     (default 9099)  Fleet Dashboard
+  orchestrator — CLAW_ORCHESTRATOR_PORT  (default 9100)  Multi-Agent Orchestrator
+  watchdog     — CLAW_WATCHDOG_PORT      (default 9090)  Process Watchdog
+  optimizer    — CLAW_OPTIMIZER_PORT     (default 9091)  Cost Optimizer
+
+Port resolution order:
+  1. data/port_map.json   (dynamic ports written by the deploy pipeline)
+  2. Environment variable (CLAW_*_PORT)
+  3. Hardcoded default
 
 Endpoints:
   GET  /health                — Aggregated health of all services
@@ -65,14 +72,66 @@ CHECK_INTERVAL = int(os.environ.get("CLAW_HEALTH_CHECK_INTERVAL", str(DEFAULT_CH
 # -------------------------------------------------------------------------
 # Service registry — all platform services to monitor
 # -------------------------------------------------------------------------
+# Ports are resolved from environment variables with sensible defaults.
+# A data/port_map.json file (written by the deploy pipeline) can override
+# any port at startup — see _apply_port_map() below.
+# -------------------------------------------------------------------------
 SERVICES: Dict[str, Dict[str, Any]] = {
-    "router":       {"port": 9095, "name": "Live Model Router",        "health_path": "/health"},
-    "memory":       {"port": 9096, "name": "Memory Service",           "health_path": "/health"},
-    "rag":          {"port": 9097, "name": "RAG Service",              "health_path": "/health"},
-    "wizard":       {"port": 9098, "name": "Setup Wizard API",         "health_path": "/health"},
-    "dashboard":    {"port": 9099, "name": "Enterprise Dashboard",     "health_path": "/health"},
-    "orchestrator": {"port": 9100, "name": "Multi-Agent Orchestrator", "health_path": "/health"},
+    "router":       {"port": int(os.environ.get("CLAW_GATEWAY_PORT", "9095")),       "name": "Gateway Router",           "health_path": "/health"},
+    "memory":       {"port": int(os.environ.get("CLAW_MEMORY_PORT", "9096")),        "name": "Memory Service",           "health_path": "/health"},
+    "rag":          {"port": int(os.environ.get("CLAW_RAG_PORT", "9097")),            "name": "RAG Service",              "health_path": "/health"},
+    "wizard":       {"port": int(os.environ.get("CLAW_WIZARD_PORT", "9098")),        "name": "Setup Wizard API",         "health_path": "/health"},
+    "dashboard":    {"port": int(os.environ.get("CLAW_DASHBOARD_PORT", "9099")),     "name": "Fleet Dashboard",          "health_path": "/health"},
+    "orchestrator": {"port": int(os.environ.get("CLAW_ORCHESTRATOR_PORT", "9100")),  "name": "Multi-Agent Orchestrator", "health_path": "/health"},
+    "watchdog":     {"port": int(os.environ.get("CLAW_WATCHDOG_PORT", "9090")),      "name": "Process Watchdog",         "health_path": "/api/status"},
+    "optimizer":    {"port": int(os.environ.get("CLAW_OPTIMIZER_PORT", "9091")),     "name": "Cost Optimizer",           "health_path": "/api/optimizer/status"},
 }
+
+# -------------------------------------------------------------------------
+# Dynamic port discovery — data/port_map.json
+# -------------------------------------------------------------------------
+PORT_MAP_FILE = PROJECT_ROOT / "data" / "port_map.json"
+
+
+def _apply_port_map() -> None:
+    """Override SERVICES ports from data/port_map.json if the file exists.
+
+    Expected format (service-id → port number):
+        {
+            "router": 9095,
+            "memory": 9096,
+            ...
+        }
+
+    Unknown keys are silently ignored; missing keys keep their current value.
+    """
+    if not PORT_MAP_FILE.exists():
+        return
+
+    try:
+        with open(PORT_MAP_FILE) as f:
+            port_map: Dict[str, Any] = json.load(f)
+    except (json.JSONDecodeError, IOError) as exc:
+        # Log but do not crash — fall back to env / defaults
+        print(f"\033[1;33m[health]\033[0m WARNING: could not read {PORT_MAP_FILE}: {exc}",
+              file=sys.stderr)
+        return
+
+    applied = 0
+    for svc_id, port_value in port_map.items():
+        if svc_id in SERVICES:
+            try:
+                SERVICES[svc_id]["port"] = int(port_value)
+                applied += 1
+            except (ValueError, TypeError):
+                pass  # skip non-integer entries
+
+    if applied:
+        print(f"\033[0;32m[health]\033[0m Loaded {applied} port(s) from {PORT_MAP_FILE}")
+
+
+# Apply port map overrides at import time
+_apply_port_map()
 
 # -------------------------------------------------------------------------
 # Colors (for terminal output)
@@ -622,7 +681,8 @@ def show_status() -> None:
                     sc = GREEN if s == "healthy" else (YELLOW if s == "degraded" else RED)
                     rt = svc.get("response_time_ms")
                     rt_str = f"{rt}ms" if rt is not None else "n/a"
-                    print(f"    {svc_id:<14} {sc}{s:<10}{NC}  {DIM}{rt_str}{NC}")
+                    p = svc.get("port", "?")
+                    print(f"    {svc_id:<14} :{p:<6} {sc}{s:<10}{NC}  {DIM}{rt_str}{NC}")
             print()
 
             h = counts.get("healthy", 0)

@@ -83,39 +83,45 @@ HEALTH_CHECK_INTERVAL = 60  # seconds between automatic health sweeps
 # =========================================================================
 #  Known Agent Platforms
 # =========================================================================
+_ZEROCLAW_PORT = int(os.environ.get("CLAW_ZEROCLAW_PORT", "3100"))
+_NANOCLAW_PORT = int(os.environ.get("CLAW_NANOCLAW_PORT", "3200"))
+_PICOCLAW_PORT = int(os.environ.get("CLAW_PICOCLAW_PORT", "3300"))
+_OPENCLAW_PORT = int(os.environ.get("CLAW_OPENCLAW_PORT", "3400"))
+_PARLANT_PORT = int(os.environ.get("CLAW_PARLANT_PORT", "8800"))
+
 KNOWN_AGENTS: Dict[str, Dict[str, Any]] = {
     "zeroclaw": {
         "platform": "zeroclaw",
-        "endpoint": "http://localhost:3100",
-        "port": 3100,
+        "endpoint": f"http://localhost:{_ZEROCLAW_PORT}",
+        "port": _ZEROCLAW_PORT,
         "capabilities": ["general", "rust", "performance", "minimal"],
         "max_load": 10,
     },
     "nanoclaw": {
         "platform": "nanoclaw",
-        "endpoint": "http://localhost:3200",
-        "port": 3200,
+        "endpoint": f"http://localhost:{_NANOCLAW_PORT}",
+        "port": _NANOCLAW_PORT,
         "capabilities": ["coding", "typescript", "claude-native", "dood"],
         "max_load": 10,
     },
     "picoclaw": {
         "platform": "picoclaw",
-        "endpoint": "http://localhost:3300",
-        "port": 3300,
+        "endpoint": f"http://localhost:{_PICOCLAW_PORT}",
+        "port": _PICOCLAW_PORT,
         "capabilities": ["data", "lightweight", "go", "minimal-ram"],
         "max_load": 10,
     },
     "openclaw": {
         "platform": "openclaw",
-        "endpoint": "http://localhost:3400",
-        "port": 3400,
+        "endpoint": f"http://localhost:{_OPENCLAW_PORT}",
+        "port": _OPENCLAW_PORT,
         "capabilities": ["integrations", "nodejs", "plugins", "50-tools"],
         "max_load": 10,
     },
     "parlant": {
         "platform": "parlant",
-        "endpoint": "http://localhost:8800",
-        "port": 8800,
+        "endpoint": f"http://localhost:{_PARLANT_PORT}",
+        "port": _PARLANT_PORT,
         "capabilities": ["guidelines", "python", "mcp", "conversational"],
         "max_load": 10,
     },

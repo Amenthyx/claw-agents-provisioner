@@ -1,0 +1,49 @@
+{
+  "id": "claw_zeroclaw_1772340358",
+  "name": "xxx",
+  "platform": "zeroclaw",
+  "container_name": "xclaw-xxx",
+  "container_id": "6e9926decd18",
+  "image": "xclaw:zeroclaw",
+  "agent_port": 3112,
+  "gateway_port": 9095,
+  "optimizer_port": 9091,
+  "watchdog_port": 9090,
+  "llm_provider": "local",
+  "runtime": "ollama",
+  "security_enabled": true,
+  "security_features": [
+    "content-rules"
+  ],
+  "selected_models": [
+    "deepseek-r1:7b",
+    "llama3.2:3b",
+    "qwen3:1.7b"
+  ],
+  "strategy": {
+    "optimization": "balanced",
+    "rules": [
+      {
+        "taskCategory": "chat",
+        "primaryModel": "llama3.2:3b",
+        "fallbackModel": "qwen3:1.7b"
+      }
+    ]
+  },
+  "cloud_providers": [],
+  "gateway": {
+    "port": 9095,
+    "rateLimit": 120
+  },
+  "storage": {
+    "engine": "sqlite"
+  },
+  "channels": {
+    "telegram": {
+      "chatId": "-1005199841004",
+      "botToken": "8407043259:AAEfGWY19jnqU_lWUuzYujB_kj8T7uX5uPw"
+    }
+  },
+  "created_at": "2026-03-01T04:45:58Z",
+  "status": "removed"
+}

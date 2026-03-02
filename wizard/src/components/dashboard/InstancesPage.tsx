@@ -71,7 +71,7 @@ export function InstancesPage() {
   const [instName, setInstName] = useState('');
   const [instHost, setInstHost] = useState('');
   const [instWizPort, setInstWizPort] = useState('9098');
-  const [instWdPort, setInstWdPort] = useState('9097');
+  const [instWdPort, setInstWdPort] = useState('9090');
 
   // Claw form
   const [clawName, setClawName] = useState('');
@@ -91,7 +91,7 @@ export function InstancesPage() {
       setData({
         instances: [{
           id: 'inst_local', name: 'Local Dev', host: 'localhost',
-          wizard_port: 9098, watchdog_port: 9097,
+          wizard_port: 9098, watchdog_port: 9090,
           agent_ports: { zeroclaw: 3100, nanoclaw: 3200, picoclaw: 3300, openclaw: 3400, parlant: 8800 },
           is_self: true,
         }],
@@ -126,7 +126,7 @@ export function InstancesPage() {
       name: instName,
       host: instHost,
       wizard_port: parseInt(instWizPort) || 9098,
-      watchdog_port: parseInt(instWdPort) || 9097,
+      watchdog_port: parseInt(instWdPort) || 9090,
       agent_ports: Object.fromEntries(PLATFORMS.map((p) => [p.id, p.port])),
     };
     const updated = { ...data, instances: [...data.instances, newInst] };
@@ -380,7 +380,7 @@ export function InstancesPage() {
             <Input label="Name" placeholder="Production Server" value={instName} onChange={(e) => setInstName(e.target.value)} />
             <Input label="Host" placeholder="192.168.1.100" value={instHost} onChange={(e) => setInstHost(e.target.value)} />
             <Input label="Wizard Port" placeholder="9098" value={instWizPort} onChange={(e) => setInstWizPort(e.target.value)} />
-            <Input label="Watchdog Port" placeholder="9097" value={instWdPort} onChange={(e) => setInstWdPort(e.target.value)} />
+            <Input label="Watchdog Port" placeholder="9090" value={instWdPort} onChange={(e) => setInstWdPort(e.target.value)} />
           </div>
           <div className="flex gap-2">
             <Button size="sm" onClick={handleAddInstance}>Add Instance</Button>
@@ -517,7 +517,7 @@ export function InstancesPage() {
   │    └───────────────────────────────────────────────────┘            │
   │                        │                                             │
   │               ┌────────┴─────────┐    ┌──────────────────────┐      │
-  │               │  Security Gate   │    │  Watchdog (:9097)    │      │
+  │               │  Security Gate   │    │  Watchdog (:9090)    │      │
   │               │  (outbound)      │    │  - Health checks     │      │
   │               │  - PII redact    │    │  - Auto-restart      │      │
   │               │  - Secret mask   │    │  - Metrics           │      │

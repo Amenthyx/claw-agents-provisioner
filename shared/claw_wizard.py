@@ -72,19 +72,19 @@ NC = "\033[0m"
 
 PLATFORMS = [
     {"id": "zeroclaw", "name": "ZeroClaw", "language": "Rust",
-     "memory": "512 MB", "port": 3100,
+     "memory": "512 MB", "port": int(os.environ.get("CLAW_ZEROCLAW_PORT", "3100")),
      "description": "High-performance minimal agent"},
     {"id": "nanoclaw", "name": "NanoClaw", "language": "TypeScript",
-     "memory": "1 GB", "port": 3200,
+     "memory": "1 GB", "port": int(os.environ.get("CLAW_NANOCLAW_PORT", "3200")),
      "description": "Claude-native with Docker-out-of-Docker"},
     {"id": "picoclaw", "name": "PicoClaw", "language": "Go",
-     "memory": "128 MB", "port": 3300,
+     "memory": "128 MB", "port": int(os.environ.get("CLAW_PICOCLAW_PORT", "3300")),
      "description": "Ultra-lightweight data agent"},
     {"id": "openclaw", "name": "OpenClaw", "language": "Node.js",
-     "memory": "4 GB", "port": 3400,
+     "memory": "4 GB", "port": int(os.environ.get("CLAW_OPENCLAW_PORT", "3400")),
      "description": "50+ integrations, maximum extensibility"},
     {"id": "parlant", "name": "Parlant", "language": "Python",
-     "memory": "2 GB", "port": 8800,
+     "memory": "2 GB", "port": int(os.environ.get("CLAW_PARLANT_PORT", "8800")),
      "description": "Guidelines-driven with MCP support"},
 ]
 
