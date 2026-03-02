@@ -1548,12 +1548,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 
                 html += '</div>' +
                     '<div class="card-actions">' +
-                    '<button class="btn btn-start" onclick="agentAction(\'' + a.id + '\',\'start\')"' +
+                    '<button class="btn btn-start" onclick="agentAction(\\'' + a.id + '\\',\\'start\\')"' +
                     (isRunning ? ' disabled' : '') + '>Start</button>' +
-                    '<button class="btn btn-stop" onclick="agentAction(\'' + a.id + '\',\'stop\')"' +
+                    '<button class="btn btn-stop" onclick="agentAction(\\'' + a.id + '\\',\\'stop\\')"' +
                     (!isRunning ? ' disabled' : '') + '>Stop</button>' +
-                    '<button class="btn btn-restart" onclick="agentAction(\'' + a.id + '\',\'restart\')">Restart</button>' +
-                    '<button class="btn" onclick="showAgentLogs(\'' + a.id + '\',\'' + a.name + '\')" ' +
+                    '<button class="btn btn-restart" onclick="agentAction(\\'' + a.id + '\\',\\'restart\\')">Restart</button>' +
+                    '<button class="btn" onclick="showAgentLogs(\\'' + a.id + '\\',\\'' + a.name + '\\')" ' +
                     'style="background:var(--bg-secondary);color:var(--text-secondary);border:1px solid var(--border)">Logs</button>' +
                     '</div></div>';
             });
@@ -1633,7 +1633,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
             overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
             var html = '<div class="modal-content">' +
                 '<div class="modal-header"><h3>Logs: ' + agentName + '</h3>' +
-                '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">&times;</button></div>' +
+                '<button class="modal-close" onclick="this.closest(\\'.modal-overlay\\').remove()">&times;</button></div>' +
                 '<div class="modal-body"><div class="log-viewer">';
             if (!logs || !logs.length) {
                 html += '<div class="log-line log-info">No log entries found.</div>';
@@ -2437,7 +2437,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
             var sparkData = _clawSparklines[c.id];
             var maxSpark = Math.max.apply(null, sparkData.concat([1]));
 
-            html += '<div class="claw-mini" onclick="showClawDetail(\'' + c.id + '\')">' +
+            html += '<div class="claw-mini" onclick="showClawDetail(\\'' + c.id + '\\')">' +
                 '<div class="claw-mini-header">' +
                 '<span class="claw-mini-name">' + escHtml(c.name || c.id) + '</span>' +
                 '<span class="claw-mini-dot ' + (isRunning ? 'running' : 'stopped') + '"></span></div>' +
@@ -2522,7 +2522,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
             var html = '<div class="modal-content">' +
                 '<div class="modal-header"><h3>' + escHtml(data.name || data.claw_id) +
                 ' <span style="color:' + statusColor + ';font-size:12px">' + (data.status || 'unknown') + '</span></h3>' +
-                '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">&times;</button></div>' +
+                '<button class="modal-close" onclick="this.closest(\\'.modal-overlay\\').remove()">&times;</button></div>' +
                 '<div class="modal-body">';
 
             // Stats cards
