@@ -1,0 +1,361 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "Claw Agents Provisioner -- Per-Service Detail Dashboard",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": ["claw"],
+      "title": "Platform Overview",
+      "type": "dashboards"
+    }
+  ],
+  "liveNow": false,
+  "panels": [
+    {
+      "title": "Service: $service",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "title": "Status",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "up{job=~\"$service\"}",
+          "legendFormat": "Status"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ]
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Request Rate",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(claw_router_request_count{job=~\"$service\"}[5m]))",
+          "legendFormat": "req/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [{ "color": "blue", "value": null }]
+          },
+          "unit": "reqps",
+          "decimals": 2
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Error Rate",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(claw_router_error_count{job=~\"$service\"}[5m])) / sum(rate(claw_router_request_count{job=~\"$service\"}[5m])) * 100",
+          "legendFormat": "Error %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "unit": "percent",
+          "decimals": 2
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Avg Latency",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rate(claw_router_request_duration_seconds_sum{job=~\"$service\"}[5m]) / rate(claw_router_request_duration_seconds_count{job=~\"$service\"}[5m])",
+          "legendFormat": "Avg"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "red", "value": 2 }
+            ]
+          },
+          "unit": "s",
+          "decimals": 3
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Uptime",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "claw_router_uptime_seconds{job=~\"$service\"}",
+          "legendFormat": "Uptime"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [{ "color": "blue", "value": null }]
+          },
+          "unit": "dtdurations"
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Request Rate Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(claw_router_request_count{job=~\"$service\"}[5m]))",
+          "legendFormat": "HTTP {{ status }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "drawStyle": "line",
+            "showPoints": "never",
+            "stacking": { "mode": "normal" }
+          },
+          "unit": "reqps"
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "sum"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "title": "Latency Distribution",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(claw_router_request_duration_seconds_bucket{job=~\"$service\"}[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.90, sum by (le) (rate(claw_router_request_duration_seconds_bucket{job=~\"$service\"}[5m])))",
+          "legendFormat": "p90"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(claw_router_request_duration_seconds_bucket{job=~\"$service\"}[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(claw_router_request_duration_seconds_bucket{job=~\"$service\"}[5m])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "drawStyle": "line",
+            "showPoints": "never"
+          },
+          "unit": "s"
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "title": "Error Rate Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(claw_router_error_count{job=~\"$service\"}[5m]))",
+          "legendFormat": "HTTP {{ status }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 30,
+            "drawStyle": "bars",
+            "showPoints": "never"
+          },
+          "unit": "reqps"
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "sum"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "title": "Active Connections",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "claw_router_active_connections{job=~\"$service\"}",
+          "legendFormat": "{{ instance }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "drawStyle": "line",
+            "showPoints": "never"
+          },
+          "unit": "short"
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "title": "Logs",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 21 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "{container_name=~\".*$service.*\"}",
+          "legendFormat": ""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["claw", "services"],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "claw-router",
+          "value": "claw-router"
+        },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(up, job)",
+        "description": "Select a Claw service",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Service",
+        "multi": false,
+        "name": "service",
+        "options": [],
+        "query": {
+          "query": "label_values(up, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "/claw-.*/",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "Claw Service Details",
+  "uid": "claw-services",
+  "version": 1
+}

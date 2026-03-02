@@ -1,0 +1,553 @@
+# =============================================================================
+# Claw Agents Provisioner -- Production Docker Compose
+# =============================================================================
+# Hardened production configuration with:
+#   - TLS proxy (nginx with Let's Encrypt)
+#   - Log drivers with rotation (json-file, 10MB x 5 files)
+#   - Restart policies (unless-stopped on all services)
+#   - Resource limits (memory + CPU reservations)
+#   - Named volumes for data persistence
+#   - Health checks on all services
+#   - Secrets management via env files (or vault override)
+#   - Profile-gated service groups
+#
+# Quick start:
+#   docker compose -f docker-compose.production.yml --profile production \
+#     --profile zeroclaw up -d
+#
+# With monitoring:
+#   docker compose -f docker-compose.production.yml --profile production \
+#     --profile zeroclaw --profile monitoring up -d
+#
+# TLS setup (first time):
+#   ./scripts/init-letsencrypt.sh claw.example.com admin@example.com
+#
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # INFRASTRUCTURE SERVICES (--profile production)
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # Nginx TLS Reverse Proxy
+  # ---------------------------------------------------------------------------
+  nginx-proxy:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    container_name: claw-nginx
+    profiles:
+      - production
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - nginx-certs:/etc/nginx/ssl
+      - nginx-certbot:/var/www/certbot
+      - nginx-logs:/var/log/nginx
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "1.0"
+        reservations:
+          memory: 32M
+          cpus: "0.1"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
+
+  # ---------------------------------------------------------------------------
+  # Health Aggregator -- Unified health check for all platform services
+  # ---------------------------------------------------------------------------
+  health-aggregator:
+    image: python:3.11-slim
+    container_name: claw-health
+    profiles:
+      - production
+    env_file:
+      - .env
+    environment:
+      CLAW_HEALTH_CHECK_INTERVAL: ${CLAW_HEALTH_CHECK_INTERVAL:-30}
+    volumes:
+      - ./shared/claw_health.py:/app/claw_health.py:ro
+    working_dir: /app
+    command: ["python3", "claw_health.py", "--start", "--port", "9094"]
+    ports:
+      - "${CLAW_HEALTH_PORT:-9094}:9094"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
+        reservations:
+          memory: 16M
+          cpus: "0.05"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9094/health', timeout=3)\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
+
+  # ===========================================================================
+  # AGENT SERVICES (profile-gated per agent type)
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # ZeroClaw -- Rust-based AI Agent
+  # Memory: ~8 MB idle, ~100 MB active | Limit: 512 MB
+  # ---------------------------------------------------------------------------
+  zeroclaw:
+    build:
+      context: ./zeroclaw
+      dockerfile: Dockerfile
+    profiles:
+      - zeroclaw
+    env_file:
+      - .env
+    volumes:
+      - zeroclaw-data:/home/zeroclaw/.zeroclaw
+      - ./zeroclaw/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    ports:
+      - "${CLAW_ZEROCLAW_PORT:-3100}:3100"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 64M
+          cpus: "0.1"
+    healthcheck:
+      test: ["CMD", "zeroclaw", "doctor"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
+
+  # ---------------------------------------------------------------------------
+  # NanoClaw -- TypeScript AI Agent with container isolation (DooD)
+  # Memory: ~120 MB idle, ~500 MB active | Limit: 1 GB
+  # ---------------------------------------------------------------------------
+  nanoclaw:
+    build:
+      context: ./nanoclaw
+      dockerfile: Dockerfile
+    profiles:
+      - nanoclaw
+    env_file:
+      - .env
+    volumes:
+      - nanoclaw-data:/home/nanoclaw/.nanoclaw
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./nanoclaw/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    ports:
+      - "${CLAW_NANOCLAW_PORT:-3200}:3200"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "2.0"
+        reservations:
+          memory: 128M
+          cpus: "0.2"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3200/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
+
+  # ---------------------------------------------------------------------------
+  # PicoClaw -- Go-based AI Agent (ultra-lightweight, edge/IoT)
+  # Memory: ~8 MB idle, ~30 MB active | Limit: 128 MB
+  # ---------------------------------------------------------------------------
+  picoclaw:
+    build:
+      context: ./picoclaw
+      dockerfile: Dockerfile
+    profiles:
+      - picoclaw
+    env_file:
+      - .env
+    volumes:
+      - picoclaw-data:/home/picoclaw/.picoclaw
+      - ./picoclaw/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    ports:
+      - "${CLAW_PICOCLAW_PORT:-3300}:3300"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
+        reservations:
+          memory: 16M
+          cpus: "0.05"
+    healthcheck:
+      test: ["CMD", "picoclaw", "agent", "-m", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
+
+  # ---------------------------------------------------------------------------
+  # OpenClaw -- TypeScript/Node.js AI Agent (feature-rich, heavy)
+  # Memory: ~1.2 GB idle, ~4 GB active | Limit: 4 GB
+  # ---------------------------------------------------------------------------
+  openclaw:
+    build:
+      context: ./openclaw
+      dockerfile: Dockerfile
+    profiles:
+      - openclaw
+    env_file:
+      - .env
+    volumes:
+      - openclaw-data:/home/openclaw/.openclaw
+      - ./openclaw/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    ports:
+      - "${CLAW_OPENCLAW_PORT:-3400}:3400"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "4.0"
+        reservations:
+          memory: 1G
+          cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "openclaw", "doctor"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
+
+  # ---------------------------------------------------------------------------
+  # Parlant -- Python Guideline-Driven Conversational AI
+  # Memory: ~200 MB idle, ~2 GB active | Limit: 2 GB
+  # ---------------------------------------------------------------------------
+  parlant:
+    build:
+      context: ./parlant
+      dockerfile: Dockerfile
+    profiles:
+      - parlant
+    env_file:
+      - .env
+    volumes:
+      - parlant-data:/home/parlant/.parlant
+      - ./parlant/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/usr/bin/tini", "--", "/entrypoint.sh"]
+    ports:
+      - "${CLAW_PARLANT_PORT:-8800}:8800"
+      - "${CLAW_PARLANT_MCP_PORT:-8181}:8181"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+        reservations:
+          memory: 256M
+          cpus: "0.2"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8800/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL -- Optional shared database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: claw-postgres
+    profiles:
+      - postgres
+    environment:
+      POSTGRES_USER: ${CLAW_POSTGRES_USER:-xclaw}
+      POSTGRES_PASSWORD: ${CLAW_POSTGRES_PASSWORD:-xclaw}
+      POSTGRES_DB: ${CLAW_POSTGRES_DB:-xclaw}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${CLAW_POSTGRES_PORT:-5432}:5432"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 64M
+          cpus: "0.1"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CLAW_POSTGRES_USER:-xclaw}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
+
+  # ===========================================================================
+  # MONITORING STACK (--profile monitoring)
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # Prometheus -- Metrics Collection & Alerting
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: claw-prometheus
+    profiles:
+      - monitoring
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9092:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
+          cpus: "0.1"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "{{.Name}}"
+
+  # ---------------------------------------------------------------------------
+  # Grafana -- Dashboards & Visualization
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: claw-grafana
+    profiles:
+      - monitoring
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: "${GRAFANA_ROOT_URL:-http://localhost:3000}"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 64M
+          cpus: "0.1"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "{{.Name}}"
+
+  # ---------------------------------------------------------------------------
+  # Loki -- Log Aggregation
+  # ---------------------------------------------------------------------------
+  loki:
+    image: grafana/loki:latest
+    container_name: claw-loki
+    profiles:
+      - monitoring
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    ports:
+      - "3100:3100"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 64M
+          cpus: "0.1"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3100/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "{{.Name}}"
+
+  # ---------------------------------------------------------------------------
+  # Promtail -- Log Collector
+  # ---------------------------------------------------------------------------
+  promtail:
+    image: grafana/promtail:latest
+    container_name: claw-promtail
+    profiles:
+      - monitoring
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: ["-config.file=/etc/promtail/config.yml"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 32M
+          cpus: "0.05"
+    restart: unless-stopped
+    depends_on:
+      loki:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "{{.Name}}"
+
+# =============================================================================
+# NAMED VOLUMES
+# =============================================================================
+volumes:
+  # Infrastructure
+  nginx-certs:
+  nginx-certbot:
+  nginx-logs:
+
+  # Agent data
+  zeroclaw-data:
+  nanoclaw-data:
+  picoclaw-data:
+  openclaw-data:
+  parlant-data:
+
+  # Database
+  postgres-data:
+
+  # Monitoring
+  prometheus-data:
+  grafana-data:
+  loki-data:
