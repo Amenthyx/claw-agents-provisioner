@@ -86,8 +86,15 @@ Co-Authored-By: <role> <email>
 | # | Date | Hash | Type(Scope) | Message | Milestone | Author |
 |---|------|------|-------------|---------|-----------|--------|
 | 17 | 2026-03-02 | c7286cb | docs(strategy) | Add production-readiness strategy (STRATEGY.md) for v2.0 | M7-M12 | PM |
-| 18 | 2026-03-02 | a38198f | chore(team) | Add cost estimation for v2.0 production hardening | M7-M12 | PM |
+| 18 | 2026-03-02 | a38198f | chore(team) | Add cost estimation for v2.0 production hardening [Wave 0] | M7-M12 | PM |
 | 19 | 2026-03-02 | 4ff2104 | docs(pm) | Update planning artifacts for v2.0 production hardening [Wave 1] | M7-M12 | PM |
+| 20 | 2026-03-02 | 56819d4 | docs(pm) | Update commit log with actual hash for Wave 1 entry | M7 | PM |
+| 21 | 2026-03-02 | 9eba016 | feat(devops) | Add production compose, TLS proxy, monitoring stack, backup/restore [Wave 2 - DEVOPS] | M8, M11 | DEVOPS |
+| 22 | 2026-03-02 | 7c8b945 | feat(frontend) | Add wizard UI tests, accessibility audit, build optimization [Wave 2 - FE] | M7, M10 | FE |
+| 23 | 2026-03-02 | b3033e5 | feat(tests) | Add integration tests, E2E tests, and migration system [Wave 2 - BE] | M7, M8 | BE |
+| 24 | 2026-03-02 | f1db77a | feat(qa) | Add k6 load tests, test evidence, QA sign-off [Wave 3 - QA] | M9, M12 | QA |
+| 25 | 2026-03-02 | b666a96 | docs(release) | Add release checklist, changelog, rollback procedures [Wave 4 - RM] | M12 | RM |
+| 26 | 2026-03-02 | 46e28d6 | fix(tests) | Resolve DAL singleton test isolation issue (BUG-001) [Wave 3.5] | M7 | BE |
 
 ---
 
@@ -99,5 +106,13 @@ Co-Authored-By: <role> <email>
 
 ---
 
+### v2.0 Wave 5 Final Commits
+
+| # | Date | Hash | Type(Scope) | Message | Milestone | Author |
+|---|------|------|-------------|---------|-----------|--------|
+| 27 | 2026-03-02 | (this) | docs(pm) | Final reports, evidence summary, close milestones [Wave 5 - PM Final] | M12 | PM |
+
+---
+
 *Commit Log v2.0 -- Claw Agents Provisioner -- Amenthyx AI Teams v3.0*
-*Updated 2026-03-02 for v2.0 production hardening*
+*Updated 2026-03-02 for v2.0 production hardening -- FINAL*
