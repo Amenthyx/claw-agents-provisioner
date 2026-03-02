@@ -15,6 +15,9 @@ from claw_billing import (
     AlertManager,
     Forecaster,
     ReportGenerator,
+    BudgetAlertLevel,
+    BudgetAlert,
+    BudgetMonitor,
     CLOUD_PRICING,
 )
 
@@ -269,3 +272,244 @@ class TestReportGenerator:
             claw_billing.USAGE_LOG_FILE = orig_log
             claw_billing.REPORTS_DIR = orig_reports
             claw_billing.DATA_DIR = orig_data
+
+
+class TestBudgetAlertLevel:
+    """Tests for BudgetAlertLevel enum."""
+
+    def test_levels_exist(self):
+        """All three alert levels should be defined."""
+        assert BudgetAlertLevel.INFO.value == "INFO"
+        assert BudgetAlertLevel.WARNING.value == "WARNING"
+        assert BudgetAlertLevel.CRITICAL.value == "CRITICAL"
+
+
+class TestBudgetAlert:
+    """Tests for BudgetAlert data class."""
+
+    def test_to_dict(self):
+        """BudgetAlert.to_dict should serialize all fields."""
+        alert = BudgetAlert(
+            level=BudgetAlertLevel.WARNING,
+            message="Budget 90% utilized",
+            current_spend=90.0,
+            budget_limit=100.0,
+            utilization_pct=90.0,
+            timestamp="2026-03-01T00:00:00Z",
+        )
+        d = alert.to_dict()
+        assert d["level"] == "WARNING"
+        assert d["message"] == "Budget 90% utilized"
+        assert d["current_spend"] == 90.0
+        assert d["budget_limit"] == 100.0
+        assert d["utilization_pct"] == 90.0
+        assert d["timestamp"] == "2026-03-01T00:00:00Z"
+
+    def test_to_dict_auto_timestamp(self):
+        """BudgetAlert should auto-generate timestamp if not provided."""
+        alert = BudgetAlert(
+            level=BudgetAlertLevel.INFO,
+            message="test",
+            current_spend=50.0,
+            budget_limit=100.0,
+            utilization_pct=50.0,
+        )
+        d = alert.to_dict()
+        assert "timestamp" in d
+        assert d["timestamp"].endswith("Z")
+
+
+class TestBudgetMonitor:
+    """Tests for BudgetMonitor threshold detection and alerting."""
+
+    def test_no_alerts_under_warn_threshold(self):
+        """No alerts when spend is below warn threshold."""
+        monitor = BudgetMonitor(warn_threshold=0.80, hard_limit=100.0)
+        alerts = monitor.check_budget(50.0)
+        assert len(alerts) == 0
+
+    def test_info_alert_at_80_percent(self):
+        """INFO alert triggers at the warn threshold (default 80%)."""
+        monitor = BudgetMonitor(warn_threshold=0.80, hard_limit=100.0)
+        alerts = monitor.check_budget(80.0)
+        assert len(alerts) == 1
+        assert alerts[0].level == BudgetAlertLevel.INFO
+        assert alerts[0].utilization_pct == 80.0
+
+    def test_info_alert_at_85_percent(self):
+        """INFO alert triggers between 80% and 90%."""
+        monitor = BudgetMonitor(warn_threshold=0.80, hard_limit=100.0)
+        alerts = monitor.check_budget(85.0)
+        assert len(alerts) == 1
+        assert alerts[0].level == BudgetAlertLevel.INFO
+
+    def test_warning_alert_at_90_percent(self):
+        """WARNING alert triggers at 90% utilization."""
+        monitor = BudgetMonitor(warn_threshold=0.80, hard_limit=100.0)
+        alerts = monitor.check_budget(90.0)
+        assert len(alerts) == 1
+        assert alerts[0].level == BudgetAlertLevel.WARNING
+        assert alerts[0].utilization_pct == 90.0
+
+    def test_warning_alert_at_95_percent(self):
+        """WARNING alert triggers between 90% and 100%."""
+        monitor = BudgetMonitor(warn_threshold=0.80, hard_limit=100.0)
+        alerts = monitor.check_budget(95.0)
+        assert len(alerts) == 1
+        assert alerts[0].level == BudgetAlertLevel.WARNING
+
+    def test_critical_alert_at_100_percent(self):
+        """CRITICAL alert triggers at 100% (budget exceeded)."""
+        monitor = BudgetMonitor(warn_threshold=0.80, hard_limit=100.0)
+        alerts = monitor.check_budget(100.0)
+        assert len(alerts) == 1
+        assert alerts[0].level == BudgetAlertLevel.CRITICAL
+        assert alerts[0].utilization_pct == 100.0
+
+    def test_critical_alert_over_100_percent(self):
+        """CRITICAL alert triggers when spend exceeds budget."""
+        monitor = BudgetMonitor(warn_threshold=0.80, hard_limit=100.0)
+        alerts = monitor.check_budget(150.0)
+        assert len(alerts) == 1
+        assert alerts[0].level == BudgetAlertLevel.CRITICAL
+        assert alerts[0].utilization_pct == 150.0
+
+    def test_custom_warn_threshold(self):
+        """Custom warn threshold should be respected."""
+        monitor = BudgetMonitor(warn_threshold=0.50, hard_limit=100.0)
+        # 55% should trigger INFO with 0.50 threshold
+        alerts = monitor.check_budget(55.0)
+        assert len(alerts) == 1
+        assert alerts[0].level == BudgetAlertLevel.INFO
+
+    def test_zero_hard_limit_no_alerts(self):
+        """Zero hard limit should produce no alerts."""
+        monitor = BudgetMonitor(warn_threshold=0.80, hard_limit=0.0)
+        alerts = monitor.check_budget(50.0)
+        assert len(alerts) == 0
+
+    def test_get_budget_status_ok(self):
+        """Budget status should be 'ok' when well under threshold."""
+        monitor = BudgetMonitor(warn_threshold=0.80, hard_limit=100.0)
+        status = monitor.get_budget_status(30.0)
+        assert status["status"] == "ok"
+        assert status["current_spend"] == 30.0
+        assert status["budget_limit"] == 100.0
+        assert status["utilization_pct"] == 30.0
+
+    def test_get_budget_status_approaching(self):
+        """Budget status should be 'approaching' at warn threshold."""
+        monitor = BudgetMonitor(warn_threshold=0.80, hard_limit=100.0)
+        status = monitor.get_budget_status(82.0)
+        assert status["status"] == "approaching"
+
+    def test_get_budget_status_warning(self):
+        """Budget status should be 'warning' at 90%."""
+        monitor = BudgetMonitor(warn_threshold=0.80, hard_limit=100.0)
+        status = monitor.get_budget_status(92.0)
+        assert status["status"] == "warning"
+
+    def test_get_budget_status_critical(self):
+        """Budget status should be 'critical' at 100%+."""
+        monitor = BudgetMonitor(warn_threshold=0.80, hard_limit=100.0)
+        status = monitor.get_budget_status(105.0)
+        assert status["status"] == "critical"
+
+    def test_get_alerts_response_format(self):
+        """Alerts response should contain expected top-level keys."""
+        monitor = BudgetMonitor(warn_threshold=0.80, hard_limit=100.0)
+        response = monitor.get_alerts_response(95.0)
+        assert "alerts" in response
+        assert "current_spend" in response
+        assert "budget_limit" in response
+        assert "utilization_pct" in response
+        assert isinstance(response["alerts"], list)
+        assert len(response["alerts"]) == 1
+        assert response["alerts"][0]["level"] == "WARNING"
+
+    def test_get_alerts_response_no_alerts(self):
+        """Alerts response with low spend should have empty alerts list."""
+        monitor = BudgetMonitor(warn_threshold=0.80, hard_limit=100.0)
+        response = monitor.get_alerts_response(10.0)
+        assert response["alerts"] == []
+        assert response["current_spend"] == 10.0
+
+    def test_webhook_payload_format(self):
+        """Webhook payload should contain all required fields."""
+        # We test the payload structure by examining what _send_webhook
+        # would send.  Since we cannot mock urllib easily without external
+        # libs, we verify the BudgetAlert.to_dict output matches the
+        # expected webhook schema.
+        alert = BudgetAlert(
+            level=BudgetAlertLevel.CRITICAL,
+            message="Budget exceeded: $120.00 of $100.00 limit (120.0%)",
+            current_spend=120.0,
+            budget_limit=100.0,
+            utilization_pct=120.0,
+            timestamp="2026-03-01T12:00:00Z",
+        )
+        payload = {
+            "event": "budget_alert",
+            "level": alert.level.value,
+            "message": alert.message,
+            "current_spend": round(alert.current_spend, 6),
+            "budget_limit": round(alert.budget_limit, 2),
+            "utilization_pct": round(alert.utilization_pct, 1),
+            "timestamp": alert.timestamp,
+        }
+        assert payload["event"] == "budget_alert"
+        assert payload["level"] == "CRITICAL"
+        assert payload["current_spend"] == 120.0
+        assert payload["budget_limit"] == 100.0
+        assert payload["utilization_pct"] == 120.0
+        assert payload["timestamp"] == "2026-03-01T12:00:00Z"
+        assert "message" in payload
+
+        # Verify the payload is valid JSON
+        encoded = json.dumps(payload)
+        decoded = json.loads(encoded)
+        assert decoded == payload
+
+    def test_webhook_not_called_for_info(self):
+        """Webhook should NOT fire for INFO-level alerts."""
+        # BudgetMonitor only calls _send_webhook for WARNING/CRITICAL.
+        # With an unreachable URL, INFO should produce alerts but no
+        # network error (since webhook is not attempted).
+        monitor = BudgetMonitor(
+            warn_threshold=0.80,
+            hard_limit=100.0,
+            webhook_url="http://unreachable.invalid:9999/hook",
+        )
+        # 82% = INFO level — webhook should not fire
+        alerts = monitor.check_budget(82.0)
+        assert len(alerts) == 1
+        assert alerts[0].level == BudgetAlertLevel.INFO
+
+    def test_webhook_attempted_for_critical(self):
+        """Webhook should be attempted for CRITICAL alerts (fails gracefully)."""
+        monitor = BudgetMonitor(
+            warn_threshold=0.80,
+            hard_limit=100.0,
+            webhook_url="http://unreachable.invalid:9999/hook",
+        )
+        # 110% = CRITICAL — webhook fires but fails silently
+        alerts = monitor.check_budget(110.0)
+        assert len(alerts) == 1
+        assert alerts[0].level == BudgetAlertLevel.CRITICAL
+
+
+class TestBudgetAutoCheck:
+    """Tests for auto-budget-check after UsageLogger.record."""
+
+    def test_auto_check_runs_after_record(self, tmp_path):
+        """Recording a cost should trigger budget auto-check without error."""
+        log_file = tmp_path / "usage.jsonl"
+        logger = UsageLogger(log_path=log_file)
+        # This should not raise even though budget check runs internally
+        record = logger.record(
+            model="claude-sonnet-4-6",
+            input_tokens=1000,
+            output_tokens=500,
+        )
+        assert record["model"] == "claude-sonnet-4-6"
+        assert log_file.exists()

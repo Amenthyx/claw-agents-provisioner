@@ -61,6 +61,8 @@ except ImportError:
 
 import base64
 
+from claw_audit import get_audit_logger
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Constants
@@ -212,7 +214,7 @@ class VaultFile:
                 os.replace(tmp_path, str(self.path))
             else:
                 os.rename(tmp_path, str(self.path))
-        except Exception:
+        except (OSError, ValueError):
             os.close(fd) if not os.get_inheritable(fd) else None
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
@@ -367,6 +369,13 @@ def cmd_init(args):
     SecretStore.create_empty(vf, password)
     logger.info(f"Vault created: {vf.path}")
 
+    audit = get_audit_logger()
+    audit.log_config_change(
+        action="vault_init",
+        resource=str(vf.path),
+        outcome="success",
+    )
+
 
 def cmd_set(args):
     """Store a single key-value pair."""
@@ -374,6 +383,13 @@ def cmd_set(args):
     store.set(args.key, args.value)
     store.save()
     logger.info(f"Secret stored: {args.key}")
+
+    audit = get_audit_logger()
+    audit.log_data_access(
+        action="vault_set",
+        resource=args.key,
+        outcome="success",
+    )
 
 
 def cmd_get(args):
@@ -383,7 +399,20 @@ def cmd_get(args):
         value = store.get(args.key)
         # Print raw value (no logging prefix) for piping
         print(value)
+        audit = get_audit_logger()
+        audit.log_data_access(
+            action="vault_get",
+            resource=args.key,
+            outcome="success",
+        )
     except KeyError:
+        audit = get_audit_logger()
+        audit.log_data_access(
+            action="vault_get",
+            resource=args.key,
+            outcome="failure",
+            details={"reason": "not_found"},
+        )
         logger.error(f"Secret not found: {args.key}")
         sys.exit(1)
 
@@ -406,7 +435,21 @@ def cmd_delete(args):
         store.delete(args.key)
         store.save()
         logger.info(f"Secret deleted: {args.key}")
+
+        audit = get_audit_logger()
+        audit.log_data_access(
+            action="vault_delete",
+            resource=args.key,
+            outcome="success",
+        )
     except KeyError:
+        audit = get_audit_logger()
+        audit.log_data_access(
+            action="vault_delete",
+            resource=args.key,
+            outcome="failure",
+            details={"reason": "not_found"},
+        )
         logger.error(f"Secret not found: {args.key}")
         sys.exit(1)
 
@@ -506,7 +549,7 @@ def cmd_inject(args):
             else:
                 os.rename(tmp_path, str(secret_path))
             count += 1
-        except Exception:
+        except (OSError, ValueError):
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
             raise
@@ -550,6 +593,14 @@ def cmd_rotate(args):
     store.re_encrypt(new_password)
     logger.info(f"Vault password rotated: {vf.path}")
     logger.info(f"Secrets preserved: {len(store)} keys unchanged")
+
+    audit = get_audit_logger()
+    audit.log_security_event(
+        action="vault_rotate",
+        resource=str(vf.path),
+        outcome="success",
+        details={"keys_preserved": len(store)},
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

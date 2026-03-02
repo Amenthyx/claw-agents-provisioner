@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Cloud, Check, Cpu, MemoryStick } from 'lucide-react';
+import { AlertTriangle, Cloud, Check, Cpu, MemoryStick, Zap } from 'lucide-react';
 import { useWizard } from '../../state/context';
 import { MODELS as FALLBACK_MODELS } from '../../data/models';
 import { api } from '../../lib/api';
+import { estimateTokensPerSecond } from '../../lib/token-estimate';
+import type { TokenEstimate } from '../../lib/token-estimate';
 import { Badge } from '../ui/Badge';
 import { Progress } from '../ui/Progress';
 
@@ -78,6 +80,14 @@ export function StepModels() {
 
   const categoryColors = { general: 'default', coding: 'accent', reasoning: 'warning' } as const;
 
+  const MODE_LABELS: Record<string, string> = { gpu: 'GPU', partial: 'offload', cpu: 'CPU' };
+  function tokBadgeVariant(est: TokenEstimate): 'accent' | 'secondary' | 'warning' | 'error' {
+    if (est.tokensPerSecond >= 30) return 'accent';
+    if (est.tokensPerSecond >= 10) return 'secondary';
+    if (est.tokensPerSecond >= 3) return 'warning';
+    return 'error';
+  }
+
   return (
     <div className="space-y-6">
       {/* Memory Budget Bar — values from hardware detection */}
@@ -143,6 +153,7 @@ export function StepModels() {
                 const selected = state.selectedModels.includes(m.id);
                 const wouldExceed = !selected && usedMemory + m.vramRequired > availableMemory;
                 const paramB = parseParamB(m.parameters);
+                const estimate = estimateTokensPerSecond(m, state.hardware);
 
                 return (
                   <div
@@ -183,6 +194,15 @@ export function StepModels() {
                       <Badge variant={wouldExceed ? 'error' : 'secondary'}>
                         {m.vramRequired} GB {m.vramRequired >= 48 ? 'RAM/VRAM' : 'VRAM'}
                       </Badge>
+                      {estimate && (
+                        <Badge variant={tokBadgeVariant(estimate)}>
+                          <span className="inline-flex items-center gap-1">
+                            <Zap size={10} />
+                            ~{estimate.tokensPerSecond} tok/s
+                            <span className="opacity-60">{MODE_LABELS[estimate.mode]}</span>
+                          </span>
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 );

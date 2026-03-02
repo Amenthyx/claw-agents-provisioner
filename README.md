@@ -1056,6 +1056,68 @@ See [finetune/datasets/README.md](finetune/datasets/README.md) for the full data
 ./claw.sh help                          # Show help
 ```
 
+## CLI Autocompletion
+
+Tab completion is available for both **Bash** and **Zsh**, covering all commands, subcommands, agent names, flags, and options.
+
+### Quick Setup (Current Session)
+
+```bash
+# Bash
+source <(./claw.sh completions bash)
+
+# Zsh
+source <(./claw.sh completions zsh)
+autoload -Uz compinit && compinit
+```
+
+### Permanent Installation
+
+The built-in installer copies completion scripts to the appropriate system directories:
+
+```bash
+./claw.sh completions install
+```
+
+This automatically detects your OS and installs to:
+
+| Shell | Location |
+|-------|----------|
+| Bash (system) | `/etc/bash_completion.d/claw` |
+| Bash (macOS Homebrew) | `/usr/local/etc/bash_completion.d/claw` |
+| Bash (per-user) | `~/.local/share/bash-completion/completions/claw.sh` |
+| Zsh (system) | `/usr/local/share/zsh/site-functions/_claw` |
+| Zsh (per-user) | `~/.zsh/completions/_claw` |
+
+For per-user Zsh installation, add this to your `~/.zshrc`:
+
+```bash
+fpath=(~/.zsh/completions $fpath)
+autoload -Uz compinit && compinit
+```
+
+### Manual Setup
+
+If you prefer manual configuration, add one of these to your shell rc file:
+
+```bash
+# ~/.bashrc
+source /path/to/claw-agents-provisioner/completions/claw-completion.bash
+
+# ~/.zshrc
+fpath=(/path/to/claw-agents-provisioner/completions $fpath)
+autoload -Uz compinit && compinit
+```
+
+### What Gets Completed
+
+- **Top-level commands:** `deploy`, `finetune`, `vault`, `health`, `strategy`, etc.
+- **Agent names:** `zeroclaw`, `nanoclaw`, `picoclaw`, `openclaw`, `parlant`
+- **Deployment methods:** `docker`, `vagrant`, `destroy`
+- **Subcommands:** e.g., `vault init`, `strategy scan`, `billing report`
+- **Flags and options:** `--assessment`, `--adapter`, `--dry-run`, `--list`, etc.
+- **Context-aware arguments:** file paths for `--assessment`, period names for `billing report`, agent names for `health`
+
 ## Project Structure
 
 ```
@@ -1085,6 +1147,9 @@ claw-agents-provisioner/
 │   ├── install-ollama.sh     # Ollama runtime installer
 │   ├── install-llamacpp.sh   # llama.cpp runtime installer
 │   └── ollama-models.json    # Free model registry (9 models)
+├── completions/              # Shell tab-completion scripts
+│   ├── claw-completion.bash  # Bash completion
+│   └── _claw                 # Zsh completion
 ├── claw.sh                   # Unified CLI launcher
 ├── docker-compose.yml        # Multi-agent Docker Compose
 └── .env.template             # Environment variable template

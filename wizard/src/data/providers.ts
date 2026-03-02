@@ -9,12 +9,12 @@ export const CLOUD_PROVIDERS: CloudProvider[] = [
 ];
 
 // Fallback data — used when backend /runtimes is unavailable
+// All runtimes install natively on the host (bare metal) for full GPU access
 export const LOCAL_RUNTIMES: LocalRuntime[] = [
-  { id: 'ollama', name: 'Ollama', port: 11434, description: 'Easiest setup, broad hardware support, CPU + GPU' },
-  { id: 'llamacpp', name: 'llama.cpp', port: 8080, description: 'Most efficient CPU inference, smallest footprint' },
-  { id: 'vllm', name: 'vLLM', port: 8000, description: 'Highest throughput GPU inference with PagedAttention' },
-  { id: 'ipexllm', name: 'ipex-llm', port: 8010, description: 'Intel-optimized with SYCL/AMX acceleration' },
-  { id: 'sglang', name: 'SGLang', port: 30000, description: 'Fast serving with RadixAttention, CUDA only' },
-  { id: 'docker_model_runner', name: 'Docker Model Runner', port: 12434, description: 'Docker-native model serving, easy container integration' },
-  { id: 'localai', name: 'LocalAI', port: 8081, description: 'OpenAI-compatible API for local models' },
+  { id: 'ollama', name: 'Ollama', port: 11434, description: 'Native install — easiest setup, full GPU passthrough, CPU + GPU' },
+  { id: 'llamacpp', name: 'llama.cpp', port: 8080, description: 'Native install — most efficient CPU inference, smallest footprint' },
+  { id: 'vllm', name: 'vLLM', port: 8000, description: 'Native install — highest throughput GPU inference with PagedAttention' },
+  { id: 'ipexllm', name: 'ipex-llm', port: 8010, description: 'Native install — Intel-optimized with SYCL/AMX acceleration' },
+  { id: 'sglang', name: 'SGLang', port: 30000, description: 'Native install — fast serving with RadixAttention, CUDA GPU' },
+  { id: 'localai', name: 'LocalAI', port: 8081, description: 'Native install — OpenAI-compatible API for local models' },
 ];

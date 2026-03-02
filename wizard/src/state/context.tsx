@@ -3,6 +3,7 @@ import type {
   WizardState, WizardAction, HardwareProfile, RuntimeRecommendation,
   GatewayConfig, SshCredentials, SecurityDetailConfig, ComplianceStandardConfig,
   RoutingRule, ChannelConfig, StorageConfig, PortConfig,
+  OptimizationPreset, StrategyRule,
 } from './types';
 import { wizardReducer, initialState, TOTAL_STEPS } from './reducer';
 import { canProceed, getAssessmentJSON } from './validation';
@@ -21,6 +22,9 @@ interface WizardContextValue {
   setLlmProvider: (provider: string) => void;
   setRuntime: (runtime: string) => void;
   toggleModel: (modelId: string) => void;
+  setStrategyOptimization: (optimization: OptimizationPreset) => void;
+  setStrategyRule: (taskCategory: string, primaryModel: string, fallbackModel: string) => void;
+  setStrategyRules: (rules: StrategyRule[]) => void;
   setSecurityEnabled: (enabled: boolean) => void;
   toggleSecurityFeature: (featureId: string) => void;
   setSecurityConfig: (config: Partial<SecurityDetailConfig>) => void;
@@ -61,6 +65,19 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   const setLlmProvider = useCallback((provider: string) => dispatch({ type: 'SET_LLM_PROVIDER', provider }), []);
   const setRuntime = useCallback((runtime: string) => dispatch({ type: 'SET_RUNTIME', runtime }), []);
   const toggleModel = useCallback((modelId: string) => dispatch({ type: 'TOGGLE_MODEL', modelId }), []);
+  const setStrategyOptimization = useCallback(
+    (optimization: OptimizationPreset) => dispatch({ type: 'SET_STRATEGY_OPTIMIZATION', optimization }),
+    [],
+  );
+  const setStrategyRule = useCallback(
+    (taskCategory: string, primaryModel: string, fallbackModel: string) =>
+      dispatch({ type: 'SET_STRATEGY_RULE', taskCategory, primaryModel, fallbackModel }),
+    [],
+  );
+  const setStrategyRules = useCallback(
+    (rules: StrategyRule[]) => dispatch({ type: 'SET_STRATEGY_RULES', rules }),
+    [],
+  );
   const setSecurityEnabled = useCallback((enabled: boolean) => dispatch({ type: 'SET_SECURITY_ENABLED', enabled }), []);
   const toggleSecurityFeature = useCallback(
     (featureId: string) => dispatch({ type: 'TOGGLE_SECURITY_FEATURE', featureId }),
@@ -132,6 +149,9 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       setLlmProvider,
       setRuntime,
       toggleModel,
+      setStrategyOptimization,
+      setStrategyRule,
+      setStrategyRules,
       setSecurityEnabled,
       toggleSecurityFeature,
       setSecurityConfig,
@@ -152,7 +172,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       progress: ((state.currentStep + 1) / TOTAL_STEPS) * 100,
       assessmentJSON: getAssessmentJSON(state),
     };
-  }, [state, nextStep, prevStep, goToStep, setAgentName, setHardware, setPlatform, setDeploymentMethod, setLlmProvider, setRuntime, toggleModel, setSecurityEnabled, toggleSecurityFeature, setSecurityConfig, setComplianceConfig, setCloudProviders, setApiKey, setGateway, setGatewayRoutes, setSshCredentials, setChannel, setStorage, setStorageInstance, setStorageShared, setPortConfig]);
+  }, [state, nextStep, prevStep, goToStep, setAgentName, setHardware, setPlatform, setDeploymentMethod, setLlmProvider, setRuntime, toggleModel, setStrategyOptimization, setStrategyRule, setStrategyRules, setSecurityEnabled, toggleSecurityFeature, setSecurityConfig, setComplianceConfig, setCloudProviders, setApiKey, setGateway, setGatewayRoutes, setSshCredentials, setChannel, setStorage, setStorageInstance, setStorageShared, setPortConfig]);
 
   return <WizardContext.Provider value={value}>{children}</WizardContext.Provider>;
 }

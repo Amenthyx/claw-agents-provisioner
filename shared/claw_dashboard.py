@@ -93,6 +93,7 @@ ADAPTERS_DIR = PROJECT_ROOT / "finetune" / "adapters"
 BILLING_DIR = PROJECT_ROOT / "data" / "billing"
 ENV_TEMPLATE = PROJECT_ROOT / ".env.template"
 WIZARD_DIST = PROJECT_ROOT / "wizard-ui" / "dist"
+DOCS_DIR = PROJECT_ROOT / "docs"
 CLAWS_DIR = PROJECT_ROOT / "data" / "claws"
 
 DEFAULT_PORT = 9099
@@ -174,7 +175,7 @@ def _fetch_internal(port: int, path: str, timeout: int = 3) -> Optional[Dict]:
         url = f"http://localhost:{port}{path}"
         with urllib.request.urlopen(url, timeout=timeout) as resp:
             return json.loads(resp.read())
-    except Exception:
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError, json.JSONDecodeError):
         return None
 
 
@@ -204,7 +205,7 @@ def _check_docker_container(container_name: str) -> str:
             state = result.stdout.strip()
             return "running" if state in ("running", "restarting") else "stopped"
         return "removed"
-    except Exception:
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
         return "stopped"
 
 
@@ -249,7 +250,7 @@ def get_all_agents_status() -> List[Dict[str, Any]]:
             # Also add deployed claws not in DAL
             results = _merge_deployed_claws(results)
             return results
-    except Exception:
+    except (ImportError, RuntimeError, OSError, KeyError):
         pass
 
     # Fallback: HTTP ping each platform agent
@@ -465,10 +466,10 @@ class ActivityAggregator:
         while self._running:
             try:
                 self._poll_cycle()
-            except Exception as exc:
+            except Exception as exc:  # Broad catch: aggregator loop must never crash
                 try:
                     err(f"Activity aggregator error: {exc}")
-                except Exception:
+                except (OSError, ValueError):
                     pass
             # Check if we still have subscribers
             with self._sub_lock:
@@ -515,7 +516,7 @@ class ActivityAggregator:
                 total_row = dal.llm_requests._fetchone(
                     "SELECT COUNT(*) AS cnt FROM llm_requests", ())
                 result["total_requests"] = total_row["cnt"] if total_row else 0
-            except Exception:
+            except (ImportError, RuntimeError, OSError, KeyError):
                 pass
             return result
 
@@ -545,7 +546,7 @@ class ActivityAggregator:
                 key = futures[future]
                 try:
                     result = future.result()
-                except Exception:
+                except Exception:  # Broad catch: futures re-raise arbitrary exceptions from workers
                     result = None
                 if key == "router":
                     router_data = result
@@ -566,7 +567,7 @@ class ActivityAggregator:
                 src_type, claw_id = claw_futures[future]
                 try:
                     data = future.result()
-                except Exception:
+                except Exception:  # Broad catch: futures re-raise arbitrary exceptions from workers
                     data = None
                 if data and claw_id:
                     if claw_id not in claw_details:
@@ -679,7 +680,7 @@ class ActivityAggregator:
             since = time.strftime(
                 "%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 60))
             rpm_val = dal.llm_requests.count_since(since)
-        except Exception:
+        except (ImportError, RuntimeError, OSError, KeyError):
             pass
 
         # Broadcast fleet snapshot
@@ -837,7 +838,7 @@ def read_billing_data() -> Dict[str, Any]:
             except (IOError, OSError):
                 pass
         return result
-    except Exception:
+    except (ImportError, RuntimeError, OSError, KeyError):
         pass
 
     # Fallback: read from JSONL files
@@ -2855,13 +2856,19 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             elif path == "/api/activity/requests":
                 self._handle_activity_requests()
 
+            elif path == "/api/docs" or path == "/docs":
+                self._handle_serve_docs()
+
+            elif path == "/api/docs/openapi.yaml" or path == "/docs/openapi.yaml":
+                self._handle_serve_openapi_yaml()
+
             elif path.startswith("/wizard/"):
                 self._handle_wizard_static(path)
 
             else:
                 status = 404
                 self._send_not_found()
-        except Exception:
+        except Exception:  # Broad catch to record HTTP 500 in metrics before re-raising
             status = 500
             raise
         finally:
@@ -2976,7 +2983,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             result["model_usage"] = dal.llm_requests.aggregate_by_model()
             result["log_levels"] = dal.local_logs.count_by_level()
             result["cache"] = dal.response_cache.stats()
-        except Exception:
+        except (ImportError, RuntimeError, OSError, KeyError):
             pass
         self._send_json(result)
 
@@ -2987,7 +2994,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             dal = DAL.get_instance()
             deployments = dal.deployments.get_recent(10)
             self._send_json(deployments)
-        except Exception:
+        except (ImportError, RuntimeError, OSError, KeyError, AttributeError):
             self._send_json([])
 
     def _handle_get_logs(self) -> None:
@@ -3006,7 +3013,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             dal = DAL.get_instance()
             logs = dal.local_logs.query(component=agent, limit=limit)
             self._send_json(logs)
-        except Exception:
+        except (ImportError, RuntimeError, OSError, KeyError, AttributeError):
             self._send_json([])
 
     def _handle_get_router(self) -> None:
@@ -3036,7 +3043,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             dal = DAL.get_instance()
             result["events"] = dal.security_events.get_recent(50)
             result["summary"] = dal.security_events.get_summary()
-        except Exception:
+        except (ImportError, RuntimeError, OSError, KeyError, AttributeError):
             pass
         self._send_json(result)
 
@@ -3053,7 +3060,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             result["daily_spend"] = dal.costs.daily_spend()
             result["weekly_spend"] = dal.costs.weekly_spend()
             result["monthly_spend"] = dal.costs.monthly_spend()
-        except Exception:
+        except (ImportError, RuntimeError, OSError, KeyError, AttributeError):
             pass
         # Read billing config for budget limits
         config = read_json_file(BILLING_DIR / "billing_config.json")
@@ -3069,7 +3076,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             dal = DAL.get_instance()
             result["audit"] = dal.audit.query(limit=30)
             result["alerts"] = dal.alerts.get_history(20)
-        except Exception:
+        except (ImportError, RuntimeError, OSError, KeyError, AttributeError):
             pass
         self._send_json(result)
 
@@ -3198,7 +3205,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             result["conversations"] = dal.conversations.list_conversations(
                 agent_id=claw_id, limit=20)
             result["recent_requests"] = dal.llm_requests.get_recent(20)
-        except Exception:
+        except (ImportError, RuntimeError, OSError, KeyError, AttributeError):
             pass
 
         self._send_json(result)
@@ -3210,8 +3217,41 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             dal = DAL.get_instance()
             requests = dal.llm_requests.get_recent(50)
             self._send_json(requests)
-        except Exception:
+        except (ImportError, RuntimeError, OSError, KeyError, AttributeError):
             self._send_json([])
+
+    # ----- API Docs -----
+
+    def _handle_serve_docs(self) -> None:
+        """GET /api/docs or /docs -- serve Swagger UI HTML page."""
+        swagger_html = DOCS_DIR / "swagger.html"
+        if not swagger_html.exists():
+            self._send_json({"error": "docs/swagger.html not found"}, 404)
+            return
+        try:
+            html = swagger_html.read_text(encoding="utf-8")
+            # Rewrite the relative openapi.yaml URL to point to the dashboard route
+            html = html.replace('"./openapi.yaml"', '"/api/docs/openapi.yaml"')
+            self._send_html(html)
+        except (IOError, OSError):
+            self._send_json({"error": "Could not read swagger.html"}, 500)
+
+    def _handle_serve_openapi_yaml(self) -> None:
+        """GET /api/docs/openapi.yaml -- serve the OpenAPI spec file."""
+        openapi_file = DOCS_DIR / "openapi.yaml"
+        if not openapi_file.exists():
+            self._send_json({"error": "docs/openapi.yaml not found"}, 404)
+            return
+        try:
+            content = openapi_file.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/yaml; charset=utf-8")
+            self.send_header("Content-Length", str(len(content)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(content)
+        except (IOError, OSError):
+            self._send_json({"error": "Could not read openapi.yaml"}, 500)
 
     # ----- POST Routes -----
 
@@ -3243,7 +3283,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             else:
                 status = 404
                 self._send_not_found()
-        except Exception:
+        except Exception:  # Broad catch to record HTTP 500 in metrics before re-raising
             status = 500
             raise
         finally:
@@ -3302,7 +3342,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         try:
             STRATEGY_FILE.write_text(json.dumps(body, indent=2), encoding="utf-8")
             self._send_json({"success": True, "message": "Strategy saved"})
-        except Exception as exc:
+        except (OSError, ValueError, TypeError) as exc:
             self._send_json({"success": False, "error": str(exc)}, 500)
 
     def _handle_post_strategy_generate(self) -> None:

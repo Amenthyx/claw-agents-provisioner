@@ -1,6 +1,6 @@
 import {
   Sparkles, Cpu, Layers, Container, Brain,
-  Boxes, Shield, Network, MessageSquare, ClipboardCheck, Rocket,
+  Boxes, Route, Shield, Database, MessageSquare, ClipboardCheck, Rocket,
   Check,
 } from 'lucide-react';
 import { cn } from '../../lib/cn';
@@ -8,7 +8,7 @@ import { useWizard } from '../../state/context';
 import { STEPS } from '../../data/steps';
 import { Progress } from '../ui/Progress';
 
-const ICONS = [Sparkles, Cpu, Layers, Container, Brain, Boxes, Shield, Network, MessageSquare, ClipboardCheck, Rocket];
+const ICONS = [Sparkles, Cpu, Layers, Container, Brain, Boxes, Route, Shield, Database, MessageSquare, ClipboardCheck, Rocket];
 
 export function Sidebar() {
   const { state, goToStep, progress } = useWizard();

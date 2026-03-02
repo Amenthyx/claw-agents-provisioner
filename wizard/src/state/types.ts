@@ -178,6 +178,21 @@ export interface StorageConfig {
   };
 }
 
+/* ── LLM Strategy ───────────────────────────────────────── */
+
+export type OptimizationPreset = 'cost' | 'speed' | 'quality' | 'balanced';
+
+export interface StrategyRule {
+  taskCategory: string;
+  primaryModel: string;
+  fallbackModel: string;
+}
+
+export interface LlmStrategy {
+  optimization: OptimizationPreset;
+  rules: StrategyRule[];
+}
+
 /* ── Port Config ─────────────────────────────────────────── */
 
 export interface PortConfig {
@@ -200,6 +215,7 @@ export interface WizardState {
   llmProvider: string;
   runtime: string;
   selectedModels: string[];
+  strategy: LlmStrategy;
   securityEnabled: boolean;
   securityFeatures: string[];
   securityConfig: SecurityDetailConfig;
@@ -226,6 +242,9 @@ export type WizardAction =
   | { type: 'SET_LLM_PROVIDER'; provider: string }
   | { type: 'SET_RUNTIME'; runtime: string }
   | { type: 'TOGGLE_MODEL'; modelId: string }
+  | { type: 'SET_STRATEGY_OPTIMIZATION'; optimization: OptimizationPreset }
+  | { type: 'SET_STRATEGY_RULE'; taskCategory: string; primaryModel: string; fallbackModel: string }
+  | { type: 'SET_STRATEGY_RULES'; rules: StrategyRule[] }
   | { type: 'SET_SECURITY_ENABLED'; enabled: boolean }
   | { type: 'TOGGLE_SECURITY_FEATURE'; featureId: string }
   | { type: 'SET_SECURITY_CONFIG'; config: Partial<SecurityDetailConfig> }

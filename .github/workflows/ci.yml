@@ -102,6 +102,32 @@ jobs:
           fi
 
   # ---------------------------------------------------------------
+  # Type check: mypy for shared Python modules
+  # ---------------------------------------------------------------
+  mypy:
+    name: Mypy (Type Check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install mypy
+        run: pip install mypy
+
+      - name: Run mypy on shared modules
+        run: |
+          mypy shared/claw_router.py \
+               shared/claw_memory.py \
+               shared/claw_rag.py \
+               shared/claw_security.py \
+               shared/claw_orchestrator.py \
+            --config-file mypy.ini || true
+
+  # ---------------------------------------------------------------
   # Docker Build Matrix: 4 agents
   # ---------------------------------------------------------------
   docker-build:

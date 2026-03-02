@@ -107,7 +107,8 @@ class ConnectionPool:
                 conn.fetchone("SELECT 1")
                 return conn
             except Exception:
-                # Dead connection — create new one
+                # Dead connection — create new one; broad catch because
+                # backend may be SQLite or PostgreSQL with varying error types
                 with self._lock:
                     self._created -= 1
         except queue.Empty:
@@ -127,6 +128,8 @@ class ConnectionPool:
                 conn.fetchone("SELECT 1")
                 return conn
             except Exception:
+                # Dead connection — replace with fresh one; broad catch because
+                # backend may be SQLite or PostgreSQL with varying error types
                 with self._lock:
                     self._created -= 1
                     self._created += 1
@@ -141,7 +144,7 @@ class ConnectionPool:
             # Pool full — close excess connection
             try:
                 conn.close()
-            except Exception:
+            except (OSError, RuntimeError):
                 pass
             with self._lock:
                 self._created -= 1
@@ -153,7 +156,7 @@ class ConnectionPool:
                 conn = self._pool.get_nowait()
                 try:
                     conn.close()
-                except Exception:
+                except (OSError, RuntimeError):
                     pass
             except queue.Empty:
                 break
@@ -959,6 +962,13 @@ class LLMRequestRepository(BaseRepository):
         return self._fetchall(
             "SELECT * FROM llm_requests ORDER BY created_at DESC LIMIT ?",
             (limit,))
+
+    def count_since(self, since_iso: str) -> int:
+        """Count LLM requests since a given ISO timestamp (for RPM calc)."""
+        row = self._fetchone(
+            "SELECT COUNT(*) AS cnt FROM llm_requests WHERE created_at >= ?",
+            (since_iso,))
+        return row["cnt"] if row else 0
 
     def aggregate_by_model(self) -> List[Dict[str, Any]]:
         return self._fetchall(

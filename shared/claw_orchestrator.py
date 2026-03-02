@@ -275,7 +275,7 @@ class AgentRegistry:
             from claw_dal import DAL
             self._dal = DAL.get_instance()
             log("AgentRegistry using DAL")
-        except Exception:
+        except (ImportError, RuntimeError, OSError):
             pass
 
     def register(self, platform: str, endpoint: str, port: int,
@@ -909,7 +909,7 @@ class EventBus:
         for callback in callbacks:
             try:
                 callback(event_data)
-            except Exception:
+            except Exception:  # Broad catch: subscriber callbacks are arbitrary callables
                 pass  # Do not let subscriber errors break the bus
 
         return event_id
@@ -1060,7 +1060,7 @@ class OrchestratorHandler(BaseHTTPRequestHandler):
             else:
                 status = 404
                 self._json_response(404, {"error": "not found"})
-        except Exception:
+        except Exception:  # Broad catch to record HTTP 500 in metrics before re-raising
             status = 500
             raise
         finally:
@@ -1105,7 +1105,7 @@ class OrchestratorHandler(BaseHTTPRequestHandler):
             else:
                 status = 404
                 self._json_response(404, {"error": "not found"})
-        except Exception:
+        except Exception:  # Broad catch to record HTTP 500 in metrics before re-raising
             status = 500
             raise
         finally:
@@ -1343,8 +1343,8 @@ class HealthMonitor:
                             target=result.get("agent_id"),
                             payload={"detail": result.get("detail", "")}
                         )
-            except Exception:
-                pass  # Health monitor must never crash
+            except Exception:  # Broad catch: health monitor loop must never crash
+                pass
 
             # Sleep in small increments for responsive shutdown
             for _ in range(self._interval):

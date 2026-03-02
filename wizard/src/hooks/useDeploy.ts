@@ -26,15 +26,15 @@ const DEPLOY_STEPS: DeployStep[] = [
   { label: 'Starting optimizer pipeline (14 rules)', status: 'pending' },
   { label: 'Starting agent platform', status: 'pending' },
   { label: 'Preparing LLM runtime', status: 'pending' },
-  { label: 'Starting gateway router (:9095)', status: 'pending' },
+  { label: 'Starting gateway router', status: 'pending' },
   { label: 'Configuring security gate — outbound', status: 'pending' },
   { label: 'Starting cost logger + watchdog', status: 'pending' },
   { label: 'Running health checks', status: 'pending' },
   { label: 'Deployment complete', status: 'pending' },
 ];
 
-/** Resolve agent port from platform name */
-function getAgentPort(platform?: string): number {
+/** Resolve agent port from platform name (fallback default) */
+function getDefaultAgentPort(platform?: string): number {
   switch (platform) {
     case 'nanoclaw': return 3200;
     case 'picoclaw': return 3300;
@@ -44,15 +44,28 @@ function getAgentPort(platform?: string): number {
   }
 }
 
-function buildHealthChecks(platform?: string): HealthCheck[] {
-  const agentPort = getAgentPort(platform);
+/** Extract actual ports from wizard config, falling back to platform defaults */
+function resolvePorts(config?: Record<string, unknown>): {
+  agent: number; gateway: number; optimizer: number; watchdog: number;
+} {
+  const portConfig = (config?.['port_config'] ?? {}) as Record<string, unknown>;
+  const gateway = (config?.['gateway'] ?? {}) as Record<string, unknown>;
+  return {
+    agent:     Number(portConfig['agentPort']) || getDefaultAgentPort(config?.['platform'] as string),
+    gateway:   Number(portConfig['gatewayPort']) || Number(gateway['port']) || 9095,
+    optimizer: Number(portConfig['optimizerPort']) || 9091,
+    watchdog:  Number(portConfig['watchdogPort']) || 9097,
+  };
+}
+
+function buildHealthChecks(config?: Record<string, unknown>): HealthCheck[] {
+  const ports = resolvePorts(config);
   return [
-    { name: 'Agent Platform',  status: 'pending', endpoint: `http://localhost:${agentPort}/health` },
-    { name: 'Gateway Router',  status: 'pending', endpoint: 'http://localhost:9095/health' },
-    { name: 'Optimizer',       status: 'pending', endpoint: 'http://localhost:9091/status' },
+    { name: 'Agent Platform',  status: 'pending', endpoint: `http://localhost:${ports.agent}/health` },
+    { name: 'Gateway Router',  status: 'pending', endpoint: `http://localhost:${ports.gateway}/health` },
+    { name: 'Optimizer',       status: 'pending', endpoint: `http://localhost:${ports.optimizer}/status` },
     { name: 'LLM Runtime',    status: 'pending', endpoint: 'http://localhost:11434/api/tags' },
-    { name: 'Dashboard',      status: 'pending', endpoint: 'http://localhost:9099/api/agents' },
-    { name: 'Watchdog',       status: 'pending', endpoint: 'http://localhost:9097/status' },
+    { name: 'Watchdog',       status: 'pending', endpoint: `http://localhost:${ports.watchdog}/status` },
   ];
 }
 
@@ -186,6 +199,7 @@ export function useDeploy() {
    */
   const localDeploy = useCallback(
     async (config: Record<string, unknown>) => {
+      const ports = resolvePorts(config);
       const stepLogs: Array<[number, string[]]> = [
         [0, [
           'Validating assessment configuration...',
@@ -218,12 +232,11 @@ export function useDeploy() {
           'Pulling claw-router:latest',
           'Pulling claw-optimizer:latest',
           'Pulling claw-security:latest',
-          'Pulling claw-dashboard:latest',
           'All images pulled successfully.',
         ]],
         [4, [
           '--- Optimizer Pipeline ---',
-          'Starting claw_optimizer.py on :9091',
+          `Starting claw_optimizer.py on :${ports.optimizer}`,
           'Loading 11 pre-call rules:',
           '  R1 ConversationDedup | R2 SemanticCache | R3 TokenEstimator',
           '  R4 ContextPruner | R5 PromptOptimizer | R6 BudgetEnforcer',
@@ -232,7 +245,7 @@ export function useDeploy() {
           'Loading 2 post-call rules: R12 ResponseQualityGate | R13 CostAttributionLogger',
           'Budget limits: $50/day, $200/week, $500/month (80% alert threshold)',
           'Storage initialized: cost_log.sqlite3, response_cache.sqlite3',
-          'Optimizer dashboard available at :9091',
+          `Optimizer dashboard available at :${ports.optimizer}`,
         ]],
         [5, [
           '--- Agent Platform ---',
@@ -240,37 +253,39 @@ export function useDeploy() {
           `docker run -d --name ${config['agent_name'] ?? 'xclaw-agent'} --network xclaw-net`,
           'Injecting security rules into agent system prompt (integration point 1)',
           'Configuring real-time I/O validation (integration point 3)',
-          `Agent listening on :${config['platform'] === 'nanoclaw' ? '3200' : config['platform'] === 'picoclaw' ? '3300' : config['platform'] === 'openclaw' ? '3400' : config['platform'] === 'parlant' ? '8800' : '3100'}`,
+          `Agent listening on :${ports.agent}`,
         ]],
         [6, [
-          '--- LLM Runtime ---',
+          '--- LLM Runtime (native bare-metal install — full GPU access) ---',
           `Provider mode: ${config['llm_provider'] ?? 'hybrid'}`,
           ...(config['llm_provider'] === 'cloud' ? [
             'Validating API keys against allowed_api_hosts whitelist',
             'TLS 1.2+ enforced for all outbound connections',
             'Cloud providers ready.',
           ] : config['llm_provider'] === 'hybrid' ? [
+            `Installing ${config['runtime'] ?? 'ollama'} natively on host (bare metal, full GPU passthrough)`,
             `Starting local runtime: ${config['runtime'] ?? 'ollama'} on :11434`,
             'Cloud fallback configured via FallbackChain (R11)',
             'Routing: local-first with cloud fallback on 429/500/502/503',
             'Hybrid runtime ready.',
           ] : [
+            `Installing ${config['runtime'] ?? 'ollama'} natively on host (bare metal, full GPU passthrough)`,
             `Starting local runtime: ${config['runtime'] ?? 'ollama'} on :11434`,
             ...(config['selected_models'] && Array.isArray(config['selected_models'])
               ? [`Pre-loading models: ${(config['selected_models'] as string[]).join(', ')}`]
               : ['Pre-loading default model...']),
-            'Local runtime ready.',
+            'Local runtime ready — running directly on hardware for maximum performance.',
           ]),
         ]],
         [7, [
           '--- Gateway Router ---',
-          'Starting claw_router.py on :9095',
+          `Starting claw_router.py on :${ports.gateway}`,
           'OpenAI-compatible proxy endpoint: POST /v1/chat/completions',
           `Routing mode: ${config['gateway_routing'] ?? 'auto-detect'}`,
           'Task detection: coding | reasoning | creative | translation | summarization | data_analysis',
           `Failover strategy: ${config['gateway_failover'] ?? 'local-first'}`,
           'Auth validation enabled, request logging active.',
-          'Gateway ready — accepting connections on :9095',
+          `Gateway ready — accepting connections on :${ports.gateway}`,
         ]],
         [8, [
           '--- Security Gate: Outbound Configuration ---',
@@ -320,7 +335,7 @@ export function useDeploy() {
 
         // On health check step, actually try to probe endpoints
         if (i === 10) {
-          const checks = buildHealthChecks(config['platform'] as string | undefined);
+          const checks = buildHealthChecks(config);
           for (let j = 0; j < checks.length; j++) {
             const hc = checks[j]!;
             const alive = await checkHealth(hc.endpoint, 3000);
@@ -335,13 +350,11 @@ export function useDeploy() {
       }
 
       setSteps((prev) => prev.map((s) => ({ ...s, status: 'complete' })));
-      const agentPort = getAgentPort(config['platform'] as string | undefined);
       setEndpoints([
-        { name: 'Agent Platform', url: `http://localhost:${agentPort}` },
-        { name: 'Gateway Router (OpenAI-compatible)', url: 'http://localhost:9095' },
-        { name: 'Optimizer Dashboard', url: 'http://localhost:9091' },
-        { name: 'Dashboard', url: 'http://localhost:9099' },
-        { name: 'Watchdog', url: 'http://localhost:9097' },
+        { name: 'Agent Platform', url: `http://localhost:${ports.agent}` },
+        { name: 'Gateway Router (OpenAI-compatible)', url: `http://localhost:${ports.gateway}` },
+        { name: 'Optimizer Dashboard', url: `http://localhost:${ports.optimizer}` },
+        { name: 'Watchdog', url: `http://localhost:${ports.watchdog}` },
       ]);
       addLog('Deployment complete — all services configured.');
       setIsDone(true);
@@ -357,7 +370,7 @@ export function useDeploy() {
       setHasError(false);
       setLogs([]);
       setSteps(DEPLOY_STEPS.map((s) => ({ ...s })));
-      const checks = buildHealthChecks(config['platform'] as string | undefined);
+      const checks = buildHealthChecks(config);
       setHealthChecks(checks);
       setEndpoints([]);
 

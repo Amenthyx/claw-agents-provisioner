@@ -1,0 +1,481 @@
+#compdef claw.sh claw
+
+# =============================================================================
+# _claw -- Zsh tab completion for claw.sh CLI
+# =============================================================================
+#
+# Installation:
+#   Option 1: Copy to a directory in your $fpath:
+#     cp _claw /usr/local/share/zsh/site-functions/_claw
+#     # or for per-user:
+#     mkdir -p ~/.zsh/completions
+#     cp _claw ~/.zsh/completions/_claw
+#     # then add to .zshrc:  fpath=(~/.zsh/completions $fpath)
+#
+#   Option 2: Use the built-in installer:
+#     ./claw.sh completions install
+#
+# =============================================================================
+
+# -------------------------------------------------------------------------
+# Helper: complete agent names
+# -------------------------------------------------------------------------
+_claw_agents() {
+    local agents=(
+        'zeroclaw:Rust agent (512 MB, port 3100)'
+        'nanoclaw:TypeScript agent with DooD (1 GB, port 3200)'
+        'picoclaw:Go edge/IoT agent (128 MB, port 3300)'
+        'openclaw:Node.js full-featured agent (4 GB, port 3400)'
+        'parlant:Python guideline-driven agent (2 GB, port 8800)'
+    )
+    _describe 'agent' agents
+}
+
+# -------------------------------------------------------------------------
+# Helper: complete agent names plus "all"
+# -------------------------------------------------------------------------
+_claw_agents_or_all() {
+    local agents=(
+        'zeroclaw:Rust agent (512 MB, port 3100)'
+        'nanoclaw:TypeScript agent with DooD (1 GB, port 3200)'
+        'picoclaw:Go edge/IoT agent (128 MB, port 3300)'
+        'openclaw:Node.js full-featured agent (4 GB, port 3400)'
+        'parlant:Python guideline-driven agent (2 GB, port 8800)'
+        'all:All agents'
+    )
+    _describe 'agent' agents
+}
+
+# -------------------------------------------------------------------------
+# Helper: complete deployment methods for agent commands
+# -------------------------------------------------------------------------
+_claw_agent_methods() {
+    local methods=(
+        'docker:Start agent via Docker Compose'
+        'vagrant:Start agent via Vagrant VM'
+        'destroy:Teardown agent (remove containers/VMs/volumes)'
+    )
+    _describe 'method' methods
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: vault
+# -------------------------------------------------------------------------
+_claw_vault() {
+    local -a subcmds=(
+        'init:Create a new encrypted secrets vault'
+        'import-env:Import .env keys into the vault'
+        'list:List stored secret names'
+        'get:Retrieve a secret value'
+        'set:Store a secret (key value)'
+        'rotate:Change vault password'
+        'export-env:Export secrets back to .env format'
+    )
+    _arguments '1:subcommand:_describe "vault command" subcmds' \
+               '2::argument:_files'
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: security
+# -------------------------------------------------------------------------
+_claw_security() {
+    local -a subcmds=(
+        'init:Generate security_rules.json'
+        'report:Security posture report'
+        'check-url:Test a URL against rules'
+        'check-content:Test content against rules'
+        'check-ip:Test an IP against rules'
+        'generate-prompt:Generate system prompt security appendix'
+        'validate:Validate security configuration'
+    )
+    _arguments '1:subcommand:_describe "security command" subcmds' \
+               '2::argument:'
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: optimizer
+# -------------------------------------------------------------------------
+_claw_optimizer() {
+    local -a subcmds=(
+        'init:Generate optimization.json config'
+        'report:Show cost optimization report'
+        'start:Start optimization proxy service'
+    )
+    _arguments '1:subcommand:_describe "optimizer command" subcmds'
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: strategy
+# -------------------------------------------------------------------------
+_claw_strategy() {
+    local -a subcmds=(
+        'scan:Discover available models (local + cloud)'
+        'generate:Generate optimal routing strategy'
+        'report:Print current strategy report'
+        'init:Generate strategy config template'
+        'benchmark:Quick latency benchmark'
+    )
+    _arguments '1:subcommand:_describe "strategy command" subcmds'
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: hardware
+# -------------------------------------------------------------------------
+_claw_hardware() {
+    local -a subcmds=(
+        'detect:Detect GPU, CPU, RAM and save hardware_profile.json'
+        'report:Print formatted hardware report'
+        'recommend:Recommend best local LLM runtime and models'
+        'json:Output hardware profile as JSON'
+        'summary:One-line summary for scripts'
+    )
+    _arguments '1:subcommand:_describe "hardware command" subcmds'
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: ollama
+# -------------------------------------------------------------------------
+_claw_ollama() {
+    local -a subcmds=(
+        'install:Install Ollama runtime'
+        'pull:Pull a model (e.g., llama3.2, qwen2.5)'
+        'list:List installed local models'
+        'status:Check Ollama service status'
+    )
+    _arguments '1:subcommand:_describe "ollama command" subcmds' \
+               '2::model name:'
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: llamacpp
+# -------------------------------------------------------------------------
+_claw_llamacpp() {
+    local -a subcmds=(
+        'install:Install llama.cpp server'
+        'start:Start llama-server with a GGUF model'
+        'list:List GGUF models in models directory'
+        'status:Check llama.cpp server status'
+    )
+    _arguments '1:subcommand:_describe "llamacpp command" subcmds' \
+               '2::GGUF model:_files -g "*.gguf"'
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: dashboard
+# -------------------------------------------------------------------------
+_claw_dashboard() {
+    local -a subcmds=(
+        'start:Start enterprise web dashboard (default port 9099)'
+        'stop:Stop the dashboard'
+    )
+    _arguments '1:subcommand:_describe "dashboard command" subcmds' \
+               '2::port:'
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: wizard
+# -------------------------------------------------------------------------
+_claw_wizard() {
+    local -a subcmds=(
+        'start:Start assessment web wizard (default port 9098)'
+        'stop:Stop the wizard'
+    )
+    _arguments '1:subcommand:_describe "wizard command" subcmds' \
+               '2::port:'
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: router
+# -------------------------------------------------------------------------
+_claw_router() {
+    local -a subcmds=(
+        'start:Start model router proxy (default port 9095)'
+        'stop:Stop the router'
+        'status:Show router status'
+        'logs:View router logs'
+    )
+    _arguments '1:subcommand:_describe "router command" subcmds' \
+               '2::port or tail count:'
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: orchestrator
+# -------------------------------------------------------------------------
+_claw_orchestrator() {
+    local -a subcmds=(
+        'start:Start multi-agent orchestrator'
+        'stop:Stop the orchestrator'
+        'status:Show orchestrator status'
+        'agents:List registered agents'
+        'submit:Submit a task to the orchestrator'
+        'health:Run orchestrator health check'
+    )
+    _arguments '1:subcommand:_describe "orchestrator command" subcmds' \
+               '2::argument:'
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: memory
+# -------------------------------------------------------------------------
+_claw_memory() {
+    local -a subcmds=(
+        'start:Start conversation memory service (default port 9096)'
+        'stop:Stop the memory service'
+        'stats:Show memory usage stats'
+        'search:Search conversation history'
+        'prune:Prune old conversations'
+    )
+    _arguments '1:subcommand:_describe "memory command" subcmds' \
+               '2::argument:'
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: rag
+# -------------------------------------------------------------------------
+_claw_rag() {
+    local -a subcmds=(
+        'start:Start RAG pipeline service (default port 9097)'
+        'stop:Stop the RAG service'
+        'status:Show RAG service status'
+        'ingest:Ingest documents into RAG index'
+        'search:Search the RAG index'
+        'clear:Clear the RAG index'
+    )
+
+    case "${words[3]}" in
+        ingest)
+            _arguments '1:subcommand:_describe "rag command" subcmds' \
+                       '2::path:_files' \
+                       '3::agent:_claw_agents'
+            ;;
+        search)
+            _arguments '1:subcommand:_describe "rag command" subcmds' \
+                       '2::query:' \
+                       '3::agent:_claw_agents'
+            ;;
+        clear)
+            _arguments '1:subcommand:_describe "rag command" subcmds' \
+                       '2::agent:_claw_agents'
+            ;;
+        *)
+            _arguments '1:subcommand:_describe "rag command" subcmds'
+            ;;
+    esac
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: billing
+# -------------------------------------------------------------------------
+_claw_billing() {
+    local -a subcmds=(
+        'report:Cost report (daily, weekly, monthly)'
+        'status:Current spend overview'
+        'forecast:Projected spend forecast'
+        'init:Initialize billing config'
+        'threshold:Set spending alert threshold'
+    )
+    local -a periods=(daily weekly monthly)
+
+    case "${words[3]}" in
+        report)
+            _arguments '1:subcommand:_describe "billing command" subcmds' \
+                       '2::period:_describe "period" periods'
+            ;;
+        *)
+            _arguments '1:subcommand:_describe "billing command" subcmds' \
+                       '2::argument:'
+            ;;
+    esac
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: skills
+# -------------------------------------------------------------------------
+_claw_skills() {
+    local -a subcmds=(
+        'list:List all available skills'
+        'search:Search skills catalog'
+        'install:Install skill for an agent'
+        'uninstall:Uninstall skill from an agent'
+        'bundle:Install skill bundle for an agent'
+        'installed:List installed skills'
+        'info:Show skill details'
+        'bundles:List available bundles'
+    )
+
+    case "${words[3]}" in
+        install|uninstall|bundle)
+            _arguments '1:subcommand:_describe "skills command" subcmds' \
+                       '2::skill ID:' \
+                       '3::agent:_claw_agents'
+            ;;
+        installed)
+            _arguments '1:subcommand:_describe "skills command" subcmds' \
+                       '2::agent:_claw_agents'
+            ;;
+        *)
+            _arguments '1:subcommand:_describe "skills command" subcmds' \
+                       '2::argument:'
+            ;;
+    esac
+}
+
+# -------------------------------------------------------------------------
+# Subcommand: adapter
+# -------------------------------------------------------------------------
+_claw_adapter() {
+    local -a subcmds=(
+        'match:Auto-select best LoRA adapter for use case'
+        'list:List all 50 adapters'
+        'info:Show adapter details'
+        'search:Search adapters'
+    )
+    _arguments '1:subcommand:_describe "adapter command" subcmds' \
+               '2::argument:'
+}
+
+# -------------------------------------------------------------------------
+# Main completion function
+# -------------------------------------------------------------------------
+_claw() {
+    local -a top_commands=(
+        # Agent platforms
+        'zeroclaw:Start/manage Rust agent (512 MB, port 3100)'
+        'nanoclaw:Start/manage TypeScript agent (1 GB, port 3200)'
+        'picoclaw:Start/manage Go edge agent (128 MB, port 3300)'
+        'openclaw:Start/manage Node.js agent (4 GB, port 3400)'
+        'parlant:Start/manage Python agent (2 GB, port 8800)'
+
+        # Deployment
+        'deploy:Assessment-driven deployment pipeline'
+        'validate:Validate assessment JSON schema'
+
+        # Fine-tuning
+        'finetune:Generate dataset and train LoRA/QLoRA adapter'
+
+        # Datasets
+        'datasets:Manage the 50 use-case training datasets'
+
+        # Security
+        'vault:Encrypted secrets vault management'
+        'security:Security rules engine'
+
+        # Optimization
+        'optimizer:Multi-model cost optimization'
+        'strategy:Model routing strategy engine'
+
+        # Hardware and local LLMs
+        'hardware:Hardware detection and runtime recommendation'
+        'ollama:Ollama local LLM management'
+        'llamacpp:llama.cpp local LLM management'
+
+        # Enterprise services
+        'dashboard:Enterprise web dashboard'
+        'wizard:Assessment web wizard'
+        'router:Model router proxy'
+        'orchestrator:Multi-agent orchestration'
+        'memory:Conversation memory service'
+        'rag:RAG pipeline service'
+
+        # Billing and skills
+        'billing:Cost analytics and alerting'
+        'skills:Skills marketplace'
+        'adapter:LoRA adapter selector'
+
+        # Operations
+        'health:Run agent health checks'
+        'logs:Tail agent logs'
+        'status:Show status of all agents'
+        'help:Show help message'
+
+        # Completions
+        'completions:Shell completion scripts'
+    )
+
+    # If we are on the first argument, complete the top-level command
+    if (( CURRENT == 2 )); then
+        _describe 'command' top_commands
+        return
+    fi
+
+    # Route to subcommand-specific completion
+    case "${words[2]}" in
+        # Agent commands: complete deployment methods
+        zeroclaw|nanoclaw|picoclaw|openclaw|parlant)
+            if (( CURRENT == 3 )); then
+                _claw_agent_methods
+            fi
+            ;;
+
+        # deploy / validate: --assessment <file>
+        deploy|validate)
+            _arguments \
+                '--assessment[Assessment JSON file]:file:_files -g "*.json"'
+            ;;
+
+        # finetune: --assessment <file> | --adapter <name> [--dry-run]
+        finetune)
+            _arguments \
+                '--assessment[Assessment JSON file]:file:_files -g "*.json"' \
+                '--adapter[Pre-built adapter config name]:adapter:' \
+                '--dry-run[Validate only, do not train]'
+            ;;
+
+        # datasets: --list | --validate | --download-all
+        datasets)
+            _arguments \
+                '--list[List all 50 use-case datasets with status]' \
+                '--validate[Validate all datasets (rows, schema, license)]' \
+                '--download-all[Download all 50 datasets]'
+            ;;
+
+        # Commands with their own subcommands
+        vault)        _claw_vault ;;
+        security)     _claw_security ;;
+        optimizer)    _claw_optimizer ;;
+        strategy)     _claw_strategy ;;
+        hardware)     _claw_hardware ;;
+        ollama)       _claw_ollama ;;
+        llamacpp)     _claw_llamacpp ;;
+        dashboard)    _claw_dashboard ;;
+        wizard)       _claw_wizard ;;
+        router)       _claw_router ;;
+        orchestrator) _claw_orchestrator ;;
+        memory)       _claw_memory ;;
+        rag)          _claw_rag ;;
+        billing)      _claw_billing ;;
+        skills)       _claw_skills ;;
+        adapter)      _claw_adapter ;;
+
+        # health: agent or "all"
+        health)
+            if (( CURRENT == 3 )); then
+                _claw_agents_or_all
+            fi
+            ;;
+
+        # logs: agent name
+        logs)
+            if (( CURRENT == 3 )); then
+                _claw_agents
+            fi
+            ;;
+
+        # completions: bash | zsh | install
+        completions)
+            if (( CURRENT == 3 )); then
+                local -a comp_cmds=(
+                    'bash:Print bash completion script to stdout'
+                    'zsh:Print zsh completion script to stdout'
+                    'install:Install completions to system directories'
+                )
+                _describe 'completions command' comp_cmds
+            fi
+            ;;
+
+        # status, help: no further completions
+        status|help) ;;
+    esac
+}
+
+_claw "$@"

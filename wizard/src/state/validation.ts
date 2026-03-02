@@ -22,8 +22,9 @@ export function canProceed(state: WizardState): boolean {
       if (state.llmProvider === 'cloud') return true;
       return state.selectedModels.length > 0;
     }
-    case 6: return true; // Security — optional
-    case 7: {
+    case 6: return state.gateway.port >= 1024 && state.gateway.port <= 65535; // Strategy + gateway port
+    case 7: return true; // Security — optional
+    case 8: {
       // Storage — SQLite always valid; PostgreSQL requires host + dbname + user
       const inst = state.storage.instanceDb;
       if (inst.engine === 'postgresql') {
@@ -35,7 +36,6 @@ export function canProceed(state: WizardState): boolean {
       }
       return true;
     }
-    case 8: return state.gateway.port >= 1024 && state.gateway.port <= 65535;
     case 9: return true; // Channels — optional (can skip)
     case 10: return true; // Review
     case 11: return false; // Deploy (no next)
@@ -95,6 +95,10 @@ export function getAssessmentJSON(state: WizardState): Record<string, unknown> {
     llm_provider: state.llmProvider,
     runtime: state.runtime || undefined,
     selected_models: state.selectedModels.length > 0 ? state.selectedModels : undefined,
+    strategy: state.strategy.rules.length > 0 ? {
+      optimization: state.strategy.optimization,
+      rules: state.strategy.rules,
+    } : undefined,
     security: {
       enabled: state.securityEnabled,
       features: state.securityFeatures,

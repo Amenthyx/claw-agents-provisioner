@@ -1,0 +1,2668 @@
+openapi: 3.1.0
+info:
+  title: Claw Agents Provisioner API
+  description: |
+    Comprehensive API documentation for all six HTTP micro-services that make up
+    the Claw Agents Provisioner ecosystem.  Each service runs on its own port and
+    provides a focused set of capabilities for multi-agent orchestration,
+    model routing, conversation memory, RAG search, assessment wizardry, and
+    enterprise dashboard management.
+
+    **Authentication** -- All endpoints (except `/health` and `/metrics`) require
+    a Bearer token passed in the `Authorization` header.  The token is validated
+    against the `CLAW_API_TOKEN` environment variable.  When the variable is
+    unset, authentication is disabled (development mode).
+
+    **Rate Limiting** -- Every authenticated endpoint enforces a sliding-window
+    rate limit (default 60 req/60 s, configurable via `CLAW_RATE_LIMIT` and
+    `CLAW_RATE_WINDOW` environment variables).  Rate-limit metadata is returned
+    in `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`
+    response headers.
+  version: 1.0.0
+  contact:
+    name: Mauro Tommasi
+    url: https://linkedin.com/in/maurotommasi
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:9095
+    description: Claw Router (Model Gateway)
+  - url: http://localhost:9096
+    description: Claw Memory (Conversation Engine)
+  - url: http://localhost:9097
+    description: Claw RAG (Retrieval-Augmented Generation)
+  - url: http://localhost:9098
+    description: Claw Wizard (Assessment Web Wizard)
+  - url: http://localhost:9099
+    description: Claw Dashboard (Enterprise Web Dashboard)
+  - url: http://localhost:9100
+    description: Claw Orchestrator (Multi-Agent Orchestration)
+
+tags:
+  - name: Router
+    description: |
+      OpenAI-compatible model gateway with task-type detection, strategy-based
+      routing, and automatic failover between local runtimes and cloud providers.
+      Default port **9095**.
+  - name: Memory
+    description: |
+      SQLite-backed conversation memory engine with per-agent history,
+      full-text search, cross-agent context sharing, and retention policies.
+      Default port **9096**.
+  - name: RAG
+    description: |
+      Stdlib-only retrieval-augmented generation pipeline using trigram-based
+      Jaccard similarity.  Per-agent knowledge bases with file ingestion
+      and chunk-level search.  Default port **9097**.
+  - name: Wizard
+    description: |
+      Multi-step web form that guides users through assessment creation.
+      Generates `client-assessment.json` and can trigger deployment.
+      Default port **9098**.
+  - name: Dashboard
+    description: |
+      Enterprise web dashboard for fleet management, monitoring, strategy,
+      hardware, fine-tuning, security, cost analytics, and audit.
+      Default port **9099**.
+  - name: Orchestrator
+    description: |
+      Multi-agent orchestration engine with SQLite task queue, agent registry,
+      capability-based routing, pipeline execution, health monitoring, and
+      event bus.  Default port **9100**.
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Pass the value of `CLAW_API_TOKEN` as a Bearer token.
+        When `CLAW_API_TOKEN` is not set, auth is disabled (dev mode).
+
+  headers:
+    X-RateLimit-Limit:
+      description: Maximum requests allowed per rate-limit window.
+      schema:
+        type: integer
+        example: 60
+    X-RateLimit-Remaining:
+      description: Remaining requests in the current window.
+      schema:
+        type: integer
+        example: 58
+    X-RateLimit-Reset:
+      description: Unix timestamp when the current window resets.
+      schema:
+        type: integer
+        example: 1709312460
+
+  schemas:
+    # ---- Shared ----
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Not found"
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: claw-router
+        version:
+          type: string
+          example: "1.0.0"
+
+    PrometheusMetrics:
+      type: string
+      description: Prometheus text exposition format metrics.
+      example: |
+        # HELP claw_requests_total Total requests served
+        # TYPE claw_requests_total counter
+        claw_requests_total 42
+
+    # ---- Router ----
+    RouterRootResponse:
+      type: object
+      properties:
+        service:
+          type: string
+          example: claw-router
+        version:
+          type: string
+          example: "1.0.0"
+        status:
+          type: string
+          example: ok
+        description:
+          type: string
+        models_loaded:
+          type: integer
+          example: 5
+        endpoints:
+          type: object
+          additionalProperties:
+            type: string
+
+    OpenAIModelList:
+      type: object
+      properties:
+        object:
+          type: string
+          example: list
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                example: claude-3-5-sonnet-20241022
+              object:
+                type: string
+                example: model
+              created:
+                type: integer
+              owned_by:
+                type: string
+                example: anthropic
+
+    ChatCompletionRequest:
+      type: object
+      required:
+        - messages
+      properties:
+        model:
+          type: string
+          example: auto
+          description: Model ID or "auto" for task-based routing.
+        messages:
+          type: array
+          items:
+            type: object
+            required:
+              - role
+              - content
+            properties:
+              role:
+                type: string
+                enum: [system, user, assistant]
+              content:
+                type: string
+        temperature:
+          type: number
+          example: 0.7
+        max_tokens:
+          type: integer
+          example: 4096
+        stream:
+          type: boolean
+          default: false
+
+    ChatCompletionResponse:
+      type: object
+      description: Standard OpenAI-compatible chat completion response.
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+          example: chat.completion
+        created:
+          type: integer
+        model:
+          type: string
+        choices:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+              message:
+                type: object
+                properties:
+                  role:
+                    type: string
+                  content:
+                    type: string
+              finish_reason:
+                type: string
+        usage:
+          type: object
+          properties:
+            prompt_tokens:
+              type: integer
+            completion_tokens:
+              type: integer
+            total_tokens:
+              type: integer
+
+    RouterStatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: running
+        uptime:
+          type: string
+          example: "2h 15m 30s"
+        uptime_seconds:
+          type: number
+          example: 8130.0
+        requests_served:
+          type: integer
+        requests_failed:
+          type: integer
+        strategy:
+          type: object
+          properties:
+            loaded:
+              type: boolean
+            version:
+              type: string
+            generated_at:
+              type: string
+            total_models:
+              type: integer
+            task_routes:
+              type: integer
+        backends:
+          type: array
+          items:
+            type: object
+            properties:
+              runtime:
+                type: string
+                example: ollama
+              base_url:
+                type: string
+                example: "http://localhost:11434/v1"
+              healthy:
+                type: boolean
+
+    RouterLogsResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+        logs:
+          type: array
+          items:
+            type: object
+
+    RouterReloadResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [reloaded, failed]
+        task_routes:
+          type: integer
+        total_models:
+          type: integer
+
+    # ---- Memory ----
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+        agent_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        conversation_id:
+          type: string
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+        tokens:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    ConversationListResponse:
+      type: object
+      properties:
+        conversations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Conversation"
+
+    MemoryStatsResponse:
+      type: object
+      description: Usage statistics for conversation memory.
+
+    MemorySearchRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          example: "error handling"
+        agent_id:
+          type: string
+          description: Optional filter by agent.
+        limit:
+          type: integer
+          default: 50
+
+    MemorySearchResponse:
+      type: object
+      properties:
+        query:
+          type: string
+        count:
+          type: integer
+        results:
+          type: array
+          items:
+            type: object
+
+    MemoryShareRequest:
+      type: object
+      required:
+        - from_agent
+        - to_agent
+        - conversation_id
+        - context_summary
+      properties:
+        from_agent:
+          type: string
+          example: nanoclaw
+        to_agent:
+          type: string
+          example: openclaw
+        conversation_id:
+          type: string
+        context_summary:
+          type: string
+
+    CreateConversationRequest:
+      type: object
+      required:
+        - agent_id
+      properties:
+        agent_id:
+          type: string
+          example: zeroclaw
+        id:
+          type: string
+          description: Optional custom conversation ID.
+
+    AddMessageRequest:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+        tokens:
+          type: integer
+          default: 0
+
+    # ---- RAG ----
+    RagIngestRequest:
+      type: object
+      required:
+        - path
+      properties:
+        path:
+          type: string
+          description: File or directory path to ingest.
+          example: /data/docs/manual.md
+        agent_id:
+          type: string
+          default: default
+          example: zeroclaw
+
+    RagIngestResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        files_processed:
+          type: integer
+        chunks_created:
+          type: integer
+
+    RagSearchRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          example: "deployment configuration"
+        agent_id:
+          type: string
+          default: default
+        top_k:
+          type: integer
+          default: 5
+
+    RagSearchResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        query:
+          type: string
+        agent_id:
+          type: string
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+              score:
+                type: number
+              chunk_id:
+                type: string
+              source_file:
+                type: string
+              position:
+                type: integer
+        count:
+          type: integer
+
+    RagV1SearchRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: Search query (also accepts "input" key).
+        input:
+          type: string
+          description: Alias for query (OpenAI compatibility).
+        agent_id:
+          type: string
+          default: default
+        top_k:
+          type: integer
+          description: Number of results (also accepts "n" key).
+          default: 5
+        "n":
+          type: integer
+          description: Alias for top_k (OpenAI compatibility).
+
+    RagV1SearchResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          example: list
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+              score:
+                type: number
+              metadata:
+                type: object
+                properties:
+                  chunk_id:
+                    type: string
+                  source_file:
+                    type: string
+                  position:
+                    type: integer
+        model:
+          type: string
+          example: claw-rag-trigram
+        usage:
+          type: object
+          properties:
+            total_chunks_searched:
+              type: integer
+
+    RagStatusResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        total_agents:
+          type: integer
+        total_chunks:
+          type: integer
+
+    RagClearRequest:
+      type: object
+      properties:
+        agent_id:
+          type: string
+          description: Agent knowledge base to clear. Omit to clear all.
+
+    RagClearResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        cleared:
+          type: string
+          example: all
+
+    # ---- Wizard ----
+    WizardPlatformsResponse:
+      type: object
+      properties:
+        platforms:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                example: zeroclaw
+              name:
+                type: string
+                example: ZeroClaw
+              language:
+                type: string
+                example: Rust
+              memory:
+                type: string
+                example: "512 MB"
+              port:
+                type: integer
+                example: 3100
+              description:
+                type: string
+
+    WizardAssessRequest:
+      type: object
+      required:
+        - company_name
+        - industry
+        - team_size
+        - service_package
+        - complexity_level
+        - primary_channel
+        - monthly_api_budget
+        - deployment_method
+      properties:
+        company_name:
+          type: string
+          example: Acme Corp
+        industry:
+          type: string
+          enum:
+            - technology
+            - healthcare
+            - finance
+            - real-estate
+            - education
+            - retail
+            - hospitality
+            - legal
+            - manufacturing
+            - other
+        team_size:
+          type: string
+          example: "2-10"
+        service_package:
+          type: string
+          enum: [starter, professional, enterprise]
+        primary_use_cases:
+          type: array
+          items:
+            type: string
+          example: [customer-support, knowledge-base]
+        complexity_level:
+          type: string
+          enum: [simple, moderate, expert]
+        description:
+          type: string
+        primary_channel:
+          type: string
+          enum: [web, whatsapp, telegram, discord, slack, email]
+        languages:
+          type: array
+          items:
+            type: string
+          example: [en, it]
+        data_sensitivity:
+          type: string
+          enum: [low, medium, high, critical]
+        storage_preference:
+          type: string
+          enum: [any-cloud, private-cloud, on-premise, eu-only]
+        monthly_api_budget:
+          type: number
+          example: 50
+        deployment_method:
+          type: string
+          enum: [docker, vagrant]
+
+    WizardAssessResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        message:
+          type: string
+        path:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string
+
+    WizardDeployResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        message:
+          type: string
+        error:
+          type: string
+
+    WizardStatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [idle, running, success, failed]
+        message:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+
+    # ---- Dashboard ----
+    AgentInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          example: zeroclaw
+        name:
+          type: string
+          example: ZeroClaw
+        lang:
+          type: string
+          example: Rust
+        port:
+          type: integer
+          example: 3100
+        memory:
+          type: string
+          example: "512 MB"
+        status:
+          type: string
+          enum: [running, stopped, error, degraded]
+
+    DashboardStatusResponse:
+      type: object
+      properties:
+        agents_total:
+          type: integer
+        agents_running:
+          type: integer
+        strategy_configured:
+          type: boolean
+        hardware_detected:
+          type: boolean
+        security_configured:
+          type: boolean
+        adapter_count:
+          type: integer
+        dashboard_port:
+          type: integer
+          example: 9099
+        timestamp:
+          type: string
+          format: date-time
+
+    MonitoringResponse:
+      type: object
+      properties:
+        router:
+          type: object
+          nullable: true
+        optimizer:
+          type: object
+          nullable: true
+        _watchdog:
+          type: object
+          nullable: true
+        model_usage:
+          type: array
+          items:
+            type: object
+        log_levels:
+          type: object
+        cache:
+          type: object
+
+    BudgetsResponse:
+      type: object
+      properties:
+        violations:
+          type: array
+          items:
+            type: object
+        daily_spend:
+          type: number
+        weekly_spend:
+          type: number
+        monthly_spend:
+          type: number
+        config:
+          type: object
+          nullable: true
+
+    AuditResponse:
+      type: object
+      properties:
+        audit:
+          type: array
+          items:
+            type: object
+        alerts:
+          type: array
+          items:
+            type: object
+
+    SecurityEventsResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            type: object
+        summary:
+          type: object
+
+    AgentActionRequest:
+      type: object
+      description: No body required. Action is encoded in the URL path.
+
+    AgentActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        output:
+          type: string
+
+    StrategySaveRequest:
+      type: object
+      description: Full strategy.json content. Must contain "rules", "task_routing", or "optimization".
+
+    FineTuneRequest:
+      type: object
+      required:
+        - adapter_id
+      properties:
+        adapter_id:
+          type: string
+          example: customer-support-v2
+
+    ActivityClawDetail:
+      type: object
+      properties:
+        claw_id:
+          type: string
+        status:
+          type: string
+        name:
+          type: string
+        platform:
+          type: string
+        port:
+          type: integer
+        router:
+          type: object
+          nullable: true
+        watchdog:
+          type: object
+          nullable: true
+        conversations:
+          type: array
+          items:
+            type: object
+        recent_requests:
+          type: array
+          items:
+            type: object
+
+    # ---- Orchestrator ----
+    OrchestratorStatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: running
+        started_at:
+          type: string
+          format: date-time
+        agents:
+          type: object
+          properties:
+            total:
+              type: integer
+            healthy:
+              type: integer
+            unhealthy:
+              type: integer
+        tasks:
+          type: object
+          description: Task counts by status.
+        uptime_check:
+          type: string
+          format: date-time
+
+    OrchestratorAgent:
+      type: object
+      properties:
+        platform:
+          type: string
+        endpoint:
+          type: string
+        port:
+          type: integer
+        capabilities:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [healthy, unhealthy, unknown]
+        current_load:
+          type: integer
+        max_load:
+          type: integer
+
+    SubmitTaskRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          example: Analyze CSV data
+        description:
+          type: string
+        priority:
+          type: integer
+          default: 3
+          minimum: 1
+          maximum: 5
+        agent:
+          type: string
+          description: Optional agent hint for manual routing.
+          example: picoclaw
+
+    SubmitTaskResponse:
+      type: object
+      properties:
+        task_id:
+          type: string
+        task:
+          type: object
+
+    CompleteTaskRequest:
+      type: object
+      properties:
+        result:
+          type: string
+          description: Task result or output summary.
+
+    CreatePipelineRequest:
+      type: object
+      required:
+        - name
+        - steps
+      properties:
+        name:
+          type: string
+          example: data-pipeline
+        steps:
+          type: array
+          items:
+            type: object
+            properties:
+              agent:
+                type: string
+              task:
+                type: string
+
+    CreatePipelineResponse:
+      type: object
+      properties:
+        pipeline_id:
+          type: string
+
+    PipelineStatusResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        steps:
+          type: array
+          items:
+            type: object
+        tasks:
+          type: array
+          items:
+            type: object
+
+    EventListResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              event_type:
+                type: string
+              source:
+                type: string
+              target:
+                type: string
+              payload:
+                type: object
+              timestamp:
+                type: string
+                format: date-time
+        total:
+          type: integer
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid Bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Missing Authorization header. Expected: Bearer <token>"
+    RateLimited:
+      description: Rate limit exceeded.
+      headers:
+        X-RateLimit-Limit:
+          $ref: "#/components/headers/X-RateLimit-Limit"
+        X-RateLimit-Remaining:
+          $ref: "#/components/headers/X-RateLimit-Remaining"
+        X-RateLimit-Reset:
+          $ref: "#/components/headers/X-RateLimit-Reset"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Rate limit exceeded. Try again later."
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Not found"
+    ServerError:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Internal server error"
+
+# =========================================================================
+#  PATHS
+# =========================================================================
+paths:
+
+  # ─── Router (port 9095) ───────────────────────────────────────────────
+
+  /health:
+    get:
+      tags: [Router, RAG, Memory, Orchestrator]
+      summary: Health check
+      description: |
+        Returns service health status. Bypasses authentication and rate limiting.
+        Available on Router (9095), Memory (9096), RAG (9097), and Orchestrator (9100).
+      security: []
+      responses:
+        "200":
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /metrics:
+    get:
+      tags: [Router, Memory, RAG, Wizard, Dashboard, Orchestrator]
+      summary: Prometheus metrics
+      description: |
+        Returns Prometheus text exposition metrics. Bypasses authentication and
+        rate limiting. Available on all six services.
+      security: []
+      responses:
+        "200":
+          description: Prometheus metrics in text format.
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/PrometheusMetrics"
+
+  /:
+    get:
+      tags: [Router]
+      summary: Router service info
+      description: Returns service metadata, version, and endpoint listing.
+      responses:
+        "200":
+          description: Router service information.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouterRootResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /v1/models:
+    get:
+      tags: [Router]
+      summary: List available models
+      description: |
+        OpenAI-compatible model listing endpoint. Returns all models
+        configured in strategy.json.
+      responses:
+        "200":
+          description: List of available models.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenAIModelList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Strategy not loaded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/chat/completions:
+    post:
+      tags: [Router]
+      summary: Chat completions (OpenAI-compatible)
+      description: |
+        Main proxy endpoint. Accepts OpenAI-compatible chat completion requests,
+        detects the task type from message content, routes to the best available
+        model based on strategy.json, and returns the upstream response.
+        Supports streaming via `stream: true`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatCompletionRequest"
+      responses:
+        "200":
+          description: Chat completion response from the routed model.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatCompletionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "503":
+          description: Router not initialized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/router/status:
+    get:
+      tags: [Router]
+      summary: Router status and statistics
+      description: |
+        Returns uptime, request counts, strategy info, and backend
+        health status for all configured local runtimes.
+      responses:
+        "200":
+          description: Router status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouterStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Router not initialized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/router/logs:
+    get:
+      tags: [Router]
+      summary: Recent request logs
+      description: Returns the most recent request log entries from the router.
+      parameters:
+        - name: tail
+          in: query
+          description: Number of log entries to return.
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Recent log entries.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouterLogsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/router/reload:
+    post:
+      tags: [Router]
+      summary: Reload strategy configuration
+      description: |
+        Re-reads strategy.json from disk and invalidates backend health caches.
+        Logged to the audit trail.
+      responses:
+        "200":
+          description: Strategy reloaded successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouterReloadResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          description: Reload failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Strategy manager not initialized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Memory (port 9096) ──────────────────────────────────────────────
+
+  /api/memory/conversations:
+    get:
+      tags: [Memory]
+      summary: List conversations
+      description: Returns all conversations across all agents.
+      responses:
+        "200":
+          description: List of conversations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+    post:
+      tags: [Memory]
+      summary: Create a conversation
+      description: Creates a new conversation for the specified agent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConversationRequest"
+      responses:
+        "201":
+          description: Conversation created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+        "400":
+          description: Missing agent_id or invalid JSON.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/memory/conversations/{id}:
+    get:
+      tags: [Memory]
+      summary: Get conversation with messages
+      description: Returns a single conversation and all its messages.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Conversation with messages.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+        "400":
+          description: Missing conversation ID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Conversation not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+    delete:
+      tags: [Memory]
+      summary: Delete a conversation
+      description: Permanently deletes a conversation and all its messages.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Conversation deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                  id:
+                    type: string
+        "400":
+          description: Missing conversation ID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Conversation not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/memory/conversations/{id}/messages:
+    post:
+      tags: [Memory]
+      summary: Add message to conversation
+      description: Appends a message (user, assistant, or system) to an existing conversation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddMessageRequest"
+      responses:
+        "201":
+          description: Message added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          description: Invalid role, missing content, or bad JSON.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Conversation not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/memory/search:
+    post:
+      tags: [Memory]
+      summary: Full-text search
+      description: Searches across all conversation history with optional agent filter.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemorySearchRequest"
+      responses:
+        "200":
+          description: Search results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemorySearchResponse"
+        "400":
+          description: Missing query or invalid JSON.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/memory/share:
+    post:
+      tags: [Memory]
+      summary: Share context between agents
+      description: |
+        Creates a context-sharing record so one agent can access
+        summarized context from another agent's conversation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryShareRequest"
+      responses:
+        "201":
+          description: Context shared successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Missing required fields.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/memory/stats:
+    get:
+      tags: [Memory]
+      summary: Usage statistics
+      description: Returns conversation and message count statistics.
+      responses:
+        "200":
+          description: Memory usage statistics.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryStatsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  # ─── RAG (port 9097) ─────────────────────────────────────────────────
+
+  /api/rag/ingest:
+    post:
+      tags: [RAG]
+      summary: Ingest a file or directory
+      description: |
+        Ingests documents into the trigram index for the specified agent.
+        Supports .txt, .md, .json, and .jsonl files.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RagIngestRequest"
+      responses:
+        "200":
+          description: Ingestion completed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RagIngestResponse"
+        "400":
+          description: Missing path field or unsupported file type.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: File or directory not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/rag/search:
+    post:
+      tags: [RAG]
+      summary: Search indexed chunks
+      description: |
+        Searches the trigram index for the specified agent using
+        Jaccard similarity scoring.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RagSearchRequest"
+      responses:
+        "200":
+          description: Search results with similarity scores.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RagSearchResponse"
+        "400":
+          description: Missing query field.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /v1/search:
+    post:
+      tags: [RAG]
+      summary: Search (OpenAI-compatible)
+      description: |
+        OpenAI-compatible search endpoint that returns results in the
+        standard `{"object": "list", "data": [...]}` format.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RagV1SearchRequest"
+      responses:
+        "200":
+          description: Search results in OpenAI format.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RagV1SearchResponse"
+        "400":
+          description: Missing query/input field.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/rag/status:
+    get:
+      tags: [RAG]
+      summary: Index statistics
+      description: Returns per-agent chunk counts and overall index size.
+      responses:
+        "200":
+          description: Index statistics.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RagStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/rag/clear:
+    delete:
+      tags: [RAG]
+      summary: Clear knowledge bases
+      description: |
+        Clears the trigram index. Optionally pass `agent_id` in the
+        request body to clear only that agent's knowledge base.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RagClearRequest"
+      responses:
+        "200":
+          description: Knowledge base cleared.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RagClearResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  # ─── Wizard (port 9098) ──────────────────────────────────────────────
+
+  /api/wizard/platforms:
+    get:
+      tags: [Wizard]
+      summary: List platforms
+      description: Returns the five Claw agent platforms with metadata.
+      responses:
+        "200":
+          description: Platform list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WizardPlatformsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/wizard/assess:
+    post:
+      tags: [Wizard]
+      summary: Submit assessment
+      description: |
+        Validates the form data, builds the assessment JSON structure,
+        and writes it to `client-assessment.json`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WizardAssessRequest"
+      responses:
+        "200":
+          description: Assessment saved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WizardAssessResponse"
+        "400":
+          description: Invalid JSON body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WizardAssessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: Validation errors.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WizardAssessResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          description: Failed to write assessment file.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WizardAssessResponse"
+
+  /api/wizard/preview:
+    get:
+      tags: [Wizard]
+      summary: Preview assessment resolution
+      description: |
+        Runs resolve.py on the current `client-assessment.json` and returns
+        the platform resolution result.
+      responses:
+        "200":
+          description: Resolution preview.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/wizard/deploy:
+    post:
+      tags: [Wizard]
+      summary: Trigger deployment
+      description: |
+        Triggers `claw.sh deploy` in a background thread using the current
+        `client-assessment.json`. Returns immediately.
+      responses:
+        "200":
+          description: Deployment started.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WizardDeployResponse"
+        "400":
+          description: No assessment file exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WizardDeployResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Deployment already in progress.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WizardDeployResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/wizard/status:
+    get:
+      tags: [Wizard]
+      summary: Deployment status
+      description: Returns the current deployment state (idle, running, success, failed).
+      responses:
+        "200":
+          description: Deployment status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WizardStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  # ─── Dashboard (port 9099) ───────────────────────────────────────────
+
+  /api/agents:
+    get:
+      tags: [Dashboard]
+      summary: Agent fleet status
+      description: |
+        Returns all agent platforms with real-time health status
+        (checks Docker containers and HTTP health endpoints).
+      responses:
+        "200":
+          description: Agent list with status.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgentInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/agents/{id}/{action}:
+    post:
+      tags: [Dashboard]
+      summary: Start, stop, or restart an agent
+      description: |
+        Executes the specified action on an agent platform via `claw.sh`.
+        Valid actions are `start`, `stop`, and `restart`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Agent platform ID (zeroclaw, nanoclaw, picoclaw, openclaw, parlant).
+          schema:
+            type: string
+            enum: [zeroclaw, nanoclaw, picoclaw, openclaw, parlant]
+        - name: action
+          in: path
+          required: true
+          description: Action to perform.
+          schema:
+            type: string
+            enum: [start, stop, restart]
+      responses:
+        "200":
+          description: Action result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentActionResponse"
+        "400":
+          description: Invalid path or unknown action.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Unknown agent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/hardware:
+    get:
+      tags: [Dashboard]
+      summary: Hardware profile
+      description: Returns detected CPU, RAM, and GPU information from hardware_profile.json.
+      responses:
+        "200":
+          description: Hardware profile data.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: hardware_profile.json not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/strategy:
+    get:
+      tags: [Dashboard]
+      summary: Get model strategy
+      description: Returns the current strategy.json routing configuration.
+      responses:
+        "200":
+          description: Strategy configuration.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: strategy.json not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+    post:
+      tags: [Dashboard]
+      summary: Save model strategy
+      description: |
+        Overwrites strategy.json with the provided content. Must contain
+        "rules", "task_routing", or "optimization" keys.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StrategySaveRequest"
+      responses:
+        "200":
+          description: Strategy saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        "400":
+          description: Empty body or missing required keys.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/strategy/generate:
+    post:
+      tags: [Dashboard]
+      summary: Regenerate strategy
+      description: Triggers strategy.json regeneration based on current hardware and configuration.
+      responses:
+        "200":
+          description: Generation result.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/security:
+    get:
+      tags: [Dashboard]
+      summary: Security rules
+      description: Returns the security_rules.json configuration.
+      responses:
+        "200":
+          description: Security rules.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: security_rules.json not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/security/events:
+    get:
+      tags: [Dashboard]
+      summary: Security events
+      description: Returns recent security events with severity summary.
+      responses:
+        "200":
+          description: Security events and summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityEventsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/adapters:
+    get:
+      tags: [Dashboard]
+      summary: Fine-tuning adapters
+      description: Lists all fine-tuning adapters from the finetune/adapters directory.
+      responses:
+        "200":
+          description: Adapter list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/finetune:
+    post:
+      tags: [Dashboard]
+      summary: Trigger fine-tuning
+      description: Triggers a fine-tuning job for the specified adapter.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FineTuneRequest"
+      responses:
+        "200":
+          description: Fine-tuning result.
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Missing adapter_id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/billing:
+    get:
+      tags: [Dashboard]
+      summary: Billing data
+      description: Returns billing and cost data from usage logs.
+      responses:
+        "200":
+          description: Billing data.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/config:
+    get:
+      tags: [Dashboard]
+      summary: Redacted configuration
+      description: Returns .env.template values with secrets redacted.
+      responses:
+        "200":
+          description: Redacted config.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: .env.template not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/status:
+    get:
+      tags: [Dashboard]
+      summary: Overall system status
+      description: |
+        Returns aggregate system status including running agents,
+        strategy, hardware, security, and adapter counts.
+      responses:
+        "200":
+          description: System status summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/monitoring:
+    get:
+      tags: [Dashboard]
+      summary: Composite monitoring metrics
+      description: |
+        Aggregates metrics from Router, Optimizer, Watchdog, and DAL
+        into a single response for dashboard consumption.
+      responses:
+        "200":
+          description: Composite monitoring data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonitoringResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/deployments:
+    get:
+      tags: [Dashboard]
+      summary: Recent deployments
+      description: Returns the 10 most recent deployment records from DAL.
+      responses:
+        "200":
+          description: Deployment list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/logs:
+    get:
+      tags: [Dashboard]
+      summary: Agent log entries
+      description: Returns recent log entries, optionally filtered by agent.
+      parameters:
+        - name: agent
+          in: query
+          description: Filter logs by agent ID.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of log entries to return.
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Log entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/router:
+    get:
+      tags: [Dashboard]
+      summary: Router status proxy
+      description: Proxies to the Router service's /api/router/status endpoint.
+      responses:
+        "200":
+          description: Router status (proxied).
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/providers:
+    get:
+      tags: [Dashboard]
+      summary: Provider health
+      description: |
+        Proxies to the Optimizer service and returns provider health
+        and optimization rules.
+      responses:
+        "200":
+          description: Provider health data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  provider_health:
+                    type: object
+                  rules_status:
+                    type: array
+                    items:
+                      type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/budgets:
+    get:
+      tags: [Dashboard]
+      summary: Budget status
+      description: Returns budget violations, daily/weekly/monthly spend, and budget config.
+      responses:
+        "200":
+          description: Budget status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/audit:
+    get:
+      tags: [Dashboard]
+      summary: Audit log and alerts
+      description: Returns recent audit log entries and alert history.
+      responses:
+        "200":
+          description: Audit data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/activity/stream:
+    get:
+      tags: [Dashboard]
+      summary: Live activity stream (SSE)
+      description: |
+        Server-Sent Events endpoint for real-time activity monitoring.
+        Sends heartbeats every 15 seconds to keep the connection alive.
+      responses:
+        "200":
+          description: SSE event stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE-formatted events.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/activity/claw/{claw_id}:
+    get:
+      tags: [Dashboard]
+      summary: Per-claw activity detail
+      description: |
+        Returns detailed activity information for a specific deployed
+        claw instance, including router stats, watchdog data, conversations,
+        and recent LLM requests.
+      parameters:
+        - name: claw_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Claw detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityClawDetail"
+        "400":
+          description: Missing claw_id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/activity/requests:
+    get:
+      tags: [Dashboard]
+      summary: Recent LLM requests
+      description: Returns the 50 most recent LLM requests across all agents.
+      responses:
+        "200":
+          description: Recent LLM requests.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/docs:
+    get:
+      tags: [Dashboard]
+      summary: API documentation
+      description: Serves the Swagger UI page for interactive API exploration.
+      security: []
+      responses:
+        "200":
+          description: Swagger UI HTML page.
+          content:
+            text/html:
+              schema:
+                type: string
+
+  # ─── Orchestrator (port 9100) ────────────────────────────────────────
+
+  /api/orchestrator/status:
+    get:
+      tags: [Orchestrator]
+      summary: Orchestrator status
+      description: |
+        Returns overall orchestrator health including agent counts,
+        task counts by status, and uptime.
+      responses:
+        "200":
+          description: Orchestrator status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/orchestrator/agents:
+    get:
+      tags: [Orchestrator]
+      summary: List agents
+      description: Returns all registered agents with health status and load.
+      responses:
+        "200":
+          description: Agent list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OrchestratorAgent"
+                  total:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/orchestrator/agents/{id}/health:
+    post:
+      tags: [Orchestrator]
+      summary: Trigger agent health check
+      description: Manually triggers a health check for the specified agent.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Agent is healthy.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  agent:
+                    type: string
+                  status:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Agent is unhealthy.
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/orchestrator/tasks:
+    get:
+      tags: [Orchestrator]
+      summary: List tasks
+      description: Returns all tasks, optionally filtered by status.
+      parameters:
+        - name: status
+          in: query
+          description: Filter by task status (pending, assigned, running, completed, failed).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Task list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+    post:
+      tags: [Orchestrator]
+      summary: Submit a new task
+      description: |
+        Submits a new task to the queue. If no agent hint is provided,
+        the orchestrator auto-routes based on task keywords and agent
+        capabilities.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitTaskRequest"
+      responses:
+        "201":
+          description: Task submitted and optionally auto-routed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmitTaskResponse"
+        "400":
+          description: Missing title.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/orchestrator/tasks/{id}:
+    get:
+      tags: [Orchestrator]
+      summary: Get task details
+      description: Returns full details for a specific task by ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Task details.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Task not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/orchestrator/tasks/{id}/complete:
+    post:
+      tags: [Orchestrator]
+      summary: Mark task complete
+      description: Marks a task as completed with an optional result summary.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteTaskRequest"
+      responses:
+        "200":
+          description: Task marked complete.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  task_id:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Task not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Task already completed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/orchestrator/pipeline:
+    post:
+      tags: [Orchestrator]
+      summary: Create a pipeline
+      description: |
+        Creates a multi-step pipeline with ordered agent steps.
+        Each step specifies an agent and a task description.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePipelineRequest"
+      responses:
+        "201":
+          description: Pipeline created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatePipelineResponse"
+        "400":
+          description: Missing name or steps.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/orchestrator/pipeline/{id}:
+    get:
+      tags: [Orchestrator]
+      summary: Get pipeline status
+      description: Returns pipeline details including all step tasks.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Pipeline status with tasks.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Pipeline not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/orchestrator/pipeline/{id}/execute:
+    post:
+      tags: [Orchestrator]
+      summary: Start pipeline execution
+      description: Begins executing pipeline steps in order.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Pipeline execution started.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  pipeline_id:
+                    type: string
+                  status:
+                    type: string
+                    example: running
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Pipeline not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Pipeline already completed or empty.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/orchestrator/events:
+    get:
+      tags: [Orchestrator]
+      summary: Recent events
+      description: Returns recent event bus messages with optional agent filter.
+      parameters:
+        - name: agent_id
+          in: query
+          description: Filter events by agent ID.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of events to return.
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Event list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"

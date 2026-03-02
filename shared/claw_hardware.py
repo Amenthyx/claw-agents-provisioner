@@ -528,49 +528,42 @@ class HardwareDetector:
 class RuntimeRecommender:
     """Uses detected hardware to recommend the optimal local LLM runtime."""
 
-    # Runtime metadata
+    # Runtime metadata — all runtimes install natively (bare metal) for full GPU access
     RUNTIMES = {
         "vllm": {
             "name": "vLLM",
             "port": 8000,
             "requires_gpu": True,
             "supported_apis": ["CUDA"],
-            "description": "Highest throughput GPU inference with PagedAttention",
+            "description": "Native install — highest throughput GPU inference with PagedAttention",
         },
         "ollama": {
             "name": "Ollama",
             "port": 11434,
             "requires_gpu": False,
             "supported_apis": ["CUDA", "ROCm", "Metal"],
-            "description": "Easiest setup, broad hardware support, CPU + GPU",
+            "description": "Native install — easiest setup, full GPU passthrough, CPU + GPU",
         },
         "llamacpp": {
             "name": "llama.cpp",
             "port": 8080,
             "requires_gpu": False,
             "supported_apis": ["CUDA", "ROCm", "Metal", "SYCL", "CPU"],
-            "description": "Most efficient CPU inference, smallest footprint",
+            "description": "Native install — most efficient CPU inference, smallest footprint",
         },
         "ipexllm": {
             "name": "ipex-llm",
             "port": 8010,
             "requires_gpu": False,
             "supported_apis": ["SYCL", "CPU"],
-            "description": "Intel-optimized with SYCL/AMX acceleration",
+            "description": "Native install — Intel-optimized with SYCL/AMX acceleration",
         },
         "sglang": {
             "name": "SGLang",
             "port": 30000,
             "requires_gpu": True,
             "supported_apis": ["CUDA"],
-            "description": "Fast serving with RadixAttention, CUDA only",
-        },
-        "docker_model_runner": {
-            "name": "Docker Model Runner",
-            "port": 12434,
-            "requires_gpu": False,
-            "supported_apis": ["CUDA", "CPU"],
-            "description": "Docker-native model serving, easy container integration",
+            "description": "Native install — fast serving with RadixAttention, CUDA GPU",
         },
     }
 

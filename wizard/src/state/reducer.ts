@@ -45,6 +45,10 @@ export const initialState: WizardState = {
   llmProvider: 'cloud',
   runtime: '',
   selectedModels: [],
+  strategy: {
+    optimization: 'balanced',
+    rules: [],
+  },
   securityEnabled: false,
   securityFeatures: [],
   securityConfig: defaultSecurityConfig,
@@ -117,6 +121,18 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
           ? state.selectedModels.filter((id) => id !== action.modelId)
           : [...state.selectedModels, action.modelId],
       };
+    case 'SET_STRATEGY_OPTIMIZATION':
+      return { ...state, strategy: { ...state.strategy, optimization: action.optimization } };
+    case 'SET_STRATEGY_RULE': {
+      const rules = [...state.strategy.rules];
+      const idx = rules.findIndex((r) => r.taskCategory === action.taskCategory);
+      const rule = { taskCategory: action.taskCategory, primaryModel: action.primaryModel, fallbackModel: action.fallbackModel };
+      if (idx >= 0) rules[idx] = rule;
+      else rules.push(rule);
+      return { ...state, strategy: { ...state.strategy, rules } };
+    }
+    case 'SET_STRATEGY_RULES':
+      return { ...state, strategy: { ...state.strategy, rules: action.rules } };
     case 'SET_SECURITY_ENABLED':
       return { ...state, securityEnabled: action.enabled };
     case 'TOGGLE_SECURITY_FEATURE':

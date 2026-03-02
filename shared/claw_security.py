@@ -32,6 +32,8 @@ Requirements:
     Python 3.8+  (stdlib only — no pip installs)
 """
 
+from __future__ import annotations
+
 import argparse
 import ipaddress
 import json
@@ -42,7 +44,10 @@ import signal
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Pattern
 from urllib.parse import urlparse
+
+from claw_audit import get_audit_logger
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  Logging
@@ -51,7 +56,7 @@ from urllib.parse import urlparse
 logger = logging.getLogger("claw-security")
 
 
-def setup_logging():
+def setup_logging() -> None:
     fmt = logging.Formatter(
         "%(asctime)s  %(levelname)-5s  %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -517,22 +522,22 @@ DEFAULT_RULES = {
 class SecurityChecker:
     """Runtime security validation engine."""
 
-    def __init__(self, rules: dict):
-        self.rules = rules
-        self._compiled_url_patterns = []
-        self._compiled_injection_patterns = []
-        self._compiled_pii_patterns = {}
-        self._compiled_secret_patterns = {}
-        self._blocked_networks = []
-        self._dal = None
+    def __init__(self, rules: Dict[str, Any]) -> None:
+        self.rules: Dict[str, Any] = rules
+        self._compiled_url_patterns: List[Pattern[str]] = []
+        self._compiled_injection_patterns: List[Pattern[str]] = []
+        self._compiled_pii_patterns: Dict[str, Pattern[str]] = {}
+        self._compiled_secret_patterns: Dict[str, Pattern[str]] = {}
+        self._blocked_networks: List[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+        self._dal: Optional[Any] = None
         try:
             from claw_dal import DAL
             self._dal = DAL.get_instance()
-        except Exception:
+        except (ImportError, RuntimeError, OSError):
             pass
         self._compile_patterns()
 
-    def _compile_patterns(self):
+    def _compile_patterns(self) -> None:
         """Pre-compile regex patterns for performance."""
         # URL patterns
         url_rules = self.rules.get("forbidden_urls", {})
@@ -578,7 +583,7 @@ class SecurityChecker:
 
     # ─── URL Checking ────────────────────────────────────────────────────
 
-    def check_url(self, url: str) -> dict:
+    def check_url(self, url: str) -> Dict[str, Any]:
         """Check a URL against all URL rules. Returns {allowed, reason, rule}."""
         url_rules = self.rules.get("forbidden_urls", {})
         if not url_rules.get("enabled", True):
@@ -589,7 +594,7 @@ class SecurityChecker:
             parsed = urlparse(url)
             hostname = parsed.hostname or ""
             scheme = parsed.scheme or ""
-        except Exception:
+        except (ValueError, AttributeError):
             return {"allowed": False, "reason": "Malformed URL", "rule": "url_parse"}
 
         # Check scheme
@@ -643,7 +648,7 @@ class SecurityChecker:
 
     def _log_violation(self, event_type: str, severity: str, detail: str,
                        agent_id: str = "security_checker") -> None:
-        """Log a security violation to DAL if available."""
+        """Log a security violation to DAL and audit log."""
         if self._dal:
             try:
                 self._dal.security_events.log_event(
@@ -652,12 +657,20 @@ class SecurityChecker:
                     severity=severity,
                     detail=detail,
                 )
-            except Exception:
+            except (RuntimeError, OSError, KeyError):
                 pass
+
+        audit = get_audit_logger()
+        audit.log_security_event(
+            action=event_type,
+            resource=agent_id,
+            outcome="failure",
+            details={"severity": severity, "detail": detail},
+        )
 
     # ─── Content Checking ────────────────────────────────────────────────
 
-    def check_content(self, text: str) -> dict:
+    def check_content(self, text: str) -> Dict[str, Any]:
         """Check text content against content rules. Returns {allowed, violations}."""
         content_rules = self.rules.get("content_rules", {})
         if not content_rules.get("enabled", True):
@@ -707,7 +720,7 @@ class SecurityChecker:
 
     # ─── PII Detection ───────────────────────────────────────────────────
 
-    def detect_pii(self, text: str) -> list:
+    def detect_pii(self, text: str) -> List[Dict[str, Any]]:
         """Detect PII patterns in text. Returns list of {type, match, position}."""
         data_rules = self.rules.get("data_handling", {})
         pii = data_rules.get("pii_detection", {})
@@ -741,7 +754,7 @@ class SecurityChecker:
 
     # ─── IP/Network Checking ─────────────────────────────────────────────
 
-    def check_ip(self, ip_str: str) -> dict:
+    def check_ip(self, ip_str: str) -> Dict[str, Any]:
         """Check if an IP address is in a forbidden range."""
         net_rules = self.rules.get("network_rules", {})
         if not net_rules.get("enabled", True):
@@ -872,7 +885,7 @@ class SecurityChecker:
 #  System Prompt Security Appendix Generator
 # ═══════════════════════════════════════════════════════════════════════════
 
-def generate_security_prompt(rules: dict, compliance_flags: str = "") -> str:
+def generate_security_prompt(rules: Dict[str, Any], compliance_flags: str = "") -> str:
     """Generate a security appendix for injection into agent system prompts."""
     sections = []
     sections.append("## Security Rules (MANDATORY — enforced at all times)")
@@ -976,7 +989,7 @@ def generate_security_prompt(rules: dict, compliance_flags: str = "") -> str:
 #  Config Loading / Writing
 # ═══════════════════════════════════════════════════════════════════════════
 
-def load_rules(path: str = None) -> dict:
+def load_rules(path: Optional[str] = None) -> Dict[str, Any]:
     """Load security rules from JSON file, falling back to defaults."""
     rules = json.loads(json.dumps(DEFAULT_RULES))  # deep copy
 
@@ -992,7 +1005,7 @@ def load_rules(path: str = None) -> dict:
     return rules
 
 
-def _deep_merge(base: dict, override: dict):
+def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> None:
     """Recursively merge override into base dict."""
     for key, val in override.items():
         if isinstance(val, dict) and isinstance(base.get(key), dict):
@@ -1001,7 +1014,7 @@ def _deep_merge(base: dict, override: dict):
             base[key] = val
 
 
-def write_rules(rules: dict, path: str):
+def write_rules(rules: Dict[str, Any], path: str) -> None:
     """Write security rules to JSON file."""
     rules["_generated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     with open(path, "w", encoding="utf-8") as f:
@@ -1013,7 +1026,7 @@ def write_rules(rules: dict, path: str):
 #  CLI
 # ═══════════════════════════════════════════════════════════════════════════
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Claw Security — Runtime Security Rules Engine",
     )
@@ -1066,7 +1079,7 @@ def main():
     setup_logging()
 
     # Signal handlers
-    def _signal_handler(sig, frame):
+    def _signal_handler(sig: int, frame: Any) -> None:
         sys.exit(0)
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)

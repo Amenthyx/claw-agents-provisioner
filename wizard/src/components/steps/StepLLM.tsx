@@ -12,8 +12,8 @@ import type { LocalRuntime } from '../../state/types';
 
 const MODES = [
   { id: 'cloud', name: 'Cloud API', icon: Cloud, desc: 'Use hosted LLM providers via API' },
-  { id: 'local', name: 'Local LLM', icon: HardDrive, desc: 'Run models on your own hardware' },
-  { id: 'hybrid', name: 'Hybrid', icon: Shuffle, desc: 'Combine cloud and local models' },
+  { id: 'local', name: 'Local LLM', icon: HardDrive, desc: 'Native install on your machine — full GPU access' },
+  { id: 'hybrid', name: 'Hybrid', icon: Shuffle, desc: 'Local native + cloud fallback for reliability' },
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

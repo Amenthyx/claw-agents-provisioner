@@ -647,7 +647,7 @@ def run_benchmark(scan_results: Dict) -> None:
                 with urllib.request.urlopen(req, timeout=5) as _:
                     elapsed = (time.time() - start) * 1000
                     times.append(elapsed)
-            except Exception:
+            except (urllib.error.URLError, urllib.error.HTTPError, OSError):
                 times.append(-1)
 
         valid = [t for t in times if t > 0]
@@ -706,7 +706,7 @@ def main() -> None:
                 detector = HardwareDetector()
                 hardware_profile = detector.detect_all()
                 log("Hardware detected — strategy will include hardware-aware scoring.")
-            except Exception:
+            except (RuntimeError, OSError, ValueError):
                 warn("Hardware detection failed — generating strategy without hardware info.")
         elif HARDWARE_PROFILE_FILE.exists():
             try:

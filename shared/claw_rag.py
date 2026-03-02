@@ -237,7 +237,7 @@ class DocumentLoader:
                 try:
                     chunks = self.load_file(str(file_path))
                     all_chunks.extend(chunks)
-                except Exception as e:
+                except (OSError, UnicodeDecodeError, ValueError) as e:
                     warn(f"Skipping {file_path}: {e}")
 
         return all_chunks
@@ -444,7 +444,7 @@ class KnowledgeBase:
                 try:
                     added = self.ingest_file(str(file_path))
                     total_added += added
-                except Exception as e:
+                except (OSError, UnicodeDecodeError, ValueError) as e:
                     warn(f"Skipping {file_path}: {e}")
 
         return total_added
@@ -829,7 +829,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
             else:
                 status = 404
                 self._send_json(404, {"error": "Not found"})
-        except Exception:
+        except Exception:  # Broad catch to record HTTP 500 in metrics before re-raising
             status = 500
             raise
         finally:
@@ -859,7 +859,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
             else:
                 status = 404
                 self._send_json(404, {"error": "Not found"})
-        except Exception:
+        except Exception:  # Broad catch to record HTTP 500 in metrics before re-raising
             status = 500
             raise
         finally:
@@ -885,7 +885,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
             else:
                 status = 404
                 self._send_json(404, {"error": "Not found"})
-        except Exception:
+        except Exception:  # Broad catch to record HTTP 500 in metrics before re-raising
             status = 500
             raise
         finally:
@@ -920,7 +920,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
             self._send_json(404, {"error": str(e)})
         except NotADirectoryError as e:
             self._send_json(400, {"error": str(e)})
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             self._send_json(500, {"error": str(e)})
 
     def _handle_search(self) -> None:
@@ -943,7 +943,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 "results": results,
                 "count": len(results),
             })
-        except Exception as e:
+        except (KeyError, ValueError, RuntimeError) as e:
             self._send_json(500, {"error": str(e)})
 
     def _handle_v1_search(self) -> None:
@@ -982,7 +982,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 "model": "claw-rag-trigram",
                 "usage": {"total_chunks_searched": self.engine._index.chunk_count()},
             })
-        except Exception as e:
+        except (KeyError, ValueError, RuntimeError) as e:
             self._send_json(500, {"error": str(e)})
 
     def _handle_status(self) -> None:
@@ -990,7 +990,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
         try:
             status = self.engine.status()
             self._send_json(200, {"ok": True, **status})
-        except Exception as e:
+        except (RuntimeError, OSError) as e:
             self._send_json(500, {"error": str(e)})
 
     def _handle_clear(self) -> None:
@@ -1001,7 +1001,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
         try:
             result = self.engine.clear(agent_id=agent_id)
             self._send_json(200, {"ok": True, **result})
-        except Exception as e:
+        except (RuntimeError, OSError, KeyError) as e:
             self._send_json(500, {"error": str(e)})
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -1062,7 +1062,7 @@ class RAGServer:
 
         try:
             self._server.serve_forever()
-        except Exception:
+        except (KeyboardInterrupt, OSError):
             pass
         finally:
             self._cleanup_pid()

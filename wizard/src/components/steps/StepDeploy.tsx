@@ -26,14 +26,6 @@ function StatusIcon({ status }: { status: string }) {
   }
 }
 
-const DEFAULT_ENDPOINTS = [
-  { name: 'Agent Platform', url: 'http://localhost:3100' },
-  { name: 'Gateway Router', url: 'http://localhost:9095' },
-  { name: 'Optimizer', url: 'http://localhost:9091' },
-  { name: 'Dashboard', url: 'http://localhost:9099' },
-  { name: 'Watchdog', url: 'http://localhost:9097' },
-];
-
 export function StepDeploy() {
   const { state, assessmentJSON } = useWizard();
   const {
@@ -41,6 +33,24 @@ export function StepDeploy() {
     endpoints: liveEndpoints, startDeploy, cleanup,
   } = useDeploy();
   const logEndRef = useRef<HTMLDivElement>(null);
+
+  // Resolve ports from wizard state (matches what backend will allocate)
+  const agentPort = state.portConfig?.agentPort || (
+    state.platform === 'nanoclaw' ? 3200 :
+    state.platform === 'picoclaw' ? 3300 :
+    state.platform === 'openclaw' ? 3400 :
+    state.platform === 'parlant'  ? 8800 : 3100
+  );
+  const gatewayPort = state.portConfig?.gatewayPort || state.gateway?.port || 9095;
+  const optimizerPort = state.portConfig?.optimizerPort || 9091;
+  const watchdogPort = state.portConfig?.watchdogPort || 9097;
+
+  const fallbackEndpoints = [
+    { name: 'Agent Platform', url: `http://localhost:${agentPort}` },
+    { name: 'Gateway Router', url: `http://localhost:${gatewayPort}` },
+    { name: 'Optimizer', url: `http://localhost:${optimizerPort}` },
+    { name: 'Watchdog', url: `http://localhost:${watchdogPort}` },
+  ];
 
   useEffect(() => {
     return () => cleanup();
@@ -58,7 +68,7 @@ export function StepDeploy() {
     await navigator.clipboard.writeText(url);
   };
 
-  const displayEndpoints = liveEndpoints.length > 0 ? liveEndpoints : DEFAULT_ENDPOINTS;
+  const displayEndpoints = liveEndpoints.length > 0 ? liveEndpoints : fallbackEndpoints;
 
   // Pre-deploy state
   if (!isDeploying && !isDone && !hasError) {

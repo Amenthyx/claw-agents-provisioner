@@ -118,17 +118,33 @@ check_requirements() {
         warn "pip: not found"
     fi
 
-    # Docker
+    # Docker (auto-install if missing)
     if command_exists docker; then
         log "Docker: $(docker --version 2>&1 | awk '{print $3}' | tr -d ',')"
         if docker compose version &>/dev/null 2>&1; then
             log "Docker Compose: $(docker compose version --short 2>&1)"
         else
-            warn "Docker Compose: not found"
+            warn "Docker Compose: not found — installing with Docker Desktop..."
         fi
     else
-        warn "Docker: not found"
-        all_ok=false
+        warn "Docker: not found — installing automatically..."
+        local os_type
+        os_type="$(uname -s)"
+        case "$os_type" in
+            Darwin)
+                command_exists brew && brew install --cask docker ;;
+            Linux)
+                curl -fsSL https://get.docker.com | sh ;;
+            MINGW*|MSYS*|CYGWIN*)
+                command_exists winget && winget install -e --id Docker.DockerDesktop \
+                    --accept-package-agreements --accept-source-agreements ;;
+        esac
+        if command_exists docker; then
+            log "Docker: installed — $(docker --version 2>&1 | awk '{print $3}' | tr -d ',')"
+        else
+            warn "Docker: auto-install failed — install manually: https://docs.docker.com/get-docker/"
+            all_ok=false
+        fi
     fi
 
     # Vagrant (optional)

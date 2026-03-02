@@ -279,6 +279,41 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  # ---------------------------------------------------------------------------
+  # Health Aggregator — Unified health check service for all platform services
+  # Memory: ~20 MB idle, ~50 MB active | Limit: 128 MB
+  # Polls router, memory, rag, wizard, dashboard, orchestrator every 30s
+  # ---------------------------------------------------------------------------
+  health-aggregator:
+    image: python:3.11-slim
+    profiles:
+      - health
+    env_file:
+      - .env
+    environment:
+      CLAW_HEALTH_CHECK_INTERVAL: ${CLAW_HEALTH_CHECK_INTERVAL:-30}
+    volumes:
+      - ./shared/claw_health.py:/app/claw_health.py:ro
+    working_dir: /app
+    command: ["python3", "claw_health.py", "--start", "--port", "9094"]
+    ports:
+      - "${CLAW_HEALTH_PORT:-9094}:9094"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 16M
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9094/health', timeout=3)\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
 volumes:
   zeroclaw-data:
   nanoclaw-data:

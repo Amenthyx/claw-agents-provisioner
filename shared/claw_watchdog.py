@@ -139,7 +139,7 @@ def check_container_running(container_name: str) -> dict:
         return {"ok": False, "detail": "docker not installed"}
     except subprocess.TimeoutExpired:
         return {"ok": False, "detail": "docker inspect timed out"}
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError, ValueError) as e:
         return {"ok": False, "detail": str(e)}
 
 
@@ -162,7 +162,7 @@ def check_health_url(url: str, timeout: float = 10.0) -> dict:
             return {"ok": ok, "detail": f"HTTP {code}"}
     except URLError as e:
         return {"ok": False, "detail": str(e.reason)}
-    except Exception as e:
+    except (OSError, socket.timeout, ValueError) as e:
         return {"ok": False, "detail": str(e)}
 
 
@@ -177,7 +177,7 @@ def check_health_cmd(cmd: str, timeout: float = 15.0) -> dict:
         return {"ok": ok, "detail": detail or ("passed" if ok else "failed")}
     except subprocess.TimeoutExpired:
         return {"ok": False, "detail": f"command timed out ({timeout}s)"}
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError) as e:
         return {"ok": False, "detail": str(e)}
 
 
@@ -198,7 +198,7 @@ def check_container_resources(container_name: str) -> dict:
             "mem_usage": parts[1].strip() if len(parts) > 1 else "?",
             "mem_percent": parts[2].strip() if len(parts) > 2 else "?",
         }
-    except Exception:
+    except (subprocess.SubprocessError, OSError, ValueError):
         return {}
 
 
@@ -270,7 +270,7 @@ def send_telegram_alert(bot_token: str, chat_id: str, message: str):
                       headers={"Content-Type": "application/json"})
         with urlopen(req, timeout=10):
             pass
-    except Exception as e:
+    except (URLError, OSError, ValueError) as e:
         logger.warning(f"Failed to send Telegram alert: {e}")
 
 
@@ -286,7 +286,7 @@ def restart_container(container_name: str) -> bool:
             capture_output=True, text=True, timeout=60,
         )
         return result.returncode == 0
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError) as e:
         logger.error(f"Failed to restart {container_name}: {e}")
         return False
 
@@ -335,7 +335,7 @@ class Watchdog:
             from claw_dal import DAL
             self._dal = DAL.get_instance()
             logger.info("DAL connected — health data will persist")
-        except Exception:
+        except (ImportError, RuntimeError, OSError):
             logger.info("DAL not available — health data in-memory only")
 
         # Initialize agent states
@@ -353,7 +353,7 @@ class Watchdog:
                         if prev_status in ("healthy", "unhealthy", "degraded"):
                             self.agents[name].status = prev_status
                         self.agents[name].last_healthy = row.get("last_seen")
-            except Exception as e:
+            except (KeyError, ValueError, RuntimeError) as e:
                 logger.debug(f"Could not recover state from DAL: {e}")
 
     def _now(self) -> str:
@@ -424,7 +424,7 @@ class Watchdog:
                     "health_check", 1.0 if all_ok else 0.0,
                     tags={"agent": name},
                 )
-            except Exception as e:
+            except (RuntimeError, OSError, KeyError) as e:
                 logger.debug(f"DAL persist failed for {name}: {e}")
 
         # Update state
@@ -443,7 +443,7 @@ class Watchdog:
                         secs = int((dt_now - dt_last).total_seconds())
                         mins, s = divmod(secs, 60)
                         downtime = f"\nDowntime: {mins}m {s}s"
-                    except Exception:
+                    except (ValueError, TypeError, AttributeError):
                         pass
                 if previous_status == "unhealthy":
                     logger.info(f"RECOVERED  {name}")
@@ -469,7 +469,7 @@ class Watchdog:
                         dt = datetime.fromisoformat(
                             state.last_alert.replace("Z", "+00:00"))
                         last_alert_ts = dt.timestamp()
-                    except Exception:
+                    except (ValueError, TypeError, AttributeError):
                         pass
 
                 if now_ts - last_alert_ts > cooldown:
@@ -492,7 +492,7 @@ class Watchdog:
                                     "consecutive": state.consecutive_failures,
                                 }),
                             )
-                        except Exception:
+                        except (RuntimeError, OSError, KeyError):
                             pass
                     self._alert(
                         f"*ALERT*  `{name}` is *DOWN*\n"
@@ -547,12 +547,12 @@ class Watchdog:
         for agent_cfg in self.config.get("agents", []):
             try:
                 self._check_agent(agent_cfg)
-            except Exception as e:
+            except (URLError, OSError, subprocess.SubprocessError, KeyError, ValueError) as e:
                 logger.error(f"Error checking {agent_cfg.get('name')}: {e}")
 
         try:
             self._check_connectivity()
-        except Exception as e:
+        except (URLError, OSError, socket.timeout, ValueError) as e:
             logger.error(f"Error checking connectivity: {e}")
 
     def get_status_json(self) -> str:

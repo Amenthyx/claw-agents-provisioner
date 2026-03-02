@@ -257,7 +257,8 @@ def run_resolve_preview() -> dict:
 
         result = mod.resolve_assessment(assessment, verbose=True)
         return result.to_dict()
-    except Exception as e:
+    except (ImportError, AttributeError, json.JSONDecodeError,
+            OSError, ValueError, TypeError, RuntimeError) as e:
         return {"error": f"Resolution failed: {e}"}
 
 
@@ -303,7 +304,7 @@ def trigger_deploy():
             with _deploy_lock:
                 _deploy_state["status"] = "failed"
                 _deploy_state["message"] = "Deployment timed out (300s)"
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError) as e:
             with _deploy_lock:
                 _deploy_state["status"] = "failed"
                 _deploy_state["message"] = str(e)
@@ -663,7 +664,7 @@ class WizardHandler(BaseHTTPRequestHandler):
             else:
                 status = 404
                 self.send_error(404, "Not Found")
-        except Exception:
+        except Exception:  # Broad catch: record status=500 for metrics before re-raising
             status = 500
             raise
         finally:
@@ -694,7 +695,7 @@ class WizardHandler(BaseHTTPRequestHandler):
             else:
                 status = 404
                 self.send_error(404, "Not Found")
-        except Exception:
+        except Exception:  # Broad catch: record status=500 for metrics before re-raising
             status = 500
             raise
         finally:

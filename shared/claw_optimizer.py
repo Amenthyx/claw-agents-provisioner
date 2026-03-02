@@ -201,7 +201,7 @@ class CostTracker:
         try:
             from claw_dal import DAL
             self._dal = DAL.get_instance()
-        except Exception:
+        except (ImportError, RuntimeError, OSError):
             pass
 
     def log(self, model: str, provider: str, input_tokens: int,
@@ -270,7 +270,7 @@ class ResponseCache:
         try:
             from claw_dal import DAL
             self._dal = DAL.get_instance()
-        except Exception:
+        except (ImportError, RuntimeError, OSError):
             pass
 
     def get_exact(self, msg_hash: str) -> str:
@@ -1046,7 +1046,7 @@ class CostAttributionLogger(OptimizationRule):
                 provider=provider, model=model,
                 input_tokens=input_tokens, output_tokens=output_tokens,
                 cost_usd=cost_usd, cache_hit=cached)
-        except Exception:
+        except (ImportError, RuntimeError, OSError):
             pass
 
         self.hits += 1
@@ -1137,7 +1137,7 @@ class OptimizationEngine:
                 continue
             try:
                 request = rule.process(request, self._context)
-            except Exception as e:
+            except Exception as e:  # Broad catch: rules are plugins with varying error types
                 logger.error(f"[{rule.name}] Error: {e}")
                 continue
 
@@ -1269,7 +1269,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.wfile.write(report.encode("utf-8"))
             else:
                 self.send_error(404)
-        except Exception:
+        except (OSError, ValueError, RuntimeError):
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()

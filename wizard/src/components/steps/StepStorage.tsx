@@ -367,7 +367,7 @@ export function StepStorage() {
                         Zero configuration needed.
                       </p>
                       {!pgCheck.docker_available && (
-                        <p className="text-xs text-red-400 mt-1.5">Docker is not running on this system</p>
+                        <p className="text-xs text-amber-400 mt-1.5">Docker not detected — it will be installed and started automatically</p>
                       )}
                     </button>
                   </Card>
@@ -392,7 +392,7 @@ export function StepStorage() {
                   <motion.div variants={fadeIn} initial="initial" animate="animate">
                     <Button
                       onClick={() => setupPostgres(pgSetupMode)}
-                      disabled={pgSetting || (pgSetupMode === 'docker' && !pgCheck.docker_available)}
+                      disabled={pgSetting}
                       icon={pgSetting
                         ? <Loader2 size={14} className="animate-spin" />
                         : <ArrowRight size={14} />}

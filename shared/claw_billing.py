@@ -13,6 +13,8 @@ Features:
   - Reports:          Daily / weekly / monthly cost summaries
   - Alerts:           Configurable spend thresholds with console warnings
   - Forecasting:      Linear extrapolation of current spend rate
+  - Budget Alerts:    Env-var-driven budget limits with INFO/WARNING/CRITICAL levels
+  - Webhook Notify:   Optional webhook POST when budget thresholds are crossed
 
 Data files:
   data/billing/usage_log.jsonl       — per-request usage records (append-only)
@@ -26,6 +28,8 @@ Usage:
   python3 shared/claw_billing.py --status
   python3 shared/claw_billing.py --log --model claude-sonnet-4-6 --input-tokens 1500 --output-tokens 800
   python3 shared/claw_billing.py --init-config
+  python3 shared/claw_billing.py --budget              # Budget status summary
+  python3 shared/claw_billing.py --alerts              # Active budget alerts (JSON)
 
 Python 3.8+ stdlib only (no external dependencies).
 =============================================================================
@@ -34,10 +38,14 @@ Apache 2.0 © 2026 Amenthyx
 """
 
 import json
+import logging
 import os
 import sys
 import time
+import urllib.request
+import urllib.error
 from datetime import datetime, timezone, timedelta
+from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 
@@ -50,6 +58,17 @@ DATA_DIR = PROJECT_ROOT / "data" / "billing"
 USAGE_LOG_FILE = DATA_DIR / "usage_log.jsonl"
 BILLING_CONFIG_FILE = DATA_DIR / "billing_config.json"
 REPORTS_DIR = DATA_DIR / "reports"
+
+# Budget thresholds (env-var driven)
+BUDGET_WARN_THRESHOLD = float(
+    os.environ.get("CLAW_BUDGET_WARN_THRESHOLD", "0.80")
+)
+BUDGET_HARD_LIMIT = float(
+    os.environ.get("CLAW_BUDGET_HARD_LIMIT", "100.0")
+)
+BUDGET_WEBHOOK_URL = os.environ.get("CLAW_BUDGET_WEBHOOK_URL", "")
+
+_logger = logging.getLogger("claw_billing")
 
 # -------------------------------------------------------------------------
 # Colors (for terminal output)
@@ -143,7 +162,7 @@ class UsageLogger:
         try:
             from claw_dal import DAL
             self._dal = DAL.get_instance()
-        except Exception:
+        except (ImportError, RuntimeError, OSError):
             pass
         _ensure_dirs()
 
@@ -191,7 +210,28 @@ class UsageLogger:
             with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record) + "\n")
 
+        # Auto-check budget after every recorded cost
+        self._auto_check_budget()
+
         return record
+
+    def _auto_check_budget(self) -> List["BudgetAlert"]:
+        """Run a budget check against all recorded spend.
+
+        Called automatically after each record() to detect threshold crossings
+        as they happen.  Returns the list of alerts (if any).
+        """
+        try:
+            all_records = self.read_all()
+            calculator = CostCalculator()
+            agg = calculator.aggregate(all_records)
+            current_spend = agg["total_cost"]
+
+            monitor = BudgetMonitor()
+            return monitor.check_budget(current_spend)
+        except (ValueError, KeyError, OSError, RuntimeError) as exc:
+            _logger.debug(f"Auto budget check skipped: {exc}")
+            return []
 
     def read_all(self) -> List[Dict[str, Any]]:
         """Read all records — from DAL or JSONL fallback."""
@@ -456,6 +496,235 @@ class AlertManager:
         self.thresholds["monthly"] = monthly_amount
         self.thresholds["weekly"] = round(monthly_amount / 4.33, 2)
         self.thresholds["daily"] = round(monthly_amount / 30, 2)
+
+
+# -------------------------------------------------------------------------
+# BudgetAlertLevel — severity enum for budget alerts
+# -------------------------------------------------------------------------
+class BudgetAlertLevel(str, Enum):
+    """Budget alert severity levels."""
+    INFO = "INFO"
+    WARNING = "WARNING"
+    CRITICAL = "CRITICAL"
+
+
+# -------------------------------------------------------------------------
+# BudgetAlert — a single budget alert instance
+# -------------------------------------------------------------------------
+class BudgetAlert:
+    """Represents a single budget alert with level, message, and metadata."""
+
+    def __init__(
+        self,
+        level: BudgetAlertLevel,
+        message: str,
+        current_spend: float,
+        budget_limit: float,
+        utilization_pct: float,
+        timestamp: Optional[str] = None,
+    ):
+        self.level = level
+        self.message = message
+        self.current_spend = current_spend
+        self.budget_limit = budget_limit
+        self.utilization_pct = utilization_pct
+        self.timestamp = timestamp or datetime.now(timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize alert to a JSON-safe dict."""
+        return {
+            "level": self.level.value,
+            "message": self.message,
+            "current_spend": round(self.current_spend, 6),
+            "budget_limit": round(self.budget_limit, 2),
+            "utilization_pct": round(self.utilization_pct, 1),
+            "timestamp": self.timestamp,
+        }
+
+
+# -------------------------------------------------------------------------
+# BudgetMonitor — env-var-driven budget checking with webhook support
+# -------------------------------------------------------------------------
+class BudgetMonitor:
+    """Monitors total spend against configurable budget thresholds.
+
+    Thresholds are driven by environment variables:
+      CLAW_BUDGET_WARN_THRESHOLD  — utilization fraction to trigger warn (default 0.80)
+      CLAW_BUDGET_HARD_LIMIT      — absolute USD budget cap (default 100.0)
+      CLAW_BUDGET_WEBHOOK_URL     — optional webhook URL for POST notifications
+    """
+
+    def __init__(
+        self,
+        warn_threshold: Optional[float] = None,
+        hard_limit: Optional[float] = None,
+        webhook_url: Optional[str] = None,
+    ):
+        self.warn_threshold = (
+            warn_threshold if warn_threshold is not None else BUDGET_WARN_THRESHOLD
+        )
+        self.hard_limit = (
+            hard_limit if hard_limit is not None else BUDGET_HARD_LIMIT
+        )
+        self.webhook_url = (
+            webhook_url if webhook_url is not None else BUDGET_WEBHOOK_URL
+        )
+        self._notified_levels: Dict[str, bool] = {}
+
+    def check_budget(
+        self, current_spend: float
+    ) -> List[BudgetAlert]:
+        """Evaluate current spend against budget thresholds.
+
+        Returns a list of BudgetAlert objects for every threshold crossed.
+        Emits log warnings at 80%, 90%, and 100% of the budget limit.
+        """
+        alerts: List[BudgetAlert] = []
+
+        if self.hard_limit <= 0:
+            return alerts
+
+        utilization = current_spend / self.hard_limit
+        utilization_pct = utilization * 100
+
+        # 100% — CRITICAL
+        if utilization >= 1.0:
+            alert = BudgetAlert(
+                level=BudgetAlertLevel.CRITICAL,
+                message=(
+                    f"Budget exceeded: ${current_spend:.2f} "
+                    f"of ${self.hard_limit:.2f} limit "
+                    f"({utilization_pct:.1f}%)"
+                ),
+                current_spend=current_spend,
+                budget_limit=self.hard_limit,
+                utilization_pct=utilization_pct,
+            )
+            alerts.append(alert)
+            _logger.critical(alert.message)
+
+        # 90% — WARNING
+        elif utilization >= 0.90:
+            alert = BudgetAlert(
+                level=BudgetAlertLevel.WARNING,
+                message=(
+                    f"Budget 90% utilized: ${current_spend:.2f} "
+                    f"of ${self.hard_limit:.2f} limit "
+                    f"({utilization_pct:.1f}%)"
+                ),
+                current_spend=current_spend,
+                budget_limit=self.hard_limit,
+                utilization_pct=utilization_pct,
+            )
+            alerts.append(alert)
+            _logger.warning(alert.message)
+
+        # 80% (configurable via warn_threshold) — INFO
+        elif utilization >= self.warn_threshold:
+            alert = BudgetAlert(
+                level=BudgetAlertLevel.INFO,
+                message=(
+                    f"Budget {utilization_pct:.0f}% utilized: "
+                    f"${current_spend:.2f} "
+                    f"of ${self.hard_limit:.2f} limit"
+                ),
+                current_spend=current_spend,
+                budget_limit=self.hard_limit,
+                utilization_pct=utilization_pct,
+            )
+            alerts.append(alert)
+            _logger.info(alert.message)
+
+        # Fire webhook for WARNING and CRITICAL alerts
+        if alerts and self.webhook_url:
+            top_alert = alerts[0]
+            if top_alert.level in (
+                BudgetAlertLevel.WARNING,
+                BudgetAlertLevel.CRITICAL,
+            ):
+                self._send_webhook(top_alert)
+
+        return alerts
+
+    def get_budget_status(
+        self, current_spend: float
+    ) -> Dict[str, Any]:
+        """Return the current budget status as a JSON-safe dict.
+
+        Suitable for the GET /billing/budget endpoint.
+        """
+        utilization_pct = (
+            (current_spend / self.hard_limit * 100) if self.hard_limit > 0 else 0.0
+        )
+        alerts = self.check_budget(current_spend)
+
+        return {
+            "current_spend": round(current_spend, 6),
+            "budget_limit": round(self.hard_limit, 2),
+            "warn_threshold": round(self.warn_threshold, 2),
+            "utilization_pct": round(utilization_pct, 1),
+            "status": (
+                "critical" if utilization_pct >= 100
+                else "warning" if utilization_pct >= 90
+                else "approaching" if utilization_pct >= self.warn_threshold * 100
+                else "ok"
+            ),
+            "alerts": [a.to_dict() for a in alerts],
+        }
+
+    def get_alerts_response(
+        self, current_spend: float
+    ) -> Dict[str, Any]:
+        """Return alert data as a JSON-safe dict.
+
+        Suitable for the GET /billing/alerts endpoint.
+        """
+        alerts = self.check_budget(current_spend)
+        utilization_pct = (
+            (current_spend / self.hard_limit * 100) if self.hard_limit > 0 else 0.0
+        )
+
+        return {
+            "alerts": [a.to_dict() for a in alerts],
+            "current_spend": round(current_spend, 6),
+            "budget_limit": round(self.hard_limit, 2),
+            "utilization_pct": round(utilization_pct, 1),
+        }
+
+    def _send_webhook(self, alert: BudgetAlert) -> bool:
+        """POST alert payload to the configured webhook URL.
+
+        Returns True if the request succeeded, False otherwise.
+        Uses only stdlib urllib (no external dependencies).
+        """
+        if not self.webhook_url:
+            return False
+
+        payload = json.dumps({
+            "event": "budget_alert",
+            "level": alert.level.value,
+            "message": alert.message,
+            "current_spend": round(alert.current_spend, 6),
+            "budget_limit": round(alert.budget_limit, 2),
+            "utilization_pct": round(alert.utilization_pct, 1),
+            "timestamp": alert.timestamp,
+        }).encode("utf-8")
+
+        req = urllib.request.Request(
+            self.webhook_url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return 200 <= resp.status < 300
+        except (urllib.error.URLError, OSError) as exc:
+            _logger.error(f"Webhook POST failed: {exc}")
+            return False
 
 
 # -------------------------------------------------------------------------
@@ -900,6 +1169,67 @@ def print_forecast(config: Optional[Dict] = None) -> None:
 
 
 # -------------------------------------------------------------------------
+# Budget status command
+# -------------------------------------------------------------------------
+def print_budget_status(config: Optional[Dict] = None) -> None:
+    """Print budget status with utilization and active alerts."""
+    config = config or {}
+    logger = UsageLogger()
+    calculator = CostCalculator(config)
+    all_records = logger.read_all()
+    agg = calculator.aggregate(all_records)
+    current_spend = agg["total_cost"]
+
+    monitor = BudgetMonitor()
+    status = monitor.get_budget_status(current_spend)
+
+    print(f"\n{BOLD}{CYAN}=== Budget Status ==={NC}\n")
+    print(f"  Budget limit:      ${status['budget_limit']:.2f}")
+    print(f"  Warn threshold:    {status['warn_threshold'] * 100:.0f}%")
+    print(f"  Current spend:     {GREEN}${status['current_spend']:.6f}{NC}")
+
+    util_pct = status["utilization_pct"]
+    if util_pct >= 100:
+        color = RED
+    elif util_pct >= 90:
+        color = YELLOW
+    else:
+        color = GREEN
+    print(f"  Utilization:       {color}{util_pct:.1f}%{NC}")
+    print(f"  Status:            {status['status'].upper()}")
+    print()
+
+    budget_alerts = status.get("alerts", [])
+    if budget_alerts:
+        print(f"{BOLD}Active Budget Alerts:{NC}")
+        for alert in budget_alerts:
+            if alert["level"] == "CRITICAL":
+                prefix = f"{RED}{BOLD}CRITICAL{NC}"
+            elif alert["level"] == "WARNING":
+                prefix = f"{YELLOW}WARNING{NC}"
+            else:
+                prefix = f"{BLUE}INFO{NC}"
+            print(f"  {prefix}  {alert['message']}")
+        print()
+    else:
+        print(f"  {GREEN}No budget alerts.{NC}\n")
+
+
+def print_alerts_json(config: Optional[Dict] = None) -> None:
+    """Print active budget alerts as JSON (for API endpoint consumption)."""
+    config = config or {}
+    logger = UsageLogger()
+    calculator = CostCalculator(config)
+    all_records = logger.read_all()
+    agg = calculator.aggregate(all_records)
+    current_spend = agg["total_cost"]
+
+    monitor = BudgetMonitor()
+    response = monitor.get_alerts_response(current_spend)
+    print(json.dumps(response, indent=2))
+
+
+# -------------------------------------------------------------------------
 # Config management
 # -------------------------------------------------------------------------
 def load_config() -> Dict[str, Any]:
@@ -983,6 +1313,8 @@ def _print_usage() -> None:
         f"     --task-type <type>               Task type (optional)\n"
         f"     --provider <provider>            Provider override (optional)\n"
         f"  --init-config                     Generate billing_config.json template\n"
+        f"  --budget                          Show budget status and utilization\n"
+        f"  --alerts                          Print active budget alerts as JSON\n"
     )
 
 
@@ -1118,6 +1450,12 @@ def main() -> None:
 
     elif action == "--init-config":
         init_config()
+
+    elif action == "--budget":
+        print_budget_status(config)
+
+    elif action == "--alerts":
+        print_alerts_json(config)
 
     else:
         err(f"Unknown command: {action}")

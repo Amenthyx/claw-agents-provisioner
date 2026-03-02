@@ -35,6 +35,7 @@ Apache 2.0 (c) 2026 Amenthyx
 
 import argparse
 import collections
+import hashlib
 import json
 import os
 import re
@@ -162,7 +163,7 @@ def _detect_hardware() -> Dict[str, Any]:
         }
     except ImportError:
         warn("claw_hardware not importable, falling back to cached profile")
-    except Exception as exc:
+    except (RuntimeError, OSError, ValueError) as exc:
         warn(f"Hardware detection error: {exc}")
 
     # Fallback: read cached hardware_profile.json
@@ -287,7 +288,7 @@ def _save_security_rules(body: Dict[str, Any]) -> Dict[str, Any]:
         CUSTOM_SECURITY_RULES_FILE.write_text(json.dumps(body, indent=2), encoding="utf-8")
         log(f"Custom security rules saved to {CUSTOM_SECURITY_RULES_FILE}")
         return {"success": True, "path": str(CUSTOM_SECURITY_RULES_FILE)}
-    except Exception as exc:
+    except (OSError, TypeError, ValueError) as exc:
         return {"success": False, "error": str(exc)}
 
 
@@ -298,45 +299,98 @@ def _save_compliance(body: Dict[str, Any]) -> Dict[str, Any]:
         COMPLIANCE_CONFIG_FILE.write_text(json.dumps(body, indent=2), encoding="utf-8")
         log(f"Compliance config saved to {COMPLIANCE_CONFIG_FILE}")
         return {"success": True, "path": str(COMPLIANCE_CONFIG_FILE)}
-    except Exception as exc:
+    except (OSError, TypeError, ValueError) as exc:
         return {"success": False, "error": str(exc)}
 
 
 def _test_channel(channel_id: str, config: Dict[str, str]) -> Dict[str, Any]:
-    """Test a communication channel connection."""
+    """Test a communication channel connection with real API validation."""
     import socket
+    import ssl
+    from urllib.request import urlopen, Request
+    from urllib.error import URLError, HTTPError
+
+    def _https_get(host: str, path: str, headers: Optional[Dict[str, str]] = None, timeout: int = 8) -> tuple:
+        """Make an HTTPS GET request. Returns (status_code, body_text)."""
+        url = f"https://{host}{path}"
+        req = Request(url)
+        if headers:
+            for k, v in headers.items():
+                req.add_header(k, v)
+        ctx = ssl.create_default_context()
+        resp = urlopen(req, timeout=timeout, context=ctx)
+        body = resp.read().decode("utf-8", errors="replace")
+        return resp.status, body
 
     if channel_id == "telegram":
         token = config.get("botToken", "")
         if not token:
             return {"success": False, "message": "Bot token is required"}
-        # Test Telegram API connectivity
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(5)
-            sock.connect(("api.telegram.org", 443))
-            sock.close()
-            return {"success": True, "message": "Telegram API is reachable"}
-        except (socket.timeout, OSError) as exc:
+            status, body = _https_get("api.telegram.org", f"/bot{token}/getMe")
+            data = json.loads(body)
+            if data.get("ok"):
+                bot_name = data.get("result", {}).get("username", "unknown")
+                return {"success": True, "message": f"Connected to bot @{bot_name}"}
+            return {"success": False, "message": f"Telegram rejected token: {data.get('description', 'unknown error')}"}
+        except HTTPError as exc:
+            if exc.code == 401:
+                return {"success": False, "message": "Invalid bot token (401 Unauthorized)"}
+            return {"success": False, "message": f"Telegram API error: HTTP {exc.code}"}
+        except (URLError, OSError) as exc:
             return {"success": False, "message": f"Cannot reach Telegram API: {exc}"}
 
     elif channel_id == "slack":
         webhook_url = config.get("webhookUrl", "")
-        if not webhook_url and not config.get("botToken"):
+        bot_token = config.get("botToken", "")
+        if not webhook_url and not bot_token:
             return {"success": False, "message": "Webhook URL or Bot Token is required"}
-        return {"success": True, "message": "Slack configuration validated"}
+        # Prefer bot token auth test
+        if bot_token:
+            try:
+                status, body = _https_get("slack.com", "/api/auth.test",
+                                          headers={"Authorization": f"Bearer {bot_token}"})
+                data = json.loads(body)
+                if data.get("ok"):
+                    team = data.get("team", "unknown")
+                    return {"success": True, "message": f"Connected to Slack workspace: {team}"}
+                return {"success": False, "message": f"Slack auth failed: {data.get('error', 'unknown')}"}
+            except (URLError, OSError) as exc:
+                return {"success": False, "message": f"Cannot reach Slack API: {exc}"}
+        # Webhook URL test — send empty payload to check URL validity
+        if webhook_url:
+            try:
+                from urllib.parse import urlparse
+                parsed = urlparse(webhook_url)
+                if not parsed.hostname or "slack.com" not in parsed.hostname:
+                    return {"success": False, "message": "Webhook URL doesn't look like a Slack webhook"}
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(5)
+                sock.connect((parsed.hostname, 443))
+                sock.close()
+                return {"success": True, "message": "Slack webhook endpoint is reachable"}
+            except (socket.timeout, OSError) as exc:
+                return {"success": False, "message": f"Cannot reach Slack webhook: {exc}"}
+        return {"success": False, "message": "No valid Slack credentials provided"}
 
     elif channel_id == "discord":
         token = config.get("botToken", "")
         if not token:
             return {"success": False, "message": "Bot token is required"}
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(5)
-            sock.connect(("discord.com", 443))
-            sock.close()
-            return {"success": True, "message": "Discord API is reachable"}
-        except (socket.timeout, OSError) as exc:
+            status, body = _https_get("discord.com", "/api/v10/users/@me",
+                                      headers={"Authorization": f"Bot {token}"})
+            data = json.loads(body)
+            if "username" in data:
+                return {"success": True, "message": f"Connected to Discord bot: {data['username']}"}
+            if data.get("code") == 0 or "401" in str(data.get("message", "")):
+                return {"success": False, "message": "Invalid bot token (401 Unauthorized)"}
+            return {"success": False, "message": f"Discord API error: {data.get('message', 'unknown')}"}
+        except HTTPError as exc:
+            if exc.code == 401:
+                return {"success": False, "message": "Invalid bot token (401 Unauthorized)"}
+            return {"success": False, "message": f"Discord API error: HTTP {exc.code}"}
+        except (URLError, OSError) as exc:
             return {"success": False, "message": f"Cannot reach Discord API: {exc}"}
 
     elif channel_id == "email":
@@ -345,28 +399,73 @@ def _test_channel(channel_id: str, config: Dict[str, str]) -> Dict[str, Any]:
         if not host:
             return {"success": False, "message": "SMTP host is required"}
         try:
+            import smtplib
             port = int(port_str)
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(5)
-            sock.connect((host, port))
-            sock.close()
-            return {"success": True, "message": f"SMTP server {host}:{port} is reachable"}
+            use_tls = config.get("tls", "true").lower() in ("true", "1", "yes")
+            if port == 465:
+                smtp = smtplib.SMTP_SSL(host, port, timeout=8)
+            else:
+                smtp = smtplib.SMTP(host, port, timeout=8)
+                if use_tls:
+                    smtp.starttls()
+            username = config.get("username", "")
+            password = config.get("password", "")
+            if username and password:
+                smtp.login(username, password)
+                smtp.quit()
+                return {"success": True, "message": f"SMTP login successful on {host}:{port}"}
+            smtp.quit()
+            return {"success": True, "message": f"SMTP server {host}:{port} is reachable (no auth tested)"}
+        except smtplib.SMTPAuthenticationError:
+            return {"success": False, "message": "SMTP authentication failed — check username/password"}
         except (socket.timeout, OSError, ValueError) as exc:
             return {"success": False, "message": f"Cannot reach SMTP server: {exc}"}
 
     elif channel_id == "whatsapp":
-        if not config.get("phoneNumberId") or not config.get("accessToken"):
+        phone_id = config.get("phoneNumberId", "")
+        access_token = config.get("accessToken", "")
+        if not phone_id or not access_token:
             return {"success": False, "message": "Phone Number ID and Access Token are required"}
-        return {"success": True, "message": "WhatsApp configuration validated"}
+        try:
+            status, body = _https_get("graph.facebook.com", f"/v18.0/{phone_id}",
+                                      headers={"Authorization": f"Bearer {access_token}"})
+            data = json.loads(body)
+            if data.get("id"):
+                display = data.get("display_phone_number", phone_id)
+                return {"success": True, "message": f"Connected to WhatsApp: {display}"}
+            return {"success": False, "message": f"WhatsApp API error: {data.get('error', {}).get('message', 'unknown')}"}
+        except HTTPError as exc:
+            if exc.code == 401 or exc.code == 190:
+                return {"success": False, "message": "Invalid access token"}
+            try:
+                err_body = exc.read().decode("utf-8", errors="replace")
+                err_data = json.loads(err_body)
+                err_msg = err_data.get("error", {}).get("message", f"HTTP {exc.code}")
+            except (json.JSONDecodeError, KeyError, ValueError):
+                err_msg = f"HTTP {exc.code}"
+            return {"success": False, "message": f"WhatsApp API error: {err_msg}"}
+        except (URLError, OSError) as exc:
+            return {"success": False, "message": f"Cannot reach WhatsApp API: {exc}"}
 
     elif channel_id == "webhook":
         url = config.get("url", "")
         if not url:
             return {"success": False, "message": "Webhook URL is required"}
-        # Basic URL validation
         if not url.startswith(("http://", "https://")):
             return {"success": False, "message": "URL must start with http:// or https://"}
-        return {"success": True, "message": "Webhook URL format is valid"}
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            if not parsed.hostname:
+                return {"success": False, "message": "Invalid URL — no hostname found"}
+            port = parsed.port or (443 if parsed.scheme == "https" else 80)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            sock.connect((parsed.hostname, port))
+            sock.close()
+            return {"success": True, "message": f"Webhook endpoint {parsed.hostname}:{port} is reachable"}
+        except (socket.timeout, OSError) as exc:
+            return {"success": False, "message": f"Cannot reach webhook endpoint: {exc}"}
 
     return {"success": False, "message": f"Unknown channel type: {channel_id}"}
 
@@ -402,7 +501,7 @@ def _check_agent_health(port: int, host: str = "127.0.0.1") -> Dict[str, Any]:
         resp = urllib.request.urlopen(req, timeout=2)
         data = json.loads(resp.read().decode())
         return {"reachable": True, "status": "running", "data": data}
-    except Exception:
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError, json.JSONDecodeError):
         pass
     # Fallback: TCP check
     import socket as _sock
@@ -418,10 +517,19 @@ def _check_agent_health(port: int, host: str = "127.0.0.1") -> Dict[str, Any]:
 
 
 def _get_all_agents_status(host: str = "127.0.0.1") -> List[Dict[str, Any]]:
-    """Multi-threaded health check for all 5 platforms."""
-    results = []
+    """Multi-threaded health check for hardcoded platforms AND deployed xclaws.
 
-    def _check_one(plat: Dict[str, Any]) -> Dict[str, Any]:
+    Combines:
+      1. The 5 default PLATFORMS (docker-compose based) with health check
+      2. All deployed claw configs from data/claws/ — checks Docker or TCP
+    Deduplicates by (platform_id + port) so a deployed claw on its default
+    port doesn't appear twice.
+    """
+    results = []
+    seen_keys: set = set()  # (id, port) for dedup
+
+    # --- 1. Check hardcoded platforms (docker-compose agents) ----------------
+    def _check_platform(plat: Dict[str, Any]) -> Dict[str, Any]:
         health = _check_agent_health(plat["port"], host)
         return {
             "id": plat["id"],
@@ -432,21 +540,135 @@ def _get_all_agents_status(host: str = "127.0.0.1") -> List[Dict[str, Any]]:
             "memory": plat["memory"],
             "features": plat.get("features", []),
             "description": plat.get("description", ""),
+            "source": "platform",
         }
 
-    with ThreadPoolExecutor(max_workers=5) as pool:
-        futures = {pool.submit(_check_one, p): p for p in PLATFORMS}
-        for f in as_completed(futures):
+    # --- 2. Check deployed claws from saved configs --------------------------
+    def _check_claw(claw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        container_name = claw.get("container_name", "")
+        agent_port = claw.get("agent_port", 0)
+        claw_status = claw.get("status", "unknown")
+
+        # Determine liveness
+        is_alive = False
+        detected_status = "stopped"
+
+        if container_name:
+            # Docker-based: inspect container state
             try:
-                results.append(f.result())
-            except Exception:
-                p = futures[f]
-                results.append({
-                    "id": p["id"], "name": p["name"], "status": "error",
-                    "port": p["port"], "language": p["language"],
-                    "memory": p["memory"], "features": p.get("features", []),
-                })
-    results.sort(key=lambda x: x["port"])
+                rc, out, _ = _run_cmd(
+                    ["docker", "inspect", "--format", "{{.State.Status}}", container_name],
+                    timeout=5,
+                )
+                if rc == 0:
+                    state = out.strip()
+                    if state == "running":
+                        is_alive = True
+                        detected_status = "running"
+                    elif state in ("paused", "restarting"):
+                        detected_status = state
+                    else:
+                        detected_status = "stopped"
+                else:
+                    detected_status = "removed"
+            except (subprocess.SubprocessError, FileNotFoundError, OSError):
+                detected_status = "stopped"
+
+        # Fallback / non-docker: TCP port probe
+        if not is_alive and agent_port:
+            if _check_port(agent_port, host):
+                is_alive = True
+                detected_status = "running"
+
+        # Update saved config if status changed
+        if detected_status != claw_status:
+            claw["status"] = detected_status
+            claw_id = claw.get("id", "")
+            if claw_id:
+                config_path = CLAWS_DIR / f"{claw_id}.json"
+                if config_path.exists():
+                    try:
+                        config_path.write_text(json.dumps(claw, indent=2), encoding="utf-8")
+                    except OSError:
+                        pass
+
+        platform_id = claw.get("platform", "xclaw")
+        plat_meta = {p["id"]: p for p in PLATFORMS}.get(platform_id, {})
+
+        return {
+            "id": claw.get("id", f"claw_{agent_port}"),
+            "name": claw.get("name", container_name or f"xclaw-{agent_port}"),
+            "status": detected_status,
+            "port": agent_port,
+            "language": plat_meta.get("language", ""),
+            "memory": plat_meta.get("memory", ""),
+            "features": plat_meta.get("features", []),
+            "description": plat_meta.get("description", ""),
+            "source": "deployed",
+            "container_name": container_name,
+            "container_id": claw.get("container_id", ""),
+            "platform": platform_id,
+            "gateway_port": claw.get("gateway_port"),
+            "optimizer_port": claw.get("optimizer_port"),
+            "watchdog_port": claw.get("watchdog_port"),
+        }
+
+    # --- Execute checks in parallel ------------------------------------------
+    claws = _load_claws()
+    # Filter to actual claw configs (not port files — they lack "name" key)
+    claw_configs = [c for c in claws if "name" in c and "agent_port" in c]
+
+    max_workers = max(5, len(claw_configs) + len(PLATFORMS))
+    with ThreadPoolExecutor(max_workers=min(max_workers, 20)) as pool:
+        # Submit platform checks
+        plat_futures = {pool.submit(_check_platform, p): p for p in PLATFORMS}
+        # Submit claw checks
+        claw_futures = {pool.submit(_check_claw, c): c for c in claw_configs}
+
+        # Collect platform results first
+        for f in as_completed(plat_futures):
+            try:
+                result = f.result()
+                key = (result["id"], result["port"])
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    results.append(result)
+            except Exception:  # Broad catch: futures re-raise arbitrary exceptions from workers
+                p = plat_futures[f]
+                key = (p["id"], p["port"])
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    results.append({
+                        "id": p["id"], "name": p["name"], "status": "error",
+                        "port": p["port"], "language": p["language"],
+                        "memory": p["memory"], "features": p.get("features", []),
+                        "source": "platform",
+                    })
+
+        # Collect deployed claw results — deduplicate against platforms
+        for f in as_completed(claw_futures):
+            try:
+                result = f.result()
+                if result is None:
+                    continue
+                # Dedup: if a claw matches an existing platform on the same port, merge
+                key = (result.get("platform", result["id"]), result["port"])
+                if key in seen_keys:
+                    # Update the existing platform entry if the claw is more authoritative
+                    for existing in results:
+                        if (existing["id"], existing["port"]) == key:
+                            if result["status"] == "running" and existing["status"] != "running":
+                                existing["status"] = result["status"]
+                            existing.setdefault("container_name", result.get("container_name"))
+                            existing.setdefault("container_id", result.get("container_id"))
+                            break
+                    continue
+                seen_keys.add(key)
+                results.append(result)
+            except Exception:  # Broad catch: futures re-raise arbitrary exceptions from workers
+                pass
+
+    results.sort(key=lambda x: x.get("port", 0))
     return results
 
 
@@ -511,7 +733,7 @@ def _read_billing_data() -> Dict[str, Any]:
             "total_requests": agg.get("total_requests", 0),
             "currency": "USD",
         }
-    except Exception:
+    except (ImportError, RuntimeError, OSError, KeyError):
         pass
 
     # Fallback: read from JSONL files
@@ -575,7 +797,7 @@ def _save_triggers(data: Dict[str, Any]) -> Dict[str, Any]:
         try:
             TRIGGERS_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
             return {"success": True}
-        except Exception as exc:
+        except (OSError, TypeError, ValueError) as exc:
             return {"success": False, "error": str(exc)}
 
 
@@ -601,7 +823,7 @@ def _evaluate_trigger(trigger: Dict[str, Any]) -> bool:
             try:
                 resp = urllib.request.urlopen(url, timeout=5)
                 return resp.status != expect_status
-            except Exception:
+            except (urllib.error.URLError, urllib.error.HTTPError, OSError):
                 return True
     return False
 
@@ -672,7 +894,7 @@ def _send_alert_to_channel(channel_id: str, message: str, config: Dict[str, str]
                 )
                 urllib.request.urlopen(req, timeout=10)
                 return True
-    except Exception as exc:
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as exc:
         _append_log("error", f"Alert to {channel_id} failed: {exc}", "triggers")
     return False
 
@@ -742,7 +964,7 @@ class TriggerEngine:
                         _execute_trigger_action(trigger, f"Condition met: {trigger.get('condition', {}).get('type', '')}")
                         _append_log("warn", f"Trigger '{trigger.get('name', '')}' fired (#{trigger['fire_count']})", "triggers")
                 _save_triggers(data)
-            except Exception as exc:
+            except (KeyError, ValueError, OSError, RuntimeError) as exc:
                 _append_log("error", f"Trigger engine error: {exc}", "triggers")
             self._stop_event.wait(self.interval)
 
@@ -782,7 +1004,7 @@ def _save_instances(data: Dict[str, Any]) -> Dict[str, Any]:
         try:
             INSTANCES_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
             return {"success": True}
-        except Exception as exc:
+        except (OSError, TypeError, ValueError) as exc:
             return {"success": False, "error": str(exc)}
 
 
@@ -852,7 +1074,7 @@ def _save_claw(claw: Dict[str, Any]) -> Dict[str, Any]:
     try:
         (CLAWS_DIR / f"{claw_id}.json").write_text(json.dumps(claw, indent=2), encoding="utf-8")
         return {"success": True, "id": claw_id}
-    except Exception as exc:
+    except (OSError, TypeError, ValueError) as exc:
         return {"success": False, "error": str(exc)}
 
 
@@ -886,7 +1108,7 @@ def _agent_action(agent_id: str, action: str) -> Dict[str, Any]:
             try:
                 _service_procs[f"agent-{agent_id}"].terminate()
                 del _service_procs[f"agent-{agent_id}"]
-            except Exception:
+            except (OSError, KeyError):
                 pass
         _append_log("info", f"Agent {agent_id} stopped", "agents")
         return {"success": True, "action": "stop", "agent": agent_id}
@@ -915,7 +1137,7 @@ def _agent_action(agent_id: str, action: str) -> Dict[str, Any]:
                 time.sleep(2)
                 _append_log("info", f"Agent {agent_id} started via stub on :{port}", "agents")
                 return {"success": True, "action": "start", "agent": agent_id, "mode": "stub"}
-            except Exception as exc:
+            except (subprocess.SubprocessError, OSError) as exc:
                 return {"success": False, "error": str(exc)}
         return {"success": False, "error": "No Docker or stub available"}
 
@@ -945,7 +1167,7 @@ def _save_channel_config(data: Dict[str, Any]) -> Dict[str, Any]:
     try:
         CHANNEL_CONFIG_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
         return {"success": True}
-    except Exception as exc:
+    except (OSError, TypeError, ValueError) as exc:
         return {"success": False, "error": str(exc)}
 
 
@@ -975,7 +1197,7 @@ def _get_dashboard_metrics() -> Dict[str, Any]:
                     "status": status,
                     "port": 0,
                 })
-    except Exception:
+    except (ImportError, RuntimeError, OSError, KeyError):
         pass
     if agents is None:
         agents = _get_all_agents_status()
@@ -991,7 +1213,7 @@ def _get_dashboard_metrics() -> Dict[str, Any]:
         try:
             resp = urllib.request.urlopen("http://127.0.0.1:9097/api/status", timeout=3)
             watchdog_data = json.loads(resp.read().decode())
-        except Exception:
+        except (urllib.error.URLError, urllib.error.HTTPError, OSError, json.JSONDecodeError):
             pass
 
     return {
@@ -1027,7 +1249,7 @@ def _toggle_security_rule(rule_id: str, enabled: bool) -> Dict[str, Any]:
         SECURITY_RULES_FILE.write_text(json.dumps(rules, indent=2), encoding="utf-8")
         _append_log("info", f"Security rule '{rule_id}' {'enabled' if enabled else 'disabled'}", "security")
         return {"success": True, "rule_id": rule_id, "enabled": enabled}
-    except Exception as exc:
+    except (json.JSONDecodeError, OSError, KeyError, TypeError) as exc:
         return {"success": False, "error": str(exc)}
 
 
@@ -1069,19 +1291,19 @@ def _validate_assessment(body: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _run_cmd(cmd: List[str], timeout: int = 120) -> tuple:
-    """Run a command and return (returncode, stdout). Works on Windows + WSL."""
+def _run_cmd(cmd: List[str], timeout: int = 120, env: Optional[Dict[str, str]] = None) -> tuple:
+    """Run a command and return (returncode, stdout, stderr). Works on Windows + WSL."""
     try:
         proc = subprocess.run(
             cmd, capture_output=True, text=True, timeout=timeout,
-            cwd=str(PROJECT_ROOT),
+            cwd=str(PROJECT_ROOT), env=env,
         )
         return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
     except FileNotFoundError:
         return -1, "", f"Command not found: {cmd[0]}"
     except subprocess.TimeoutExpired:
         return -1, "", "Command timed out"
-    except Exception as exc:
+    except (subprocess.SubprocessError, OSError) as exc:
         return -1, "", str(exc)
 
 
@@ -1097,6 +1319,398 @@ def _check_port(port: int, host: str = "127.0.0.1") -> bool:
         return False
     finally:
         s.close()
+
+
+def _detect_pkg_manager() -> str:
+    """Detect the Linux package manager available on this system."""
+    for mgr in ["apt-get", "dnf", "yum", "pacman", "zypper", "apk"]:
+        rc, _, _ = _run_cmd(["which", mgr])
+        if rc == 0:
+            return mgr
+    return "unknown"
+
+
+# ---------------------------------------------------------------------------
+#  Auto-install / auto-launch helpers  (Docker, WSL, Git, LLM runtimes)
+# ---------------------------------------------------------------------------
+
+def _auto_docker(os_name: str, log_fn=None) -> tuple:
+    """Core Docker auto-install / auto-launch logic.
+    Returns (ok: bool, message: str).  *log_fn* is an optional
+    callback ``log_fn(msg)`` used to emit progress messages; when
+    ``None`` messages are silently discarded."""
+    import platform as _plat
+    if not os_name:
+        os_name = _plat.system()
+
+    def _log(msg: str) -> None:
+        if log_fn:
+            log_fn(msg)
+
+    # 1. Already running?
+    rc, _, _ = _run_cmd(["docker", "info"], timeout=15)
+    if rc == 0:
+        _log("Docker is running")
+        return True, "Docker is running"
+
+    # 2. Installed but not running?
+    rc_ver, _, _ = _run_cmd(["docker", "--version"])
+    if rc_ver != 0:
+        # 3. Not installed — install per OS
+        _log("Docker not found — installing...")
+        if os_name == "Windows":
+            _run_cmd(["winget", "install", "-e", "--id", "Docker.DockerDesktop",
+                       "--accept-package-agreements", "--accept-source-agreements"],
+                      timeout=300)
+        elif os_name == "Darwin":
+            _run_cmd(["brew", "install", "--cask", "docker"], timeout=300)
+        else:
+            # Linux: official convenience script
+            _run_cmd(["bash", "-c", "curl -fsSL https://get.docker.com | sh"],
+                      timeout=300)
+        # Verify install
+        rc_ver, _, _ = _run_cmd(["docker", "--version"])
+        if rc_ver != 0:
+            _log("Docker installation failed — please install manually")
+            return False, "Docker installation failed — please install manually"
+        _log("Docker installed successfully")
+
+    # 4. Launch the daemon
+    _log("Starting Docker...")
+    if os_name == "Windows":
+        _run_cmd(["powershell", "-Command",
+                   "Start-Process 'C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe'"],
+                  timeout=30)
+        max_wait, interval = 60, 3
+    elif os_name == "Darwin":
+        _run_cmd(["open", "-a", "Docker"], timeout=15)
+        max_wait, interval = 60, 3
+    else:
+        _run_cmd(["systemctl", "start", "docker"], timeout=30)
+        max_wait, interval = 30, 2
+
+    # 5. Poll until ready
+    for i in range(1, max_wait // interval + 1):
+        time.sleep(interval)
+        rc, _, _ = _run_cmd(["docker", "info"], timeout=10)
+        if rc == 0:
+            msg = f"Docker started (ready after {i * interval}s)"
+            _log(msg)
+            return True, msg
+    _log("Docker started — may need more time to initialize")
+    return True, "Docker started — may need more time to initialize"  # optimistic
+
+
+def _ensure_docker(os_name: str) -> bool:
+    """Deploy-pipeline wrapper: ensures Docker via _auto_docker with deploy logging."""
+    def _deploy_log(msg: str) -> None:
+        _update_deploy(4, f"[Pre-check] {msg}")
+    ok, _ = _auto_docker(os_name, log_fn=_deploy_log)
+    return ok
+
+
+def _ensure_wsl() -> None:
+    """Windows-only: ensure WSL is installed (non-blocking, advisory)."""
+    rc, _, _ = _run_cmd(["wsl", "--status"])
+    if rc == 0:
+        _update_deploy(3, "[Pre-check] WSL2 installed and available")
+        return
+    _update_deploy(3, "[Pre-check] WSL not found — attempting install...")
+    _run_cmd(["wsl", "--install", "--no-distribution"], timeout=120)
+    _update_deploy(3, "[Pre-check] WSL install requested — a reboot may be needed")
+    _update_deploy(3, "[Pre-check] Docker Desktop can use Hyper-V backend in the meantime")
+
+
+def _ensure_git(os_name: str) -> None:
+    """Ensure Git is installed. Auto-installs if needed."""
+    rc, _, _ = _run_cmd(["git", "--version"])
+    if rc == 0:
+        _update_deploy(6, "[Pre-check] Git is installed")
+        return
+    _update_deploy(6, "[Pre-check] Git not found — installing...")
+    if os_name == "Windows":
+        _run_cmd(["winget", "install", "-e", "--id", "Git.Git",
+                   "--accept-package-agreements", "--accept-source-agreements"],
+                  timeout=300)
+    elif os_name == "Darwin":
+        _run_cmd(["xcode-select", "--install"], timeout=300)
+    else:
+        pkg = _detect_pkg_manager()
+        if pkg in ("apt-get", "dnf", "yum", "zypper"):
+            _run_cmd(["sudo", pkg, "install", "-y", "git"], timeout=120)
+        elif pkg == "pacman":
+            _run_cmd(["sudo", "pacman", "-S", "--noconfirm", "git"], timeout=120)
+        elif pkg == "apk":
+            _run_cmd(["sudo", "apk", "add", "git"], timeout=120)
+    rc2, _, _ = _run_cmd(["git", "--version"])
+    if rc2 == 0:
+        _update_deploy(6, "[Pre-check] Git installed successfully")
+    else:
+        _update_deploy(6, "[Pre-check] Git installation failed — some features may not work")
+
+
+def _ensure_runtime(runtime: str, os_name: str) -> bool:
+    """Ensure the selected LLM runtime is installed natively (bare metal) and running.
+    All runtimes install directly on the host for full GPU access.
+    Dispatches to per-runtime logic. Returns True when the runtime is ready."""
+
+    if runtime == "ollama":
+        return _ensure_ollama(os_name)
+    elif runtime == "vllm":
+        return _ensure_vllm(os_name)
+    elif runtime in ("llama-cpp", "llamacpp"):
+        return _ensure_llamacpp(os_name)
+    elif runtime in ("ipex-llm", "ipexllm"):
+        return _ensure_ipexllm(os_name)
+    elif runtime == "sglang":
+        return _ensure_sglang(os_name)
+    else:
+        _update_deploy(6, f"[Pre-check] Unknown runtime '{runtime}' — skipping auto-setup")
+        return False
+
+
+def _ensure_ollama(os_name: str) -> bool:
+    """Ensure Ollama is installed and serving on port 11434."""
+    # Already running?
+    if _check_port(11434):
+        _update_deploy(6, "[Pre-check] Ollama is running on :11434")
+        return True
+    # Installed?
+    rc, _, _ = _run_cmd(["ollama", "--version"])
+    if rc != 0:
+        _update_deploy(6, "[Pre-check] Ollama not found — installing...")
+        if os_name == "Windows":
+            _run_cmd(["winget", "install", "-e", "--id", "Ollama.Ollama",
+                       "--accept-package-agreements", "--accept-source-agreements"],
+                      timeout=300)
+        elif os_name == "Darwin":
+            rc_brew, _, _ = _run_cmd(["brew", "install", "ollama"], timeout=300)
+            if rc_brew != 0:
+                _run_cmd(["bash", "-c",
+                           "curl -fsSL https://ollama.com/install.sh | sh"],
+                          timeout=300)
+        else:
+            _run_cmd(["bash", "-c",
+                       "curl -fsSL https://ollama.com/install.sh | sh"],
+                      timeout=300)
+        rc2, _, _ = _run_cmd(["ollama", "--version"])
+        if rc2 != 0:
+            _update_deploy(6, "[Pre-check] Ollama installation failed")
+            return False
+        _update_deploy(6, "[Pre-check] Ollama installed successfully")
+
+    # Launch
+    _update_deploy(6, "[Pre-check] Starting Ollama...")
+    try:
+        proc = subprocess.Popen(
+            ["ollama", "serve"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            cwd=str(PROJECT_ROOT),
+        )
+        _service_procs["ollama"] = proc
+    except (subprocess.SubprocessError, OSError) as exc:
+        _update_deploy(6, f"[Pre-check] Ollama start error: {exc}")
+        return False
+    for i in range(1, 16):
+        time.sleep(1)
+        if _check_port(11434):
+            _update_deploy(6, f"[Pre-check] Ollama started on :11434 (ready after {i}s)")
+            return True
+    _update_deploy(6, "[Pre-check] Ollama process started — may need more time")
+    return True
+
+
+def _ensure_vllm(os_name: str) -> bool:
+    """Ensure vLLM is installed and ready on port 8000."""
+    if _check_port(8000):
+        _update_deploy(6, "[Pre-check] vLLM is running on :8000")
+        return True
+    # Check import
+    rc, _, _ = _run_cmd(["python", "-c", "import vllm"])
+    if rc != 0:
+        _update_deploy(6, "[Pre-check] vLLM not found — installing...")
+        # Pre-deps: CUDA check on Linux
+        if os_name == "Linux":
+            rc_nv, _, _ = _run_cmd(["nvidia-smi"])
+            if rc_nv != 0:
+                _update_deploy(6, "[Pre-check] WARNING: nvidia-smi not found — vLLM requires CUDA")
+                pkg = _detect_pkg_manager()
+                if pkg == "apt-get":
+                    _run_cmd(["sudo", "apt-get", "install", "-y", "nvidia-cuda-toolkit"],
+                              timeout=300)
+                elif pkg in ("dnf", "yum"):
+                    _run_cmd(["sudo", pkg, "install", "-y", "cuda"], timeout=300)
+        _run_cmd(["pip", "install", "vllm"], timeout=600)
+        rc2, _, _ = _run_cmd(["python", "-c", "import vllm"])
+        if rc2 != 0:
+            _update_deploy(6, "[Pre-check] vLLM installation failed — CUDA GPU required")
+            return False
+        _update_deploy(6, "[Pre-check] vLLM installed successfully")
+    # Launch
+    _update_deploy(6, "[Pre-check] Starting vLLM server on :8000...")
+    try:
+        proc = subprocess.Popen(
+            ["python", "-m", "vllm.entrypoints.openai.api_server", "--port", "8000"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            cwd=str(PROJECT_ROOT),
+        )
+        _service_procs["vllm"] = proc
+    except (subprocess.SubprocessError, OSError) as exc:
+        _update_deploy(6, f"[Pre-check] vLLM start error: {exc}")
+        return False
+    for i in range(1, 31):
+        time.sleep(1)
+        if _check_port(8000):
+            _update_deploy(6, f"[Pre-check] vLLM started on :8000 (ready after {i}s)")
+            return True
+    _update_deploy(6, "[Pre-check] vLLM process started — may need more time to load model")
+    return True
+
+
+def _ensure_llamacpp(os_name: str) -> bool:
+    """Ensure llama.cpp (llama-server) is installed and ready on port 8080."""
+    if _check_port(8080):
+        _update_deploy(6, "[Pre-check] llama-server is running on :8080")
+        return True
+    # Installed?
+    rc, _, _ = _run_cmd(["llama-server", "--version"])
+    if rc != 0:
+        _update_deploy(6, "[Pre-check] llama-server not found — installing...")
+        if os_name == "Darwin":
+            _run_cmd(["brew", "install", "llama.cpp"], timeout=300)
+        elif os_name == "Windows":
+            _update_deploy(6, "[Pre-check] Downloading llama.cpp for Windows...")
+            _run_cmd(["powershell", "-Command",
+                       "Invoke-WebRequest -Uri "
+                       "'https://github.com/ggerganov/llama.cpp/releases/latest/download/llama-server-windows-amd64.zip'"
+                       " -OutFile llama-server.zip; "
+                       "Expand-Archive -Path llama-server.zip -DestinationPath $env:LOCALAPPDATA\\llama-cpp -Force; "
+                       "Remove-Item llama-server.zip"],
+                      timeout=300)
+        else:
+            # Linux: use install script if present, else download binary
+            install_sh = PROJECT_ROOT / "shared" / "install-llamacpp.sh"
+            if install_sh.exists():
+                _run_cmd(["bash", str(install_sh)], timeout=300)
+            else:
+                import platform as _plat
+                arch = _plat.machine()
+                arch_suffix = "aarch64" if "aarch64" in arch or "arm" in arch else "x86_64"
+                _run_cmd(["bash", "-c",
+                           f"curl -fsSL https://github.com/ggerganov/llama.cpp/releases/latest/download/"
+                           f"llama-server-linux-{arch_suffix}.tar.gz | sudo tar -xz -C /usr/local/bin/"],
+                          timeout=300)
+        rc2, _, _ = _run_cmd(["llama-server", "--version"])
+        if rc2 != 0:
+            _update_deploy(6, "[Pre-check] llama-server installation failed")
+            return False
+        _update_deploy(6, "[Pre-check] llama-server installed successfully")
+    # Launch — note: llama.cpp needs a GGUF model to actually serve
+    _update_deploy(6, "[Pre-check] Starting llama-server on :8080...")
+    _update_deploy(6, "[Pre-check] WARNING: llama-server needs a --model <path.gguf> to serve requests")
+    try:
+        proc = subprocess.Popen(
+            ["llama-server", "--port", "8080", "--host", "0.0.0.0"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            cwd=str(PROJECT_ROOT),
+        )
+        _service_procs["llamacpp"] = proc
+    except (subprocess.SubprocessError, OSError) as exc:
+        _update_deploy(6, f"[Pre-check] llama-server start error: {exc}")
+        return False
+    for i in range(1, 16):
+        time.sleep(1)
+        if _check_port(8080):
+            _update_deploy(6, f"[Pre-check] llama-server started on :8080 (ready after {i}s)")
+            return True
+    _update_deploy(6, "[Pre-check] llama-server process started — may need more time")
+    return True
+
+
+def _ensure_ipexllm(os_name: str) -> bool:
+    """Ensure ipex-llm is installed and serving on port 8010."""
+    if _check_port(8010):
+        _update_deploy(6, "[Pre-check] ipex-llm is running on :8010")
+        return True
+    rc, _, _ = _run_cmd(["python", "-c", "import ipex_llm"])
+    if rc != 0:
+        _update_deploy(6, "[Pre-check] ipex-llm not found — installing...")
+        if os_name == "Linux":
+            # Intel GPU pre-deps
+            rc_sycl, _, _ = _run_cmd(["sycl-ls"])
+            if rc_sycl != 0:
+                _update_deploy(6, "[Pre-check] WARNING: sycl-ls not found — Intel GPU drivers may be missing")
+        _run_cmd(["pip", "install", "ipex-llm[serving]"], timeout=600)
+        rc2, _, _ = _run_cmd(["python", "-c", "import ipex_llm"])
+        if rc2 != 0:
+            _update_deploy(6, "[Pre-check] ipex-llm installation failed — Intel GPU may be required")
+            return False
+        _update_deploy(6, "[Pre-check] ipex-llm installed successfully")
+    # Launch
+    _update_deploy(6, "[Pre-check] Starting ipex-llm server on :8010...")
+    try:
+        proc = subprocess.Popen(
+            ["python", "-m", "ipex_llm.serving.fastapi", "--port", "8010"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            cwd=str(PROJECT_ROOT),
+        )
+        _service_procs["ipexllm"] = proc
+    except (subprocess.SubprocessError, OSError) as exc:
+        _update_deploy(6, f"[Pre-check] ipex-llm start error: {exc}")
+        return False
+    for i in range(1, 31):
+        time.sleep(1)
+        if _check_port(8010):
+            _update_deploy(6, f"[Pre-check] ipex-llm started on :8010 (ready after {i}s)")
+            return True
+    _update_deploy(6, "[Pre-check] ipex-llm process started — may need more time")
+    return True
+
+
+def _ensure_sglang(os_name: str) -> bool:
+    """Ensure SGLang is installed and serving on port 30000."""
+    if _check_port(30000):
+        _update_deploy(6, "[Pre-check] SGLang is running on :30000")
+        return True
+    rc, _, _ = _run_cmd(["python", "-c", "import sglang"])
+    if rc != 0:
+        _update_deploy(6, "[Pre-check] SGLang not found — installing...")
+        # CUDA pre-deps (same as vLLM)
+        if os_name == "Linux":
+            rc_nv, _, _ = _run_cmd(["nvidia-smi"])
+            if rc_nv != 0:
+                _update_deploy(6, "[Pre-check] WARNING: nvidia-smi not found — SGLang requires CUDA")
+                pkg = _detect_pkg_manager()
+                if pkg == "apt-get":
+                    _run_cmd(["sudo", "apt-get", "install", "-y", "nvidia-cuda-toolkit"],
+                              timeout=300)
+                elif pkg in ("dnf", "yum"):
+                    _run_cmd(["sudo", pkg, "install", "-y", "cuda"], timeout=300)
+        _run_cmd(["pip", "install", "sglang[all]"], timeout=600)
+        rc2, _, _ = _run_cmd(["python", "-c", "import sglang"])
+        if rc2 != 0:
+            _update_deploy(6, "[Pre-check] SGLang installation failed — CUDA GPU required")
+            return False
+        _update_deploy(6, "[Pre-check] SGLang installed successfully")
+    # Launch
+    _update_deploy(6, "[Pre-check] Starting SGLang server on :30000...")
+    try:
+        proc = subprocess.Popen(
+            ["python", "-m", "sglang.launch_server", "--port", "30000"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            cwd=str(PROJECT_ROOT),
+        )
+        _service_procs["sglang"] = proc
+    except (subprocess.SubprocessError, OSError) as exc:
+        _update_deploy(6, f"[Pre-check] SGLang start error: {exc}")
+        return False
+    for i in range(1, 31):
+        time.sleep(1)
+        if _check_port(30000):
+            _update_deploy(6, f"[Pre-check] SGLang started on :30000 (ready after {i}s)")
+            return True
+    _update_deploy(6, "[Pre-check] SGLang process started — may need more time to load model")
+    return True
 
 
 # Track child service processes so we can clean up
@@ -1127,6 +1741,17 @@ def _run_deploy(assessment_json: str) -> None:
 
     _update_deploy(0, "=== xClaw Docker Deployment Pipeline ===")
 
+    try:
+        _run_deploy_inner(assessment_json)
+    except Exception as exc:  # Broad catch: top-level deploy thread must report all errors
+        import traceback
+        tb = traceback.format_exc()
+        _update_deploy(0, f"FATAL: Unhandled exception in deploy thread: {exc}", state="error")
+        _update_deploy(0, tb, state="error")
+
+
+def _run_deploy_inner(assessment_json: str) -> None:
+    """Inner deploy logic — called by _run_deploy with exception safety."""
     # Parse assessment
     try:
         config = json.loads(assessment_json)
@@ -1139,15 +1764,22 @@ def _run_deploy(assessment_json: str) -> None:
     runtime = config.get("runtime", "ollama")
     sec = config.get("security", {})
     security_enabled = sec.get("enabled", True) if isinstance(sec, dict) else config.get("security_enabled", True)
+    security_config = sec.get("config", {}) if isinstance(sec, dict) else {}
+    security_features = sec.get("features", []) if isinstance(sec, dict) else []
+    compliance_config = sec.get("compliance", {}) if isinstance(sec, dict) else {}
     selected_models = config.get("selected_models", [])
+    strategy_cfg = config.get("strategy", {})
     agent_name = config.get("agent_name", "xclaw-agent")
     gateway_cfg = config.get("gateway", {})
+    api_keys = config.get("api_keys", {})
+    cloud_providers = config.get("cloud_providers", [])
+    channels_cfg = config.get("channels", {})
 
-    # Write assessment file
-    tmp_assessment = PROJECT_ROOT / "data" / "wizard" / "client-assessment.json"
+    # Write assessment file (the FULL config — container reads this at startup)
+    tmp_assessment = PROJECT_ROOT / "data" / "wizard" / f"{agent_name}-assessment.json"
     tmp_assessment.parent.mkdir(parents=True, exist_ok=True)
     tmp_assessment.write_text(assessment_json, encoding="utf-8")
-    _update_deploy(1, f"Assessment saved to {tmp_assessment.name}")
+    _update_deploy(1, f"Assessment saved to {tmp_assessment}")
 
     PLATFORM_META = {p["id"]: p for p in PLATFORMS}
     plat_info = PLATFORM_META.get(platform, {})
@@ -1157,44 +1789,67 @@ def _run_deploy(assessment_json: str) -> None:
     storage_config = config.get("storage", {})
     storage_engine = storage_config.get("engine", "sqlite")
 
+    # Ensure unique instance_db.path per claw deployment (avoid shared default)
+    # Deferred: agent_port resolved below, so we set instance_db.path later.
+
     if port_config.get("mode") == "manual" and port_config.get("agentPort"):
         agent_port = port_config["agentPort"]
     else:
         allocated = _allocate_ports_for_claw(platform)
         agent_port = allocated["agent"]
 
-    container_name = f"xclaw-{agent_name}".lower().replace(" ", "-")
+    # Resolve all service ports from wizard config (not hardcoded)
+    gateway_port = int(port_config.get("gatewayPort") or gateway_cfg.get("port") or 9095)
+    optimizer_port = int(port_config.get("optimizerPort") or 9091)
+    watchdog_port = int(port_config.get("watchdogPort") or 9097)
+
+    # Generate a unique container name from the agent name + timestamp hash.
+    # Format: xclaw-{agent_name}-{4-hex-suffix}  e.g. xclaw-my-agent-a3f1
+    _name_base = f"xclaw-{agent_name}".lower().replace(" ", "-")
+    _unique_seed = f"{agent_name}-{time.time_ns()}"
+    _suffix = hashlib.sha256(_unique_seed.encode()).hexdigest()[:4]
+    container_name = f"{_name_base}-{_suffix}"
     image_name = f"xclaw:{platform}"
 
-    # ── Step 1/10: Pre-checks ───────────────────────────────────────
+    # Set unique instance_db.path per claw to avoid all claws sharing one DB
+    if storage_engine == "sqlite":
+        if "instance_db" not in storage_config:
+            storage_config["instance_db"] = {"engine": "sqlite", "path": ""}
+        inst_db = storage_config["instance_db"]
+        if not inst_db.get("path"):
+            inst_db["path"] = f"./data/instance_{container_name}.db"
+            log(f"Set unique instance_db.path: {inst_db['path']}")
+
+    # ── Step 1/10: Pre-flight checks + auto-install ─────────────────
     _update_deploy(2, "")
     _update_deploy(2, "━━━ Step 1/10: Pre-flight checks ━━━")
 
     import platform as plat
-    if plat.system() == "Windows":
-        _update_deploy(3, "[Pre-check] Windows detected — verifying WSL...")
-        rc, out, stderr = _run_cmd(["wsl", "--status"])
-        if rc == 0:
-            _update_deploy(3, "[Pre-check] WSL2 installed and available")
-        else:
-            _update_deploy(3, "[Pre-check] WSL not found — Docker Desktop provides WSL backend")
+    os_name = plat.system()
+    _update_deploy(2, f"[Pre-check] OS: {os_name} {plat.release()}")
 
-    _update_deploy(4, "[Pre-check] Checking Docker daemon...")
-    rc, out, stderr = _run_cmd(["docker", "info"], timeout=10)
-    if rc != 0:
-        _update_deploy(4, "ERROR: Docker daemon not running — cannot build container")
-        _update_deploy(4, "  Please start Docker Desktop or Docker daemon and try again")
-        _update_deploy(4, "Deployment aborted", state="error")
+    # 1a. Docker (required for all deployments)
+    if not _ensure_docker(os_name):
+        _update_deploy(6, "Deployment aborted — Docker unavailable", state="error")
         return
-    _update_deploy(5, "[Pre-check] Docker daemon is running")
 
-    # Check if Dockerfile.xclaw exists
+    # 1b. WSL (Windows only, advisory)
+    if os_name == "Windows":
+        _ensure_wsl()
+
+    # 1c. Git
+    _ensure_git(os_name)
+
+    # 1d. Dockerfile.xclaw
     dockerfile = PROJECT_ROOT / "Dockerfile.xclaw"
     if not dockerfile.exists():
-        _update_deploy(5, "ERROR: Dockerfile.xclaw not found in project root")
-        _update_deploy(5, "Deployment aborted", state="error")
+        _update_deploy(6, "ERROR: Dockerfile.xclaw not found in project root", state="error")
         return
-    _update_deploy(6, f"[Pre-check] Dockerfile.xclaw found")
+    _update_deploy(6, "[Pre-check] Dockerfile.xclaw found")
+
+    # 1e. LLM runtime (if local/hybrid)
+    if llm_provider in ("local", "hybrid"):
+        _ensure_runtime(runtime, os_name)
 
     # ── Step 2/10: Validate + Create .env ───────────────────────────
     _update_deploy(8, "")
@@ -1221,17 +1876,99 @@ def _run_deploy(assessment_json: str) -> None:
     if env_file.exists():
         env_content = env_file.read_text(encoding="utf-8")
         patches = {
+            # Core
             "CLAW_AGENT=": f"CLAW_AGENT={platform}",
             "CLAW_AGENT_NAME=": f"CLAW_AGENT_NAME={agent_name}",
             "CLAW_AGENT_PORT=": f"CLAW_AGENT_PORT={agent_port}",
             "CLAW_LLM_PROVIDER=": f"CLAW_LLM_PROVIDER={llm_provider}",
+            "CLAW_LLM_RUNTIME=": f"CLAW_LLM_RUNTIME={runtime}",
             "CLAW_STORAGE_ENGINE=": f"CLAW_STORAGE_ENGINE={storage_engine}",
+            # Ports (from wizard config, not hardcoded)
+            "CLAW_GATEWAY_PORT=": f"CLAW_GATEWAY_PORT={gateway_port}",
+            "CLAW_OPTIMIZER_PORT=": f"CLAW_OPTIMIZER_PORT={optimizer_port}",
+            "CLAW_WATCHDOG_PORT=": f"CLAW_WATCHDOG_PORT={watchdog_port}",
+            # Security
+            "CLAW_SECURITY_ENABLED=": f"CLAW_SECURITY_ENABLED={'true' if security_enabled else 'false'}",
         }
+        # LLM models
         if selected_models:
             patches["CLAW_OLLAMA_MODELS="] = f"CLAW_OLLAMA_MODELS={','.join(selected_models)}"
         if llm_provider in ("local", "hybrid"):
-            # Inside container, Ollama runs on host — use host.docker.internal
-            patches["CLAW_LOCAL_LLM_ENDPOINT="] = "CLAW_LOCAL_LLM_ENDPOINT=http://host.docker.internal:11434/v1"
+            # Inside container, LLM runtime runs on host — use host.docker.internal
+            rt_port_for_env = {"ollama": 11434, "vllm": 8000, "llama-cpp": 8080,
+                               "llamacpp": 8080, "ipex-llm": 8010, "ipexllm": 8010,
+                               "sglang": 30000, "localai": 8080}.get(runtime, 11434)
+            custom_endpoint = gateway_cfg.get("customLocalEndpoint")
+            if custom_endpoint:
+                patches["CLAW_LOCAL_LLM_ENDPOINT="] = f"CLAW_LOCAL_LLM_ENDPOINT={custom_endpoint}"
+            else:
+                patches["CLAW_LOCAL_LLM_ENDPOINT="] = f"CLAW_LOCAL_LLM_ENDPOINT=http://host.docker.internal:{rt_port_for_env}/v1"
+        # Cloud provider API keys
+        for provider_id, key_val in api_keys.items():
+            if key_val and not key_val.startswith("sk-****"):  # skip masked placeholders
+                env_var = f"{provider_id.upper()}_API_KEY="
+                patches[env_var] = f"{env_var}{key_val}"
+        if cloud_providers:
+            patches["CLAW_CLOUD_PROVIDERS="] = f"CLAW_CLOUD_PROVIDERS={','.join(cloud_providers)}"
+        # LLM strategy (optimization + task routing)
+        if strategy_cfg and strategy_cfg.get("rules"):
+            patches["CLAW_STRATEGY_OPTIMIZATION="] = f"CLAW_STRATEGY_OPTIMIZATION={strategy_cfg.get('optimization', 'balanced')}"
+            # Save full strategy to strategy.json for the gateway/router
+            strategy_file = PROJECT_ROOT / "strategy.json"
+            strategy_file.write_text(json.dumps(strategy_cfg, indent=2), encoding="utf-8")
+            _update_deploy(32, f"  Strategy config saved ({len(strategy_cfg['rules'])} task routing rules)")
+        # Gateway config
+        gw_rate_limit = gateway_cfg.get("rate_limit") or gateway_cfg.get("rateLimit")
+        if gw_rate_limit:
+            patches["CLAW_GATEWAY_RATE_LIMIT="] = f"CLAW_GATEWAY_RATE_LIMIT={gw_rate_limit}"
+        gw_failover = gateway_cfg.get("failover")
+        if gw_failover:
+            patches["CLAW_GATEWAY_FAILOVER="] = f"CLAW_GATEWAY_FAILOVER={gw_failover}"
+        gw_routing = gateway_cfg.get("routing")
+        if gw_routing:
+            patches["CLAW_GATEWAY_ROUTING="] = f"CLAW_GATEWAY_ROUTING={gw_routing}"
+        # Security features
+        if security_features:
+            patches["CLAW_SECURITY_FEATURES="] = f"CLAW_SECURITY_FEATURES={','.join(security_features)}"
+        # Storage details (PostgreSQL)
+        inst_db = storage_config.get("instance_db") or storage_config.get("instanceDb", {})
+        if storage_engine == "postgresql" and inst_db:
+            pg = inst_db.get("postgresql", inst_db)
+            if pg.get("host"):
+                patches["CLAW_POSTGRES_HOST="] = f"CLAW_POSTGRES_HOST={pg['host']}"
+            if pg.get("port"):
+                patches["CLAW_POSTGRES_PORT="] = f"CLAW_POSTGRES_PORT={pg['port']}"
+            if pg.get("user"):
+                patches["CLAW_POSTGRES_USER="] = f"CLAW_POSTGRES_USER={pg['user']}"
+            if pg.get("password"):
+                patches["CLAW_POSTGRES_PASSWORD="] = f"CLAW_POSTGRES_PASSWORD={pg['password']}"
+            if pg.get("dbname"):
+                patches["CLAW_POSTGRES_DB="] = f"CLAW_POSTGRES_DB={pg['dbname']}"
+        # Channel tokens — support both formats:
+        #   Format A: { enabled: true, config: { token: "..." } }
+        #   Format B: { botToken: "...", chatId: "..." }  (direct)
+        for ch_id, ch_cfg in channels_cfg.items():
+            if not isinstance(ch_cfg, dict):
+                continue
+            # Extract token: try nested config first, then direct keys
+            ch_conf = ch_cfg.get("config", {})
+            token = (ch_conf.get("token") or ch_cfg.get("botToken")
+                     or ch_cfg.get("token") or ch_cfg.get("bot_token") or "")
+            chat_id = (ch_conf.get("chatId") or ch_cfg.get("chatId")
+                       or ch_cfg.get("chat_id") or "")
+            # Accept if token present (either format)
+            if not token:
+                continue
+            if ch_id == "telegram":
+                patches["TELEGRAM_BOT_TOKEN="] = f"TELEGRAM_BOT_TOKEN={token}"
+                if chat_id:
+                    patches["TELEGRAM_CHAT_ID="] = f"TELEGRAM_CHAT_ID={chat_id}"
+            elif ch_id == "discord":
+                patches["DISCORD_BOT_TOKEN="] = f"DISCORD_BOT_TOKEN={token}"
+            elif ch_id == "slack":
+                patches["SLACK_BOT_TOKEN="] = f"SLACK_BOT_TOKEN={token}"
+            elif ch_id == "whatsapp":
+                patches["WHATSAPP_TOKEN="] = f"WHATSAPP_TOKEN={token}"
         for prefix, new_line in patches.items():
             lines = env_content.split("\n")
             for i, line in enumerate(lines):
@@ -1304,11 +2041,11 @@ def _run_deploy(assessment_json: str) -> None:
         build_proc = subprocess.Popen(
             build_cmd,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, cwd=str(PROJECT_ROOT),
+            cwd=str(PROJECT_ROOT),
         )
         step_count = 0
-        for line in iter(build_proc.stdout.readline, ""):
-            line = line.rstrip()
+        for raw_line in iter(build_proc.stdout.readline, b""):
+            line = raw_line.decode("utf-8", errors="replace").rstrip()
             if not line:
                 continue
             # Show key build steps
@@ -1328,10 +2065,14 @@ def _run_deploy(assessment_json: str) -> None:
             _update_deploy(36, "Deployment aborted", state="error")
             return
     except FileNotFoundError:
-        _update_deploy(36, "ERROR: 'docker' command not found — is Docker installed?")
+        _update_deploy(36, "'docker' command lost from PATH — re-running auto-install...")
+        if not _ensure_docker(os_name):
+            _update_deploy(36, "Deployment aborted — Docker unavailable after retry", state="error")
+            return
+        _update_deploy(36, "Docker recovered — please retry deployment")
         _update_deploy(36, "Deployment aborted", state="error")
         return
-    except Exception as exc:
+    except (subprocess.SubprocessError, OSError, ValueError) as exc:
         _update_deploy(36, f"ERROR: Build failed: {exc}")
         _update_deploy(36, "Deployment aborted", state="error")
         return
@@ -1347,46 +2088,33 @@ def _run_deploy(assessment_json: str) -> None:
     _update_deploy(40, "")
     _update_deploy(40, f"━━━ Step 6/10: LLM runtime ({llm_provider}) — host-side shared ━━━")
     if llm_provider in ("local", "hybrid"):
-        rt_port_map = {"ollama": 11434, "vllm": 8000, "llama-cpp": 8080, "localai": 8080}
+        rt_port_map = {"ollama": 11434, "vllm": 8000, "llama-cpp": 8080,
+                       "llamacpp": 8080, "localai": 8080, "ipex-llm": 8010,
+                       "ipexllm": 8010, "sglang": 30000}
         rt_port = rt_port_map.get(runtime, 11434)
-        _update_deploy(40, f"  Runtime:   {runtime} (runs on HOST, shared across all containers)")
+        _update_deploy(40, f"  Runtime:   {runtime} (native bare-metal install — full GPU access)")
         _update_deploy(40, f"  Port:      :{rt_port}")
         _update_deploy(41, f"  Container access via: host.docker.internal:{rt_port}")
         if llm_provider == "hybrid":
             _update_deploy(41, f"  Mode: hybrid (local primary + cloud fallback via R11 FallbackChain)")
 
+        # Verify runtime is still up (second-chance — Step 1 did initial setup)
+        if not _check_port(rt_port):
+            _update_deploy(42, f"  Runtime {runtime} not responding on :{rt_port} — retrying setup...")
+            _ensure_runtime(runtime, os_name)
+
         if runtime == "ollama":
+            # Gather existing models
             existing = []
             if _check_port(11434):
-                _update_deploy(42, "  Ollama daemon already running on :11434")
+                _update_deploy(42, "  Ollama daemon running on :11434")
                 try:
                     resp = urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=5)
                     tags = json.loads(resp.read())
                     existing = [m["name"] for m in tags.get("models", [])]
                     _update_deploy(42, f"  Installed models: {', '.join(existing) if existing else 'none'}")
-                except Exception:
+                except (urllib.error.URLError, urllib.error.HTTPError, OSError, json.JSONDecodeError):
                     pass
-            else:
-                _update_deploy(42, "  Starting Ollama daemon on host...")
-                _update_deploy(42, "  $ ollama serve")
-                try:
-                    proc = subprocess.Popen(
-                        ["ollama", "serve"],
-                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                    )
-                    _service_procs["ollama"] = proc
-                    for wait_sec in range(1, 11):
-                        time.sleep(1)
-                        if _check_port(11434):
-                            _update_deploy(43, f"  Ollama started on :11434 (ready after {wait_sec}s)")
-                            break
-                    else:
-                        _update_deploy(43, "  Ollama process started — may need more time")
-                except FileNotFoundError:
-                    _update_deploy(43, "  ERROR: 'ollama' command not found")
-                    _update_deploy(43, "  Install Ollama from https://ollama.com/download")
-                except Exception as exc:
-                    _update_deploy(43, f"  Ollama start error: {exc}")
 
             # Pull selected models with real-time progress
             if selected_models and _check_port(11434):
@@ -1402,10 +2130,11 @@ def _run_deploy(assessment_json: str) -> None:
                         pull_proc = subprocess.Popen(
                             ["ollama", "pull", model_id],
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                            text=True, cwd=str(PROJECT_ROOT),
+                            cwd=str(PROJECT_ROOT),
                         )
                         last_pct = ""
-                        for line in iter(pull_proc.stdout.readline, ""):
+                        for raw_line in iter(pull_proc.stdout.readline, b""):
+                            line = raw_line.decode("utf-8", errors="replace").rstrip()
                             line = line.rstrip()
                             if not line:
                                 continue
@@ -1427,18 +2156,25 @@ def _run_deploy(assessment_json: str) -> None:
                                 params = minfo.get("details", {}).get("parameter_size", "?")
                                 quant = minfo.get("details", {}).get("quantization_level", "?")
                                 _update_deploy(44 + idx, f"  [{model_num}/{total_models}] {model_id} ready — {params}, {quant}")
-                            except Exception:
+                            except (urllib.error.URLError, urllib.error.HTTPError, OSError, json.JSONDecodeError):
                                 _update_deploy(44 + idx, f"  [{model_num}/{total_models}] {model_id} downloaded")
                         else:
                             _update_deploy(44 + idx, f"  [{model_num}/{total_models}] {model_id} — pull finished (code {pull_proc.returncode})")
                     except FileNotFoundError:
-                        _update_deploy(44 + idx, f"  [{model_num}/{total_models}] {model_id} — 'ollama' not found")
-                    except Exception as exc:
+                        # Second-chance: try to install ollama and retry
+                        _update_deploy(44 + idx, f"  [{model_num}/{total_models}] {model_id} — 'ollama' not found, retrying install...")
+                        _ensure_runtime(runtime, os_name)
+                    except (subprocess.SubprocessError, OSError) as exc:
                         _update_deploy(44 + idx, f"  [{model_num}/{total_models}] {model_id} — error: {exc}")
             elif not selected_models:
                 _update_deploy(44, "  No models selected — skipping model pull")
         else:
-            _update_deploy(42, f"  Using {runtime} runtime — ensure it is running on :{rt_port}")
+            # Non-Ollama runtimes: verify port is reachable
+            if _check_port(rt_port):
+                _update_deploy(42, f"  {runtime} is running on :{rt_port}")
+            else:
+                _update_deploy(42, f"  WARNING: {runtime} not responding on :{rt_port}")
+                _update_deploy(42, f"  The runtime was started in Step 1 — it may still be loading a model")
     else:
         _update_deploy(41, "  Cloud-only mode — no local LLM runtime needed")
         cloud_providers = config.get("cloud_providers", [])
@@ -1453,15 +2189,20 @@ def _run_deploy(assessment_json: str) -> None:
     _update_deploy(58, f"  Container: {container_name}")
     _update_deploy(58, f"  Image:     {image_name}")
 
-    # Build port mappings
-    port_mappings = [
-        "-p", f"{agent_port}:{agent_port}",   # Agent platform
-        "-p", "9095:9095",                      # Gateway router
-        "-p", "9091:9091",                      # Optimizer
-        "-p", "9097:9097",                      # Watchdog
-        "-p", "9098:9098",                      # Wizard API (inside container)
-        "-p", "9099:9099",                      # Dashboard
-    ]
+    # Build port mappings (from wizard config)
+    # Skip ports already in use on the host to avoid "port already allocated"
+    # Note: Fleet Dashboard (9099) runs on the host, not inside the container
+    port_mappings = []
+    for hp, cp in [
+        (agent_port, agent_port),
+        (gateway_port, gateway_port),
+        (optimizer_port, optimizer_port),
+        (watchdog_port, watchdog_port),
+    ]:
+        if not _check_port(hp):
+            port_mappings.extend(["-p", f"{hp}:{cp}"])
+        else:
+            _update_deploy(58, f"  Note: host port {hp} already in use — skipping mapping")
 
     # Build run command
     run_cmd = [
@@ -1490,10 +2231,12 @@ def _run_deploy(assessment_json: str) -> None:
 
     run_cmd.append(image_name)
 
+    # Show the actual port mappings being used
+    mapped_ports = " ".join(f"-p {p}" for p in
+        [pm for i, pm in enumerate(port_mappings) if i % 2 == 1])
     _update_deploy(60, f"  $ docker run -d --name {container_name} \\")
     _update_deploy(60, f"      --network xclaw-net --restart unless-stopped \\")
-    _update_deploy(60, f"      -p {agent_port}:{agent_port} -p 9095:9095 -p 9091:9091 \\")
-    _update_deploy(60, f"      -p 9097:9097 -p 9098:9098 -p 9099:9099 \\")
+    _update_deploy(60, f"      {mapped_ports} \\")
     _update_deploy(61, f"      --env-file .env {image_name}")
 
     rc, out, stderr = _run_cmd(run_cmd, timeout=30)
@@ -1558,16 +2301,17 @@ def _run_deploy(assessment_json: str) -> None:
     container_status = out.strip() if rc == 0 else "unknown"
     _update_deploy(79, f"  Container status: {container_status}")
 
-    # Check exposed ports
+    # Check exposed ports (only services inside the container)
     service_checks = {
         f"Agent ({platform})": agent_port,
-        "Gateway Router": 9095,
-        "Optimizer": 9091,
-        "Watchdog": 9097,
-        "Dashboard": 9099,
+        "Gateway Router": gateway_port,
+        "Optimizer": optimizer_port,
+        "Watchdog": watchdog_port,
     }
     if llm_provider in ("local", "hybrid"):
-        rt_ports_map = {"ollama": 11434, "vllm": 8000, "llama-cpp": 8080, "localai": 8080}
+        rt_ports_map = {"ollama": 11434, "vllm": 8000, "llama-cpp": 8080,
+                        "llamacpp": 8080, "localai": 8080, "ipex-llm": 8010,
+                        "ipexllm": 8010, "sglang": 30000}
         service_checks["LLM Runtime (host)"] = rt_ports_map.get(runtime, 11434)
 
     health_results = {}
@@ -1600,22 +2344,32 @@ def _run_deploy(assessment_json: str) -> None:
         "container_id": container_id,
         "image": image_name,
         "agent_port": agent_port,
+        "gateway_port": gateway_port,
+        "optimizer_port": optimizer_port,
+        "watchdog_port": watchdog_port,
         "llm_provider": llm_provider,
         "runtime": runtime,
         "security_enabled": security_enabled,
+        "security_features": security_features,
         "selected_models": selected_models,
+        "strategy": strategy_cfg if strategy_cfg else None,
+        "cloud_providers": cloud_providers,
+        "gateway": gateway_cfg,
+        "storage": storage_config,
+        "channels": channels_cfg,
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "status": "running" if container_status == "running" else container_status,
     }
     _save_claw(claw_config)
     _update_deploy(94, f"  Claw config saved to data/claws/{claw_config['id']}.json")
 
-    # Build endpoint list
+    # Build endpoint list (use actual allocated ports, not defaults)
     endpoints = {
         f"Agent ({platform})": f"http://localhost:{agent_port}",
-        "Gateway Router": "http://localhost:9095",
-        "Optimizer": "http://localhost:9091",
-        "Watchdog": "http://localhost:9097",
+        "Agent Dashboard": f"http://localhost:{agent_port}/show",
+        "Gateway Router": f"http://localhost:{gateway_port}",
+        "Optimizer": f"http://localhost:{optimizer_port}",
+        "Watchdog": f"http://localhost:{watchdog_port}",
     }
     if llm_provider in ("local", "hybrid"):
         endpoints["LLM Runtime"] = f"http://localhost:{rt_ports_map.get(runtime, 11434)}"
@@ -1628,7 +2382,7 @@ def _run_deploy(assessment_json: str) -> None:
     if security_enabled:
         _update_deploy(97, f"  Security:    inbound + outbound ACTIVE")
     _update_deploy(97, f"  Optimizer:   11 pre-call + 2 post-call rules")
-    _update_deploy(98, f"  Flow: Client -> Security -> Gateway(:9095) -> Optimizer(:9091)")
+    _update_deploy(98, f"  Flow: Client -> Security -> Gateway(:{gateway_port}) -> Optimizer(:{optimizer_port})")
     _update_deploy(98, f"        -> Agent(:{agent_port}) -> LLM -> Optimizer(post) -> Security(out) -> Client")
     _update_deploy(99, "")
     _update_deploy(99, f"  docker logs -f {container_name}")
@@ -1656,7 +2410,7 @@ def _get_dal():
         try:
             from claw_dal import DAL
             _dal_instance = DAL.get_instance()
-        except Exception:
+        except (ImportError, RuntimeError, OSError):
             pass
     return _dal_instance
 
@@ -1705,7 +2459,7 @@ def _test_storage_connection(config: Dict[str, Any]) -> Dict[str, Any]:
     try:
         mgr = _get_storage_manager()
         return mgr.test_connection(config)
-    except Exception as e:
+    except (ImportError, RuntimeError, OSError, ValueError, KeyError) as e:
         return {"success": False, "message": str(e), "latency_ms": 0}
 
 
@@ -1739,15 +2493,15 @@ def _check_postgres_readiness(config: Dict[str, Any]) -> Dict[str, Any]:
             connect_ok = result.get("success", False)
             connect_msg = result.get("message", "")
             db_exists = result.get("db_exists", connect_ok)
-        except Exception as e:
+        except (OSError, RuntimeError, ImportError) as e:
             connect_msg = str(e)
 
-    # Check Docker availability for the "install via Docker" option
+    # Check Docker availability (passive — auto-install happens in _setup_postgres_docker)
     docker_available = False
     try:
         rc, _, _ = _run_cmd(["docker", "info"], timeout=5)
         docker_available = rc == 0
-    except Exception:
+    except (subprocess.SubprocessError, OSError):
         pass
 
     return {
@@ -1770,10 +2524,18 @@ def _setup_postgres_docker(config: Dict[str, Any]) -> Dict[str, Any]:
     dbname = config.get("dbname", "xclaw")
     port = int(config.get("port", 5432))
 
-    # Check Docker first
-    rc, _, _ = _run_cmd(["docker", "info"], timeout=5)
-    if rc != 0:
-        return {"success": False, "message": "Docker is not running. Please start Docker first."}
+    # Ensure Docker is installed and running (auto-install/launch if needed)
+    import platform as _plat
+    docker_msgs: List[str] = []
+    docker_ok, docker_summary = _auto_docker(
+        _plat.system(), log_fn=lambda m: docker_msgs.append(m)
+    )
+    if not docker_ok:
+        return {
+            "success": False,
+            "message": f"Docker unavailable: {docker_summary}",
+            "docker_log": docker_msgs,
+        }
 
     compose_file = PROJECT_ROOT / "docker-compose.yml"
     if not compose_file.exists():
@@ -1870,7 +2632,7 @@ def _create_postgres_database(config: Dict[str, Any]) -> Dict[str, Any]:
         conn.close()
         log(f"Created PostgreSQL database '{dbname}' on {host}:{port}")
         return {"success": True, "message": f"Database '{dbname}' created successfully"}
-    except Exception as e:
+    except Exception as e:  # Broad catch: psycopg2 exception types not importable at module level
         return {"success": False, "message": str(e)}
 
 
@@ -1889,7 +2651,7 @@ def _get_data_overview() -> Dict[str, Any]:
             "total_tables": total_tables,
             "total_size_bytes": total_size,
         }
-    except Exception as e:
+    except (ImportError, RuntimeError, OSError) as e:
         return {"databases": [], "error": str(e)}
 
 
@@ -1916,7 +2678,7 @@ def _get_data_tables(db_name: str) -> Dict[str, Any]:
                 "row_count": row_count,
             })
         return {"tables": table_details, "db": db_name}
-    except Exception as e:
+    except (ImportError, RuntimeError, OSError, KeyError) as e:
         return {"tables": [], "error": str(e)}
 
 
@@ -1964,7 +2726,7 @@ def _query_data(params: Dict[str, Any]) -> Dict[str, Any]:
         total = count_row["cnt"] if count_row else 0
 
         return {"rows": rows, "total": total, "table": table, "db": db_name}
-    except Exception as e:
+    except (ImportError, RuntimeError, OSError, KeyError, ValueError) as e:
         return {"rows": [], "error": str(e)}
 
 
@@ -1973,7 +2735,7 @@ def _get_data_health() -> Dict[str, Any]:
     try:
         mgr = _get_storage_manager()
         return mgr.get_health_all()
-    except Exception as e:
+    except (ImportError, RuntimeError, OSError) as e:
         return {"error": str(e)}
 
 
@@ -2007,7 +2769,7 @@ def _get_rbac() -> Dict[str, Any]:
             "roles": rbac.list_roles(),
             "assignments": rbac.list_assignments(),
         }
-    except Exception as e:
+    except (RuntimeError, OSError, AttributeError) as e:
         return {"roles": [], "assignments": [], "error": str(e)}
 
 
@@ -2032,7 +2794,7 @@ def _save_rbac(data: Dict[str, Any]) -> Dict[str, Any]:
 
         result = rbac.assign_role(agent_id, role_id, data.get("assigned_by", "dashboard"))
         return result
-    except Exception as e:
+    except (ImportError, RuntimeError, OSError, KeyError) as e:
         return {"success": False, "error": str(e)}
 
 
@@ -2053,11 +2815,184 @@ def _export_database(db_name: str) -> Optional[str]:
             rows = db.fetchall(f"SELECT * FROM {t}")
             export_data["tables"][t] = rows
         return json.dumps(export_data, indent=2, default=str)
-    except Exception:
+    except (ImportError, RuntimeError, OSError, KeyError):
         return None
 
 
 # Port management helpers
+
+def _get_docker_occupied_ports() -> set:
+    """Query Docker for all host-mapped ports from running containers."""
+    occupied = set()
+    try:
+        rc, out, _ = _run_cmd(
+            ["docker", "ps", "--format", "{{.Ports}}"],
+            timeout=10,
+        )
+        if rc == 0 and out:
+            # Format examples: "0.0.0.0:3121->3100/tcp, :::3121->3100/tcp"
+            for line in out.strip().splitlines():
+                for mapping in line.split(","):
+                    mapping = mapping.strip()
+                    # Extract host port from "host:port->container/proto"
+                    m = re.search(r":(\d+)->", mapping)
+                    if m:
+                        occupied.add(int(m.group(1)))
+    except (subprocess.SubprocessError, OSError, ValueError):
+        pass
+    return occupied
+
+
+def _get_config_occupied_ports() -> set:
+    """Read all saved claw configs and extract their declared ports."""
+    occupied = set()
+    CLAWS_DIR.mkdir(parents=True, exist_ok=True)
+    for f in CLAWS_DIR.glob("*.json"):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            # Skip configs marked as removed/stopped — their ports are reclaimable
+            status = data.get("status", "")
+            if status in ("removed", "stopped"):
+                continue
+            for key in ("agent_port", "gateway_port", "optimizer_port", "watchdog_port",
+                        "agent", "gateway", "optimizer", "watchdog"):
+                val = data.get(key)
+                if isinstance(val, int) and val > 0:
+                    occupied.add(val)
+        except (json.JSONDecodeError, OSError):
+            pass
+    return occupied
+
+
+def _get_all_occupied_ports() -> set:
+    """Gather all in-use ports from Docker, TCP probes on known ranges, and saved configs."""
+    occupied = set()
+
+    # 1. Docker container port mappings
+    occupied |= _get_docker_occupied_ports()
+
+    # 2. Saved claw configs (for non-docker / remote deploys)
+    occupied |= _get_config_occupied_ports()
+
+    # 3. TCP probe on the common port ranges (agent 3100-3199, gateway 9095-9195,
+    #    optimizer 9091-9191, watchdog 9097-9197, parlant 8800-8899)
+    #    Only probe a focused set to keep startup fast.
+    probe_ranges = list(range(3100, 3200)) + list(range(8800, 8900)) + list(range(9091, 9200))
+    for port in probe_ranges:
+        if port in occupied:
+            continue
+        if _check_port(port):
+            occupied.add(port)
+
+    return occupied
+
+
+def _cleanup_stale_claws() -> int:
+    """Mark dead claw configs as removed/stopped so their ports can be reclaimed.
+    Returns the number of configs updated."""
+    CLAWS_DIR.mkdir(parents=True, exist_ok=True)
+    updated = 0
+
+    # Get set of actually running Docker containers
+    running_containers: set = set()
+    try:
+        rc, out, _ = _run_cmd(
+            ["docker", "ps", "--format", "{{.Names}}"],
+            timeout=10,
+        )
+        if rc == 0 and out:
+            running_containers = {name.strip() for name in out.strip().splitlines() if name.strip()}
+    except (subprocess.SubprocessError, OSError):
+        pass
+
+    for f in sorted(CLAWS_DIR.glob("*.json")):
+        fname = f.name
+        # Skip port-allocation files (e.g. zeroclaw_0_ports.json)
+        if fname.endswith("_ports.json"):
+            continue
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        # Already marked dead — skip
+        if data.get("status") in ("removed", "stopped"):
+            continue
+
+        container_name = data.get("container_name", "")
+        agent_port = data.get("agent_port", 0)
+
+        is_alive = False
+        if container_name:
+            # Check if Docker container exists and is running
+            if container_name in running_containers:
+                is_alive = True
+            else:
+                # Double-check via docker inspect (container may be paused/restarting)
+                try:
+                    rc, out, _ = _run_cmd(
+                        ["docker", "inspect", "--format", "{{.State.Status}}", container_name],
+                        timeout=5,
+                    )
+                    if rc == 0 and out.strip() in ("running", "restarting", "paused"):
+                        is_alive = True
+                except (subprocess.SubprocessError, OSError):
+                    pass
+
+        # For non-docker or as fallback: TCP port probe
+        if not is_alive and agent_port:
+            is_alive = _check_port(agent_port)
+
+        if not is_alive:
+            old_status = data.get("status", "unknown")
+            if container_name and container_name not in running_containers:
+                # Check if container exists at all (exited vs truly removed)
+                try:
+                    rc2, out2, _ = _run_cmd(
+                        ["docker", "inspect", "--format", "{{.State.Status}}", container_name],
+                        timeout=5,
+                    )
+                    if rc2 != 0:
+                        data["status"] = "removed"
+                    else:
+                        data["status"] = "stopped"
+                except (subprocess.SubprocessError, OSError):
+                    data["status"] = "stopped"
+            else:
+                data["status"] = "stopped"
+
+            if data["status"] != old_status:
+                f.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                updated += 1
+                log(f"Stale claw '{data.get('name', fname)}' marked as {data['status']}")
+
+    # Clean up orphan port files whose corresponding claw config no longer exists
+    # or whose claw is dead
+    active_claw_ids = set()
+    for f in CLAWS_DIR.glob("claw_*.json"):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            if data.get("status") not in ("removed", "stopped"):
+                active_claw_ids.add(data.get("platform", "") + "_" + str(data.get("id", "")))
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    for pf in CLAWS_DIR.glob("*_ports.json"):
+        # Port files like "zeroclaw_5_ports.json" — check if any active claw references these ports
+        try:
+            port_data = json.loads(pf.read_text(encoding="utf-8"))
+            agent_p = port_data.get("agent", 0)
+            # If this agent port isn't occupied by a running service, the port file is stale
+            if agent_p and not _check_port(agent_p):
+                pf.unlink()
+                updated += 1
+                log(f"Removed stale port file: {pf.name}")
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    return updated
+
+
 def _find_free_port(preferred: int, range_start: int, range_end: int) -> int:
     """Find a free port, starting with preferred, then scanning the range."""
     for port in [preferred] + list(range(range_start, range_end)):
@@ -2074,21 +3009,42 @@ def _find_free_port(preferred: int, range_start: int, range_end: int) -> int:
 
 
 def _allocate_ports_for_claw(platform: str) -> Dict[str, int]:
-    """Allocate unique ports for a new claw instance."""
+    """Allocate unique ports for a new claw instance.
+
+    Smart allocation: scans Docker containers, TCP ports, and saved configs
+    to find the first truly-free port in each range.  Dead containers' ports
+    are automatically reclaimed after stale-config cleanup.
+    """
+    # Clean up stale configs first so dead ports are reclaimable
+    cleaned = _cleanup_stale_claws()
+    if cleaned:
+        log(f"Cleaned up {cleaned} stale claw config(s) / port file(s)")
+
+    # Gather every port that is actually in use right now
+    occupied = _get_all_occupied_ports()
+    log(f"Port scan: {len(occupied)} ports in use")
+
     platform_defaults = {
         "zeroclaw": 3100, "nanoclaw": 3200, "picoclaw": 3300,
         "openclaw": 3400, "parlant": 8800,
     }
     base_port = platform_defaults.get(platform, 3100)
 
-    # Count existing claws to offset
-    existing = _load_claws()
-    offset = len(existing)
+    def _first_free(range_start: int, range_end: int) -> int:
+        """Return the first port in [range_start, range_end) not in occupied."""
+        for p in range(range_start, range_end):
+            if p not in occupied:
+                return p
+        # Fallback: use _find_free_port which does live TCP probe
+        return _find_free_port(range_start, range_start, range_end)
 
-    agent_port = _find_free_port(base_port + offset, base_port, base_port + 99)
-    gateway_port = _find_free_port(9095 + offset, 9095, 9195)
-    optimizer_port = _find_free_port(9091 + offset, 9091, 9191)
-    watchdog_port = _find_free_port(9097 + offset, 9097, 9197)
+    agent_port = _first_free(base_port, base_port + 100)
+    gateway_port = _first_free(9095, 9195)
+    optimizer_port = _first_free(9091, 9191)
+    watchdog_port = _first_free(9097, 9197)
+
+    # Mark these as occupied immediately so concurrent deploys don't collide
+    occupied.update({agent_port, gateway_port, optimizer_port, watchdog_port})
 
     ports = {
         "agent": agent_port,
@@ -2097,10 +3053,11 @@ def _allocate_ports_for_claw(platform: str) -> Dict[str, int]:
         "watchdog": watchdog_port,
     }
 
-    # Save port allocation
+    # Save port allocation (use agent_port as unique key instead of stale offset)
     CLAWS_DIR.mkdir(parents=True, exist_ok=True)
-    port_file = CLAWS_DIR / f"{platform}_{offset}_ports.json"
+    port_file = CLAWS_DIR / f"{platform}_{agent_port}_ports.json"
     port_file.write_text(json.dumps(ports, indent=2), encoding="utf-8")
+    log(f"Allocated ports for {platform}: agent={agent_port}, gw={gateway_port}, opt={optimizer_port}, wd={watchdog_port}")
 
     return ports
 
@@ -2375,6 +3332,14 @@ class WizardAPIHandler(BaseHTTPRequestHandler):
                         except (BrokenPipeError, ConnectionResetError):
                             break
                     log_cursor = len(all_logs)
+
+                # Detect dead deploy thread (crashed despite try/except wrapper)
+                if not thread.is_alive() and status["state"] == "running":
+                    status["state"] = "error"
+                    status["message"] = "Deploy thread died unexpectedly"
+                    with _deploy_lock:
+                        _deploy_status["state"] = "error"
+                        _deploy_status["message"] = status["message"]
 
                 if status["state"] in ("complete", "error"):
                     final = {

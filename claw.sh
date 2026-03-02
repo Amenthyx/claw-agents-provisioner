@@ -17,6 +17,7 @@ set -euo pipefail
 #   ./claw.sh vault <command>               Encrypted secrets vault
 #   ./claw.sh optimizer <command>           Multi-model optimization
 #   ./claw.sh health <agent>               Run health check
+#   ./claw.sh completions <bash|zsh|install> Shell completion scripts
 #   ./claw.sh help                         Show this help
 # =============================================================================
 
@@ -56,14 +57,102 @@ is_valid_agent() {
 }
 
 check_docker() {
+    # 1. Already running?
+    if docker info &>/dev/null 2>&1; then
+        return 0
+    fi
+
+    # 2. Installed but not running?
+    if command -v docker &>/dev/null; then
+        warn "Docker installed but not running — starting..."
+        _start_docker_daemon
+        return 0
+    fi
+
+    # 3. Not installed — auto-install
+    warn "Docker not found — installing automatically..."
+    _install_docker
+    _start_docker_daemon
+}
+
+_install_docker() {
+    local os_type
+    os_type="$(uname -s)"
+    case "$os_type" in
+        Darwin)
+            if command -v brew &>/dev/null; then
+                log "Installing Docker Desktop via Homebrew..."
+                brew install --cask docker
+            else
+                err "Homebrew not found. Install Docker Desktop from https://docs.docker.com/get-docker/"
+                exit 1
+            fi
+            ;;
+        Linux)
+            log "Installing Docker via official convenience script..."
+            curl -fsSL https://get.docker.com | sh
+            ;;
+        MINGW*|MSYS*|CYGWIN*)
+            if command -v winget &>/dev/null; then
+                log "Installing Docker Desktop via winget..."
+                winget install -e --id Docker.DockerDesktop \
+                    --accept-package-agreements --accept-source-agreements
+            else
+                err "winget not found. Install Docker Desktop from https://docs.docker.com/get-docker/"
+                exit 1
+            fi
+            ;;
+        *)
+            err "Unsupported OS: $os_type — install Docker manually: https://docs.docker.com/get-docker/"
+            exit 1
+            ;;
+    esac
+
+    # Verify install
     if ! command -v docker &>/dev/null; then
-        err "Docker is not installed. Install Docker first: https://docs.docker.com/get-docker/"
+        err "Docker installation failed — please install manually: https://docs.docker.com/get-docker/"
         exit 1
     fi
-    if ! docker compose version &>/dev/null; then
-        err "Docker Compose plugin not found. Install it: https://docs.docker.com/compose/install/"
-        exit 1
+    log "Docker installed successfully"
+
+    # Also check Docker Compose
+    if ! docker compose version &>/dev/null 2>&1; then
+        warn "Docker Compose plugin not found — it should be included with Docker Desktop."
+        warn "If using Linux server, install it: https://docs.docker.com/compose/install/"
     fi
+}
+
+_start_docker_daemon() {
+    local os_type max_wait=60 interval=3
+    os_type="$(uname -s)"
+
+    case "$os_type" in
+        Darwin)
+            open -a Docker 2>/dev/null || true
+            ;;
+        Linux)
+            if command -v systemctl &>/dev/null; then
+                sudo systemctl start docker 2>/dev/null || true
+            fi
+            max_wait=30; interval=2
+            ;;
+        MINGW*|MSYS*|CYGWIN*)
+            powershell.exe -Command \
+                "Start-Process 'C:\Program Files\Docker\Docker\Docker Desktop.exe'" 2>/dev/null || true
+            ;;
+    esac
+
+    log "Waiting for Docker daemon to start..."
+    local elapsed=0
+    while [ $elapsed -lt $max_wait ]; do
+        sleep "$interval"
+        elapsed=$((elapsed + interval))
+        if docker info &>/dev/null 2>&1; then
+            log "Docker is ready (started in ${elapsed}s)"
+            return 0
+        fi
+    done
+    warn "Docker started — may need a few more seconds to initialize"
 }
 
 check_vagrant() {
@@ -195,10 +284,15 @@ print_help() {
     echo -e "  ${GREEN}adapter list${NC}                 List all 50 adapters"
     echo ""
     echo -e "${BOLD}OPERATIONS:${NC}"
-    echo -e "  ${GREEN}health <agent|all>${NC}           Run agent health check"
+    echo -e "  ${GREEN}health [agent|all|services]${NC}  Run health check (services = aggregated)"
     echo -e "  ${GREEN}logs <agent>${NC}                 Tail agent logs (Docker)"
     echo -e "  ${GREEN}status${NC}                       Show status of all agents"
     echo -e "  ${GREEN}help${NC}                         Show this help message"
+    echo ""
+    echo -e "${BOLD}SHELL COMPLETIONS:${NC}"
+    echo -e "  ${GREEN}completions bash${NC}             Print bash completion script to stdout"
+    echo -e "  ${GREEN}completions zsh${NC}              Print zsh completion script to stdout"
+    echo -e "  ${GREEN}completions install${NC}          Install completions to system directories"
     echo ""
     echo -e "${BOLD}AGENTS:${NC}"
     echo -e "  ${BLUE}zeroclaw${NC}   Rust agent     | 512 MB limit | Port 3100"
@@ -586,8 +680,60 @@ cmd_datasets() {
 # cmd_health — Health check
 # -------------------------------------------------------------------
 cmd_health() {
-    local agent="${1:-all}"
-    "${SCRIPT_DIR}/shared/healthcheck.sh" "${agent}"
+    local target="${1:-all}"
+
+    # "services" subcommand queries the health aggregator on port 9094
+    if [[ "$target" == "services" ]]; then
+        local health_port="${CLAW_HEALTH_PORT:-9094}"
+        header "Platform Services Health (port ${health_port})"
+
+        local response
+        if response=$(curl -sf --max-time 5 "http://localhost:${health_port}/health" 2>/dev/null); then
+            local overall
+            overall=$(echo "$response" | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])" 2>/dev/null || echo "unknown")
+
+            case "$overall" in
+                healthy)   echo -e "  Overall: ${GREEN}HEALTHY${NC}" ;;
+                degraded)  echo -e "  Overall: ${YELLOW}DEGRADED${NC}" ;;
+                unhealthy) echo -e "  Overall: ${RED}UNHEALTHY${NC}" ;;
+                *)         echo -e "  Overall: ${YELLOW}${overall}${NC}" ;;
+            esac
+            echo ""
+
+            # Parse and display each service
+            echo "$response" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+services = data.get('services', {})
+for name in sorted(services):
+    svc = services[name]
+    status = svc.get('status', 'unknown')
+    port = svc.get('port', '?')
+    rt = svc.get('response_time_ms')
+    rt_str = f'{rt}ms' if rt is not None else 'n/a'
+    symbol = '  PASS' if status == 'healthy' else '  FAIL'
+    print(f'  {name:<14} :{port:<6} {status:<10}  {rt_str}')
+" 2>/dev/null || echo -e "  ${RED}Failed to parse response${NC}"
+
+            echo ""
+            echo "$response" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+h = data.get('counts', {}).get('healthy', 0)
+t = data.get('total_services', 0)
+print(f'  Summary: {h}/{t} services healthy')
+" 2>/dev/null
+        else
+            echo -e "  ${RED}Health aggregator not reachable on port ${health_port}${NC}"
+            echo -e "  Start it with: python3 shared/claw_health.py --start"
+            echo -e "  Or via Docker: docker compose --profile health up -d"
+        fi
+        echo ""
+        return
+    fi
+
+    # Default: delegate to the existing agent healthcheck script
+    "${SCRIPT_DIR}/shared/healthcheck.sh" "${target}"
 }
 
 # -------------------------------------------------------------------
@@ -1098,6 +1244,113 @@ case "${COMMAND}" in
             info)   python3 "${adapter_py}" --info "$1" ;;
             search) python3 "${adapter_py}" --match "$1" ;;
             *)      python3 "${adapter_py}" --list ;;
+        esac
+        ;;
+
+    # -------------------------------------------------------------------
+    # Completions — Shell tab-completion scripts
+    # -------------------------------------------------------------------
+    completions)
+        _comp_action="${1:-}"
+        case "${_comp_action}" in
+            bash)
+                if [ -f "${SCRIPT_DIR}/completions/claw-completion.bash" ]; then
+                    cat "${SCRIPT_DIR}/completions/claw-completion.bash"
+                else
+                    err "Bash completion script not found at completions/claw-completion.bash"
+                    exit 1
+                fi
+                ;;
+            zsh)
+                if [ -f "${SCRIPT_DIR}/completions/_claw" ]; then
+                    cat "${SCRIPT_DIR}/completions/_claw"
+                else
+                    err "Zsh completion script not found at completions/_claw"
+                    exit 1
+                fi
+                ;;
+            install)
+                header "Installing shell completions..."
+                _os_type="$(uname -s)"
+
+                # --- Bash completions ---
+                _bash_installed=false
+                if [ -f "${SCRIPT_DIR}/completions/claw-completion.bash" ]; then
+                    # Try system-wide bash-completion directory
+                    if [ -d "/etc/bash_completion.d" ] && [ -w "/etc/bash_completion.d" ]; then
+                        cp "${SCRIPT_DIR}/completions/claw-completion.bash" /etc/bash_completion.d/claw
+                        log "Bash: installed to /etc/bash_completion.d/claw"
+                        _bash_installed=true
+                    elif [ -d "/usr/local/etc/bash_completion.d" ] && [ -w "/usr/local/etc/bash_completion.d" ]; then
+                        cp "${SCRIPT_DIR}/completions/claw-completion.bash" /usr/local/etc/bash_completion.d/claw
+                        log "Bash: installed to /usr/local/etc/bash_completion.d/claw"
+                        _bash_installed=true
+                    else
+                        # Per-user fallback
+                        mkdir -p "${HOME}/.local/share/bash-completion/completions"
+                        cp "${SCRIPT_DIR}/completions/claw-completion.bash" \
+                           "${HOME}/.local/share/bash-completion/completions/claw.sh"
+                        log "Bash: installed to ~/.local/share/bash-completion/completions/claw.sh"
+                        _bash_installed=true
+                    fi
+                else
+                    warn "Bash completion script not found — skipping"
+                fi
+
+                # --- Zsh completions ---
+                _zsh_installed=false
+                if [ -f "${SCRIPT_DIR}/completions/_claw" ]; then
+                    # Try system-wide zsh site-functions
+                    if [ -d "/usr/local/share/zsh/site-functions" ] && [ -w "/usr/local/share/zsh/site-functions" ]; then
+                        cp "${SCRIPT_DIR}/completions/_claw" /usr/local/share/zsh/site-functions/_claw
+                        log "Zsh: installed to /usr/local/share/zsh/site-functions/_claw"
+                        _zsh_installed=true
+                    elif [ -d "/usr/share/zsh/site-functions" ] && [ -w "/usr/share/zsh/site-functions" ]; then
+                        cp "${SCRIPT_DIR}/completions/_claw" /usr/share/zsh/site-functions/_claw
+                        log "Zsh: installed to /usr/share/zsh/site-functions/_claw"
+                        _zsh_installed=true
+                    else
+                        # Per-user fallback
+                        mkdir -p "${HOME}/.zsh/completions"
+                        cp "${SCRIPT_DIR}/completions/_claw" "${HOME}/.zsh/completions/_claw"
+                        log "Zsh: installed to ~/.zsh/completions/_claw"
+                        info "Add to .zshrc:  fpath=(~/.zsh/completions \$fpath)"
+                        _zsh_installed=true
+                    fi
+                else
+                    warn "Zsh completion script not found — skipping"
+                fi
+
+                echo ""
+                if [ "${_bash_installed}" = true ] || [ "${_zsh_installed}" = true ]; then
+                    log "Installation complete. Restart your shell or run:"
+                    if [ "${_bash_installed}" = true ]; then
+                        info "  source <(./claw.sh completions bash)   # for current bash session"
+                    fi
+                    if [ "${_zsh_installed}" = true ]; then
+                        info "  autoload -Uz compinit && compinit      # for current zsh session"
+                    fi
+                else
+                    err "No completion scripts were installed."
+                    exit 1
+                fi
+                ;;
+            ""|--help|-h)
+                echo "Usage: ./claw.sh completions <bash|zsh|install>"
+                echo ""
+                echo "  bash      Print bash completion script to stdout"
+                echo "  zsh       Print zsh completion script to stdout"
+                echo "  install   Install completions to system directories"
+                echo ""
+                echo "Quick setup:"
+                echo "  source <(./claw.sh completions bash)   # bash"
+                echo "  source <(./claw.sh completions zsh)    # zsh (then compinit)"
+                ;;
+            *)
+                err "Unknown completions action: ${_comp_action}"
+                echo "Usage: ./claw.sh completions <bash|zsh|install>"
+                exit 1
+                ;;
         esac
         ;;
 

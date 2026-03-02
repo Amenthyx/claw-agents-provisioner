@@ -161,7 +161,7 @@ class SQLiteBackend(StorageBackend):
                 "size_bytes": size_bytes,
                 "wal_size_bytes": wal_size,
             }
-        except Exception as e:
+        except sqlite3.Error as e:
             return {"status": "error", "engine": "sqlite", "error": str(e)}
 
     def get_tables(self) -> List[str]:
@@ -197,7 +197,7 @@ def ensure_psycopg2() -> bool:
         import psycopg2  # noqa: F811, F401
         log("psycopg2-binary installed successfully")
         return True
-    except Exception as e:
+    except (_sp.SubprocessError, ImportError, OSError) as e:
         err(f"Failed to install psycopg2-binary: {e}")
         return False
 
@@ -286,7 +286,7 @@ class PostgreSQLBackend(StorageBackend):
                 "size_bytes": size_bytes,
                 "connections": connections,
             }
-        except Exception as e:
+        except Exception as e:  # psycopg2 exceptions vary; keep broad for DB health probe
             return {"status": "error", "engine": "postgresql", "error": str(e)}
 
     def get_tables(self) -> List[str]:
@@ -570,8 +570,9 @@ class StorageManager:
                 continue
             try:
                 db.execute(stmt)
-            except Exception as e:
+            except (sqlite3.Error, Exception) as e:
                 # Non-fatal: log and continue (e.g. IF NOT EXISTS already created)
+                # Broad catch kept because backend may be PostgreSQL (psycopg2 errors)
                 warn(f"Schema stmt skipped: {e}")
 
     def init_instance_schema(self) -> None:
@@ -619,7 +620,7 @@ class StorageManager:
                         "latency_ms": latency_ms,
                         "db_exists": True,
                     }
-                except Exception as pg_err:
+                except Exception as pg_err:  # psycopg2.Error types not importable at module level
                     err_str = str(pg_err).lower()
                     # Detect "database does not exist" vs auth / network errors
                     if "does not exist" in err_str or "nicht" in err_str:
@@ -656,7 +657,7 @@ class StorageManager:
                         "db_exists": False,
                         "parent_writable": parent_ok,
                     }
-        except Exception as e:
+        except (sqlite3.Error, OSError, ConnectionError, ImportError) as e:
             return {"success": False, "message": str(e), "latency_ms": 0}
 
     def get_all_databases_info(self) -> List[Dict[str, Any]]:
@@ -676,7 +677,7 @@ class StorageManager:
                 "table_count": len(tables),
                 "health": health,
             })
-        except Exception as e:
+        except (sqlite3.Error, OSError, ImportError) as e:
             dbs.append({"name": "instance", "label": "Instance DB", "error": str(e)})
 
         # Shared DB
@@ -695,7 +696,7 @@ class StorageManager:
                         "table_count": len(tables),
                         "health": health,
                     })
-            except Exception as e:
+            except (sqlite3.Error, OSError, ImportError) as e:
                 dbs.append({"name": "shared", "label": "Shared DB", "error": str(e)})
 
         return dbs
@@ -705,14 +706,14 @@ class StorageManager:
         result: Dict[str, Any] = {}
         try:
             result["instance"] = self.get_instance_db().get_health()
-        except Exception as e:
+        except (sqlite3.Error, OSError, ImportError) as e:
             result["instance"] = {"status": "error", "error": str(e)}
 
         shared = self.get_shared_db()
         if shared:
             try:
                 result["shared"] = shared.get_health()
-            except Exception as e:
+            except (sqlite3.Error, OSError, ImportError) as e:
                 result["shared"] = {"status": "error", "error": str(e)}
 
         return result

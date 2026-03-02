@@ -118,7 +118,7 @@ class ConversationStore:
             from claw_dal import DAL
             self._dal = DAL.get_instance()
             log("ConversationStore using DAL")
-        except Exception:
+        except (ImportError, RuntimeError, sqlite3.Error):
             pass
 
         # Fallback: direct SQLite if DAL unavailable
@@ -729,7 +729,7 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
 
             status = 404
             self._send_json({"error": "Not found"}, 404)
-        except Exception:
+        except Exception:  # Broad catch to record HTTP 500 in metrics before re-raising
             status = 500
             raise
         finally:
@@ -861,7 +861,7 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
 
             status = 404
             self._send_json({"error": "Not found"}, 404)
-        except Exception:
+        except Exception:  # Broad catch to record HTTP 500 in metrics before re-raising
             status = 500
             raise
         finally:
@@ -901,7 +901,7 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
 
             status = 404
             self._send_json({"error": "Not found"}, 404)
-        except Exception:
+        except Exception:  # Broad catch to record HTTP 500 in metrics before re-raising
             status = 500
             raise
         finally:

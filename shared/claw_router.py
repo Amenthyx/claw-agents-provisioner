@@ -253,7 +253,7 @@ def check_backend_health(base_url: str, timeout: float = 3.0) -> bool:
             with urllib.request.urlopen(req, timeout=timeout):
                 healthy = True
                 break
-        except Exception:
+        except (urllib.error.URLError, urllib.error.HTTPError, OSError, socket.timeout):
             continue
 
     with _health_cache_lock:
@@ -333,13 +333,13 @@ def log_usage(entry: Dict[str, Any]) -> None:
                 model=entry.get("model", "unknown"),
                 provider=entry.get("provider", "unknown"),
                 avg_latency_ms=entry.get("latency_ms", 0))
-    except Exception:
+    except (ImportError, RuntimeError, OSError):
         # Fallback: persist to disk
         try:
             USAGE_LOG_DIR.mkdir(parents=True, exist_ok=True)
             with open(USAGE_LOG_FILE, "a") as f:
                 f.write(json.dumps(entry) + "\n")
-        except IOError:
+        except (IOError, OSError):
             pass
 
 
@@ -792,7 +792,7 @@ class RouterRequestHandler(BaseHTTPRequestHandler):
             else:
                 status = 404
                 self._send_json(404, {"error": "Not found"})
-        except Exception:
+        except Exception:  # Broad catch to record HTTP 500 in metrics before re-raising
             status = 500
             raise
         finally:
@@ -820,7 +820,7 @@ class RouterRequestHandler(BaseHTTPRequestHandler):
             else:
                 status = 404
                 self._send_json(404, {"error": "Not found"})
-        except Exception:
+        except Exception:  # Broad catch to record HTTP 500 in metrics before re-raising
             status = 500
             raise
         finally:
@@ -1208,7 +1208,7 @@ def show_status() -> None:
                 for b in backends:
                     status_str = f"{GREEN}healthy{NC}" if b["healthy"] else f"{RED}down{NC}"
                     print(f"    {b['runtime']:.<22} {status_str}  ({b['base_url']})")
-    except Exception:
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError, json.JSONDecodeError, KeyError):
         print(f"  {YELLOW}Could not reach router at localhost:{DEFAULT_PORT}{NC}")
 
     print()
@@ -1245,7 +1245,7 @@ def show_logs(tail: int = 20) -> None:
                     info("No logs yet.")
                 print()
                 return
-        except Exception:
+        except (urllib.error.URLError, urllib.error.HTTPError, OSError, json.JSONDecodeError):
             pass
 
     # Fallback: read from file
