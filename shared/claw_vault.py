@@ -31,6 +31,8 @@ Usage:
     python shared/claw_vault.py export-env secrets.env
     python shared/claw_vault.py inject /run/secrets/decrypted
     python shared/claw_vault.py rotate
+    python shared/claw_vault.py rotate-secrets --policy rotation-policy.json
+    python shared/claw_vault.py rotation-status --policy rotation-policy.json
 
 Requirements:
     Python 3.8+
@@ -38,6 +40,7 @@ Requirements:
 """
 
 import argparse
+import copy
 import getpass
 import json
 import logging
@@ -45,7 +48,9 @@ import os
 import signal
 import sys
 import tempfile
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 try:
     from cryptography.fernet import Fernet, InvalidToken
@@ -72,6 +77,9 @@ VAULT_MAGIC = b"CLAWVAULT1"          # 10 bytes — file format identifier
 SALT_LENGTH = 16                      # bytes
 PBKDF2_ITERATIONS = 480_000
 DEFAULT_VAULT_FILE = "secrets.vault"
+DEFAULT_ROTATION_POLICY = "rotation-policy.json"
+DEFAULT_ROTATION_LOG = "logs/rotation-audit.jsonl"
+DEFAULT_GRACE_PERIOD_HOURS = 24       # hours to keep old key accessible
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -345,6 +353,193 @@ def _open_vault(vault_path: str, password_file: str = None) -> SecretStore:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  Rotation Policy — Scheduled secret rotation with grace periods
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class RotationPolicy:
+    """
+    Manages scheduled secret rotation with configurable policies.
+
+    Policy file format (JSON):
+    {
+        "version": 1,
+        "default_rotation_days": 90,
+        "default_grace_period_hours": 24,
+        "secrets": {
+            "ANTHROPIC_API_KEY": {
+                "rotation_days": 30,
+                "grace_period_hours": 48,
+                "last_rotated": "2025-01-15T00:00:00Z",
+                "previous_value": null,
+                "grace_expires": null
+            }
+        }
+    }
+    """
+
+    def __init__(self, policy_path: str):
+        self.path = Path(policy_path).resolve()
+        self._policy: Dict[str, Any] = {}
+
+    def load(self) -> None:
+        """Load rotation policy from disk."""
+        if not self.path.exists():
+            self._policy = {
+                "version": 1,
+                "default_rotation_days": 90,
+                "default_grace_period_hours": DEFAULT_GRACE_PERIOD_HOURS,
+                "secrets": {},
+            }
+            return
+        data = self.path.read_text(encoding="utf-8")
+        self._policy = json.loads(data)
+
+    def save(self) -> None:
+        """Persist rotation policy to disk atomically."""
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        content = json.dumps(self._policy, indent=2, sort_keys=True)
+        # Atomic write
+        fd, tmp_path = tempfile.mkstemp(
+            dir=str(self.path.parent), prefix=".policy_tmp_"
+        )
+        try:
+            os.write(fd, content.encode("utf-8"))
+            os.close(fd)
+            if sys.platform == "win32" and self.path.exists():
+                os.replace(tmp_path, str(self.path))
+            else:
+                os.rename(tmp_path, str(self.path))
+        except (OSError, ValueError):
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
+
+    @property
+    def default_rotation_days(self) -> int:
+        return self._policy.get("default_rotation_days", 90)
+
+    @property
+    def default_grace_hours(self) -> int:
+        return self._policy.get(
+            "default_grace_period_hours", DEFAULT_GRACE_PERIOD_HOURS
+        )
+
+    def get_secret_policy(self, key: str) -> Dict[str, Any]:
+        """Get rotation config for a specific secret."""
+        secrets = self._policy.get("secrets", {})
+        return secrets.get(key, {})
+
+    def set_secret_policy(
+        self,
+        key: str,
+        rotation_days: Optional[int] = None,
+        grace_period_hours: Optional[int] = None,
+    ) -> None:
+        """Set or update rotation config for a specific secret."""
+        if "secrets" not in self._policy:
+            self._policy["secrets"] = {}
+        entry = self._policy["secrets"].get(key, {})
+        if rotation_days is not None:
+            entry["rotation_days"] = rotation_days
+        if grace_period_hours is not None:
+            entry["grace_period_hours"] = grace_period_hours
+        self._policy["secrets"][key] = entry
+
+    def record_rotation(
+        self, key: str, previous_value: Optional[str] = None
+    ) -> None:
+        """Record that a secret was rotated, storing previous value for grace."""
+        now = datetime.now(timezone.utc)
+        if "secrets" not in self._policy:
+            self._policy["secrets"] = {}
+        entry = self._policy["secrets"].get(key, {})
+
+        entry["last_rotated"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        grace_hours = entry.get("grace_period_hours", self.default_grace_hours)
+        grace_expires = now + timedelta(hours=grace_hours)
+        entry["grace_expires"] = grace_expires.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        # Store previous value (encrypted in the policy, only for grace retrieval)
+        if previous_value is not None:
+            entry["previous_value"] = previous_value
+        else:
+            entry["previous_value"] = None
+
+        self._policy["secrets"][key] = entry
+
+    def clear_expired_grace(self) -> List[str]:
+        """Remove previous values for secrets whose grace period has expired."""
+        now = datetime.now(timezone.utc)
+        cleared = []
+        for key, entry in self._policy.get("secrets", {}).items():
+            grace_str = entry.get("grace_expires")
+            if grace_str and entry.get("previous_value") is not None:
+                grace_dt = datetime.strptime(
+                    grace_str, "%Y-%m-%dT%H:%M:%SZ"
+                ).replace(tzinfo=timezone.utc)
+                if now >= grace_dt:
+                    entry["previous_value"] = None
+                    entry["grace_expires"] = None
+                    cleared.append(key)
+        return cleared
+
+    def get_due_secrets(self, all_keys: List[str]) -> List[Dict[str, Any]]:
+        """Return list of secrets that are due for rotation."""
+        now = datetime.now(timezone.utc)
+        due = []
+        for key in all_keys:
+            entry = self.get_secret_policy(key)
+            rotation_days = entry.get("rotation_days", self.default_rotation_days)
+            last_rotated_str = entry.get("last_rotated")
+
+            if last_rotated_str:
+                last_rotated = datetime.strptime(
+                    last_rotated_str, "%Y-%m-%dT%H:%M:%SZ"
+                ).replace(tzinfo=timezone.utc)
+                days_since = (now - last_rotated).days
+                is_due = days_since >= rotation_days
+            else:
+                # Never rotated — always due
+                days_since = -1
+                is_due = True
+
+            if is_due:
+                due.append({
+                    "key": key,
+                    "rotation_days": rotation_days,
+                    "days_since_rotation": days_since,
+                    "last_rotated": last_rotated_str or "never",
+                })
+        return due
+
+
+def _log_rotation_event(
+    action: str,
+    key: str,
+    outcome: str,
+    details: Optional[Dict[str, Any]] = None,
+    log_path: str = DEFAULT_ROTATION_LOG,
+) -> None:
+    """Append a structured JSON entry to the rotation audit log."""
+    log_file = Path(log_path)
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+
+    entry = {
+        "timestamp": datetime.now(timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%S.%fZ"
+        ),
+        "action": action,
+        "key": key,
+        "outcome": outcome,
+        "details": details or {},
+    }
+
+    with open(str(log_file), "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, default=str) + "\n")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  CLI Commands
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -603,6 +798,254 @@ def cmd_rotate(args):
     )
 
 
+def cmd_rotate_secrets(args):
+    """Rotate secrets based on the rotation policy schedule.
+
+    For each secret that is due for rotation:
+    1. Store the previous value in the policy (for grace period access)
+    2. Prompt for or generate a new value
+    3. Update the vault
+    4. Record the rotation in the policy and audit log
+    """
+    store = _open_vault(args.vault_file, args.password_file)
+    policy = RotationPolicy(args.policy)
+    policy.load()
+
+    # Clear expired grace periods first
+    cleared = policy.clear_expired_grace()
+    for key in cleared:
+        logger.info(f"Grace period expired, previous value cleared: {key}")
+        _log_rotation_event("grace_expired", key, "success")
+
+    # Find secrets due for rotation
+    all_keys = store.keys()
+    due_secrets = policy.get_due_secrets(all_keys)
+
+    if not due_secrets:
+        logger.info("No secrets are due for rotation")
+        policy.save()
+        return
+
+    logger.info(f"Secrets due for rotation: {len(due_secrets)}")
+    for item in due_secrets:
+        print(
+            f"  {item['key']}: "
+            f"last rotated {item['last_rotated']}, "
+            f"policy {item['rotation_days']}d"
+        )
+
+    if not args.force:
+        try:
+            confirm = input("\nProceed with rotation? [y/N] ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            sys.exit(1)
+        if confirm != "y":
+            logger.info("Rotation cancelled")
+            return
+
+    rotated = 0
+    skipped = 0
+    for item in due_secrets:
+        key = item["key"]
+        try:
+            old_value = store.get(key)
+        except KeyError:
+            logger.warning(f"Secret disappeared during rotation: {key}")
+            skipped += 1
+            continue
+
+        # Get new value: from env var, stdin, or auto-generate
+        env_key = f"CLAW_ROTATE_{key}"
+        new_value = os.environ.get(env_key)
+
+        if not new_value and not args.auto_generate:
+            try:
+                new_value = getpass.getpass(f"New value for {key}: ")
+            except (EOFError, KeyboardInterrupt):
+                print()
+                logger.info(f"Skipped: {key}")
+                skipped += 1
+                continue
+
+        if not new_value and args.auto_generate:
+            # Auto-generate a 64-char hex token
+            new_value = os.urandom(32).hex()
+            logger.info(f"Auto-generated new value for: {key}")
+
+        if not new_value:
+            logger.warning(f"Empty value for {key} — skipping")
+            skipped += 1
+            continue
+
+        # Store previous value for grace period, then update
+        policy.record_rotation(key, previous_value=old_value)
+        store.set(key, new_value)
+        rotated += 1
+
+        _log_rotation_event(
+            "secret_rotated",
+            key,
+            "success",
+            details={
+                "rotation_days": item["rotation_days"],
+                "days_since_rotation": item["days_since_rotation"],
+                "auto_generated": args.auto_generate and not os.environ.get(env_key),
+            },
+        )
+
+        audit = get_audit_logger()
+        audit.log_security_event(
+            action="secret_rotation",
+            resource=key,
+            outcome="success",
+            details={
+                "rotation_days": item["rotation_days"],
+                "grace_period_hours": policy.get_secret_policy(key).get(
+                    "grace_period_hours", policy.default_grace_hours
+                ),
+            },
+        )
+
+        logger.info(f"Rotated: {key}")
+
+    store.save()
+    policy.save()
+
+    logger.info(
+        f"Rotation complete: {rotated} rotated, {skipped} skipped"
+    )
+
+
+def cmd_rotation_status(args):
+    """Display rotation status for all secrets in the vault."""
+    store = _open_vault(args.vault_file, args.password_file)
+    policy = RotationPolicy(args.policy)
+    policy.load()
+
+    all_keys = store.keys()
+    now = datetime.now(timezone.utc)
+
+    if not all_keys:
+        logger.info("Vault is empty — no secrets to report")
+        return
+
+    # Header
+    print(f"{'Secret':<35} {'Last Rotated':<22} {'Policy':<10} {'Status':<12}")
+    print("-" * 82)
+
+    due_count = 0
+    for key in all_keys:
+        entry = policy.get_secret_policy(key)
+        rotation_days = entry.get("rotation_days", policy.default_rotation_days)
+        last_rotated_str = entry.get("last_rotated")
+
+        if last_rotated_str:
+            last_rotated = datetime.strptime(
+                last_rotated_str, "%Y-%m-%dT%H:%M:%SZ"
+            ).replace(tzinfo=timezone.utc)
+            days_since = (now - last_rotated).days
+            is_due = days_since >= rotation_days
+            last_display = last_rotated_str[:10]
+        else:
+            days_since = -1
+            is_due = True
+            last_display = "never"
+
+        if is_due:
+            status = "DUE"
+            due_count += 1
+        elif days_since >= rotation_days - 7:
+            status = "SOON"
+        else:
+            status = "OK"
+
+        grace_str = entry.get("grace_expires")
+        has_grace = False
+        if grace_str and entry.get("previous_value") is not None:
+            grace_dt = datetime.strptime(
+                grace_str, "%Y-%m-%dT%H:%M:%SZ"
+            ).replace(tzinfo=timezone.utc)
+            if now < grace_dt:
+                has_grace = True
+                status += " (grace)"
+
+        days_display = f"{days_since}d" if days_since >= 0 else "n/a"
+        policy_display = f"{rotation_days}d"
+
+        # Truncate key name if too long
+        key_display = key[:33] + ".." if len(key) > 35 else key
+
+        print(
+            f"{key_display:<35} {last_display + ' (' + days_display + ')':<22} "
+            f"{policy_display:<10} {status:<12}"
+        )
+
+    print("-" * 82)
+    print(
+        f"Total: {len(all_keys)} secrets, "
+        f"{due_count} due for rotation"
+    )
+
+    if args.json_output:
+        result = {
+            "timestamp": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "total_secrets": len(all_keys),
+            "due_for_rotation": due_count,
+            "secrets": [],
+        }
+        for key in all_keys:
+            entry = policy.get_secret_policy(key)
+            rotation_days = entry.get(
+                "rotation_days", policy.default_rotation_days
+            )
+            result["secrets"].append({
+                "key": key,
+                "last_rotated": entry.get("last_rotated", "never"),
+                "rotation_days": rotation_days,
+                "has_grace": bool(entry.get("previous_value")),
+            })
+        print("\n" + json.dumps(result, indent=2))
+
+
+def cmd_rotation_init(args):
+    """Initialize a rotation policy for all secrets in the vault."""
+    store = _open_vault(args.vault_file, args.password_file)
+    policy = RotationPolicy(args.policy)
+    policy.load()
+
+    all_keys = store.keys()
+    added = 0
+    for key in all_keys:
+        existing = policy.get_secret_policy(key)
+        if not existing:
+            policy.set_secret_policy(
+                key,
+                rotation_days=args.rotation_days,
+                grace_period_hours=args.grace_hours,
+            )
+            added += 1
+
+    policy.save()
+    logger.info(
+        f"Rotation policy initialized: {added} secrets added "
+        f"(policy: {args.rotation_days}d rotation, "
+        f"{args.grace_hours}h grace)"
+    )
+    logger.info(f"Policy file: {policy.path}")
+
+    _log_rotation_event(
+        "policy_init",
+        "*",
+        "success",
+        details={
+            "secrets_added": added,
+            "rotation_days": args.rotation_days,
+            "grace_hours": args.grace_hours,
+        },
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  CLI Argument Parser
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -693,6 +1136,62 @@ def build_parser() -> argparse.ArgumentParser:
         "rotate", help="Change the vault password (re-encrypts)",
     )
     p_rotate.set_defaults(func=cmd_rotate)
+
+    # ── rotate-secrets ────────────────────────────────────────────────
+    p_rotate_secrets = subparsers.add_parser(
+        "rotate-secrets",
+        help="Rotate secrets based on policy schedule",
+    )
+    p_rotate_secrets.add_argument(
+        "--policy",
+        default=DEFAULT_ROTATION_POLICY,
+        help=f"Path to rotation policy file (default: {DEFAULT_ROTATION_POLICY})",
+    )
+    p_rotate_secrets.add_argument(
+        "--force", action="store_true",
+        help="Skip confirmation prompt",
+    )
+    p_rotate_secrets.add_argument(
+        "--auto-generate", action="store_true",
+        help="Auto-generate new secret values (64-char hex)",
+    )
+    p_rotate_secrets.set_defaults(func=cmd_rotate_secrets)
+
+    # ── rotation-status ──────────────────────────────────────────────
+    p_rotation_status = subparsers.add_parser(
+        "rotation-status",
+        help="Show rotation status for all secrets",
+    )
+    p_rotation_status.add_argument(
+        "--policy",
+        default=DEFAULT_ROTATION_POLICY,
+        help=f"Path to rotation policy file (default: {DEFAULT_ROTATION_POLICY})",
+    )
+    p_rotation_status.add_argument(
+        "--json", dest="json_output", action="store_true",
+        help="Output status in JSON format",
+    )
+    p_rotation_status.set_defaults(func=cmd_rotation_status)
+
+    # ── rotation-init ────────────────────────────────────────────────
+    p_rotation_init = subparsers.add_parser(
+        "rotation-init",
+        help="Initialize rotation policy for all vault secrets",
+    )
+    p_rotation_init.add_argument(
+        "--policy",
+        default=DEFAULT_ROTATION_POLICY,
+        help=f"Path to rotation policy file (default: {DEFAULT_ROTATION_POLICY})",
+    )
+    p_rotation_init.add_argument(
+        "--rotation-days", type=int, default=90,
+        help="Default rotation interval in days (default: 90)",
+    )
+    p_rotation_init.add_argument(
+        "--grace-hours", type=int, default=DEFAULT_GRACE_PERIOD_HOURS,
+        help=f"Grace period in hours (default: {DEFAULT_GRACE_PERIOD_HOURS})",
+    )
+    p_rotation_init.set_defaults(func=cmd_rotation_init)
 
     return parser
 

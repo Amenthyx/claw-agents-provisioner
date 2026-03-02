@@ -89,3 +89,13 @@ data/wizard/
 # Wizard UI build artifacts
 wizard-ui/dist/
 wizard-ui/node_modules/
+
+# Secret rotation (runtime data)
+rotation-policy.json
+logs/rotation-audit.jsonl
+
+# Security scan reports (generated)
+security-reports/
+
+# detect-secrets baseline
+.secrets.baseline
