@@ -1,0 +1,428 @@
+# =============================================================================
+# Claw Agents Provisioner -- Prometheus Alert Rules
+# =============================================================================
+# Alert definitions for service health, error rates, resources, latency,
+# LLM agent metrics, and budget controls.
+#
+# Load in prometheus.yml:
+#   rule_files:
+#     - "alert.rules.yml"
+#
+# Webhook notifications require Alertmanager with a webhook_configs receiver.
+# See alertmanager.yml example at bottom of this file.
+# =============================================================================
+
+groups:
+  # -----------------------------------------------------------------------
+  # Service Availability Alerts
+  # -----------------------------------------------------------------------
+  - name: service_availability
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "Service {{ $labels.job }} is DOWN"
+          description: >-
+            {{ $labels.job }} ({{ $labels.instance }}) has been
+            unreachable for more than 2 minutes.
+          runbook: "Check container status: docker ps | grep {{ $labels.job }}"
+
+      - alert: HealthCheckFailing
+        expr: probe_success{job="claw-healthcheck"} == 0
+        for: 3m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Health check failing for {{ $labels.instance }}"
+          description: >-
+            Health endpoint at {{ $labels.instance }} has been returning
+            non-200 responses for more than 3 minutes.
+
+      - alert: NoRequestsReceived
+        expr: |
+          sum by (job) (rate(claw_router_request_count[10m])) == 0
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "No requests to {{ $labels.job }} in 10 minutes"
+          description: >-
+            {{ $labels.job }} has received zero requests in the last
+            10 minutes. Service may be misconfigured or unreachable.
+
+  # -----------------------------------------------------------------------
+  # Error Rate Alerts
+  # -----------------------------------------------------------------------
+  - name: error_rates
+    interval: 30s
+    rules:
+      # HTTP 5xx error rate > 5% over 5 minutes
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum by (job) (rate(claw_router_error_count[5m]))
+            / sum by (job) (rate(claw_router_request_count[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Error rate above 5% on {{ $labels.job }}"
+          description: >-
+            {{ $labels.job }} error rate is
+            {{ $value | humanizePercentage }} over the last 5 minutes.
+
+      # HTTP 5xx error rate > 15% — critical
+      - alert: CriticalErrorRate
+        expr: |
+          (
+            sum by (job) (rate(claw_router_error_count[5m]))
+            / sum by (job) (rate(claw_router_request_count[5m]))
+          ) > 0.15
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Critical error rate (>15%) on {{ $labels.job }}"
+          description: >-
+            {{ $labels.job }} error rate is
+            {{ $value | humanizePercentage }}.
+            Immediate investigation required.
+
+      # HTTP 4xx error rate > 20% (possible attack or misconfiguration)
+      - alert: HighClientErrorRate
+        expr: |
+          (
+            sum by (job, instance) (rate(http_requests_total{status=~"4.."}[5m]))
+            / sum by (job, instance) (rate(http_requests_total[5m]))
+          ) > 0.20
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High 4xx error rate on {{ $labels.job }}"
+          description: >-
+            {{ $labels.job }} on {{ $labels.instance }} has an HTTP 4xx
+            rate of {{ $value | humanizePercentage }} over 5 minutes
+            (threshold: 20%).
+
+  # -----------------------------------------------------------------------
+  # Latency Alerts
+  # -----------------------------------------------------------------------
+  - name: latency
+    interval: 30s
+    rules:
+      # Average request latency > 2 seconds
+      - alert: ServiceHighLatency
+        expr: |
+          rate(claw_router_request_duration_seconds_sum[5m])
+          / rate(claw_router_request_duration_seconds_count[5m])
+          > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High average latency on {{ $labels.job }}"
+          description: >-
+            Average request latency for {{ $labels.job }} is above
+            2 seconds for the last 5 minutes.
+
+      # P95 latency > 1 second
+      - alert: HighLatencyP95
+        expr: >-
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m]))
+            by (le, job, instance)
+          ) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "P95 latency > 1s on {{ $labels.job }}"
+          description: >-
+            Service {{ $labels.job }} on {{ $labels.instance }} has a
+            P95 latency of {{ $value | humanizeDuration }}
+            over the last 5 minutes (threshold: 1s).
+
+      # P99 latency > 5 seconds — critical
+      - alert: HighLatencyP99
+        expr: >-
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m]))
+            by (le, job, instance)
+          ) > 5.0
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Critical P99 latency on {{ $labels.job }}"
+          description: >-
+            Service {{ $labels.job }} on {{ $labels.instance }} has a
+            P99 latency of {{ $value | humanizeDuration }}
+            over the last 5 minutes (threshold: 5s).
+
+      # Average latency > 5 seconds — critical
+      - alert: ServiceHighLatencyCritical
+        expr: |
+          rate(claw_router_request_duration_seconds_sum[5m])
+          / rate(claw_router_request_duration_seconds_count[5m])
+          > 5.0
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Critical latency on {{ $labels.job }}"
+          description: >-
+            Average request latency for {{ $labels.job }}
+            exceeds 5 seconds.
+
+  # -----------------------------------------------------------------------
+  # Resource Usage Alerts
+  # -----------------------------------------------------------------------
+  - name: resources
+    interval: 60s
+    rules:
+      # Container memory usage > 90%
+      - alert: HighMemoryUsage
+        expr: >-
+          (
+            container_memory_usage_bytes{name=~"claw.*"}
+            / container_spec_memory_limit_bytes{name=~"claw.*"}
+          ) > 0.90
+        for: 5m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "Memory usage > 90% on {{ $labels.name }}"
+          description: >-
+            Container {{ $labels.name }} is using
+            {{ $value | humanizePercentage }} of its memory limit
+            for more than 5 minutes. OOM kill risk.
+          runbook: "Check with: docker stats {{ $labels.name }}"
+
+      # Host memory usage > 90%
+      - alert: HostHighMemory
+        expr: >-
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.90
+        for: 5m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "Host memory usage > 90% on {{ $labels.instance }}"
+          description: >-
+            Host {{ $labels.instance }} memory usage is at
+            {{ $value | humanizePercentage }}. Services may become
+            unstable or get OOM-killed.
+
+      # Disk usage > 85%
+      - alert: HighDiskUsage
+        expr: >-
+          (
+            (node_filesystem_size_bytes{mountpoint="/"}
+              - node_filesystem_avail_bytes{mountpoint="/"})
+            / node_filesystem_size_bytes{mountpoint="/"}
+          ) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Disk usage > 85% on {{ $labels.instance }}"
+          description: >-
+            Root filesystem on {{ $labels.instance }} is at
+            {{ $value | humanizePercentage }} capacity.
+            Clean up Docker images and logs.
+          runbook: "Run: docker system prune -f && journalctl --vacuum-size=100M"
+
+      # Disk usage > 95% — critical
+      - alert: CriticalDiskUsage
+        expr: >-
+          (
+            (node_filesystem_size_bytes{mountpoint="/"}
+              - node_filesystem_avail_bytes{mountpoint="/"})
+            / node_filesystem_size_bytes{mountpoint="/"}
+          ) > 0.95
+        for: 5m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "CRITICAL: Disk > 95% on {{ $labels.instance }}"
+          description: >-
+            Root filesystem on {{ $labels.instance }} is at
+            {{ $value | humanizePercentage }} capacity.
+            Immediate action required to prevent service outages.
+
+      # High active connections
+      - alert: HighActiveConnections
+        expr: claw_router_active_connections > 100
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High active connections on {{ $labels.job }}"
+          description: >-
+            {{ $labels.job }} has {{ $value }} active connections.
+            Check for connection leaks or traffic spikes.
+
+  # -----------------------------------------------------------------------
+  # Container Health
+  # -----------------------------------------------------------------------
+  - name: container_health
+    interval: 60s
+    rules:
+      # Container in restart loop (> 3 restarts in 15 minutes)
+      - alert: ContainerRestartLoop
+        expr: >-
+          increase(container_restart_count{name=~"claw.*"}[15m]) > 3
+        for: 1m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "Container {{ $labels.name }} in restart loop"
+          description: >-
+            Container {{ $labels.name }} has restarted {{ $value }}
+            times in the last 15 minutes.
+          runbook: "Check logs: docker logs {{ $labels.name }} --tail 100"
+
+  # -----------------------------------------------------------------------
+  # LLM / Agent Specific Alerts
+  # -----------------------------------------------------------------------
+  - name: llm_agent_metrics
+    interval: 60s
+    rules:
+      # LLM request failure rate > 10%
+      - alert: LLMHighFailureRate
+        expr: >-
+          (
+            sum(rate(claw_llm_requests_total{status="error"}[10m]))
+              by (provider, model)
+            / sum(rate(claw_llm_requests_total[10m]))
+              by (provider, model)
+          ) > 0.10
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High LLM failure rate: {{ $labels.provider }}/{{ $labels.model }}"
+          description: >-
+            LLM requests to {{ $labels.provider }}/{{ $labels.model }}
+            are failing at {{ $value | humanizePercentage }} over the
+            last 10 minutes. Check API key validity and rate limits.
+
+      # Budget utilization > 80%
+      - alert: BudgetWarning
+        expr: claw_budget_utilization > 0.80
+        for: 1m
+        labels:
+          severity: warning
+          team: operations
+        annotations:
+          summary: "Budget at {{ $value | humanizePercentage }}"
+          description: >-
+            LLM spending has reached
+            {{ $value | humanizePercentage }} of the configured limit.
+
+      # Budget exceeded (> 100%)
+      - alert: BudgetExceeded
+        expr: claw_budget_utilization > 1.0
+        for: 1m
+        labels:
+          severity: critical
+          team: operations
+        annotations:
+          summary: "BUDGET EXCEEDED: {{ $value | humanizePercentage }}"
+          description: >-
+            LLM spending has exceeded the configured budget limit.
+            Automatic throttling may be in effect.
+
+  # -----------------------------------------------------------------------
+  # Prometheus Self-Monitoring
+  # -----------------------------------------------------------------------
+  - name: prometheus_self
+    rules:
+      - alert: PrometheusConfigReloadFailed
+        expr: prometheus_config_last_reload_successful == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "Prometheus config reload failed"
+          description: >-
+            Prometheus failed to reload its configuration.
+            Check prometheus.yml for syntax errors.
+
+      - alert: PrometheusTSDBCompactionsFailed
+        expr: increase(prometheus_tsdb_compactions_failed_total[1h]) > 0
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Prometheus TSDB compaction failures"
+          description: >-
+            Prometheus TSDB has had {{ $value }} compaction failures
+            in the last hour.
+
+      - alert: PrometheusTargetMissing
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Prometheus target missing: {{ $labels.instance }}"
+          description: >-
+            Scrape target {{ $labels.instance }} (job: {{ $labels.job }})
+            has been down for 5 minutes.
+
+# =============================================================================
+# Alertmanager Webhook Configuration Example
+# =============================================================================
+# Place this in monitoring/alertmanager/alertmanager.yml:
+#
+#   global:
+#     resolve_timeout: 5m
+#
+#   route:
+#     receiver: 'webhook'
+#     group_by: ['alertname', 'severity']
+#     group_wait: 30s
+#     group_interval: 5m
+#     repeat_interval: 4h
+#     routes:
+#       - match:
+#           severity: critical
+#         receiver: 'webhook-critical'
+#         repeat_interval: 1h
+#
+#   receivers:
+#     - name: 'webhook'
+#       webhook_configs:
+#         - url: '${CLAW_ALERT_WEBHOOK_URL}'
+#           send_resolved: true
+#
+#     - name: 'webhook-critical'
+#       webhook_configs:
+#         - url: '${CLAW_ALERT_WEBHOOK_URL}'
+#           send_resolved: true
+# =============================================================================

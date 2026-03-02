@@ -1,18 +1,28 @@
-# Kanban Board — Claw Agents Provisioner
+# Kanban Board -- Claw Agents Provisioner
 
-> Version: 2.0 (Final)
-> Date: 2026-02-26
+> Version: 4.0
+> Date: 2026-03-02
 > Author: PM (Full-Stack Team, Amenthyx AI Teams v3.0)
-> Last Updated: 2026-02-26
+> Last Updated: 2026-03-02
 
 ---
 
 ## Legend
 
 - **Priority**: P0 = Must-Have (Launch Blocker), P1 = Should-Have (Important), P2 = Nice-to-Have
-- **Owner**: PM, MKT, LEGAL, BE, DEVOPS, INFRA, QA
-- **Milestone**: M0-M6
-- **Wave**: W1 (Planning), W1.5 (Research), W2 (Engineering), W3 (Dataset Expansion), W4 (QA), W5 (Release)
+- **Owner**: PM, MKT, LEGAL, BE, DEVOPS, INFRA, QA, FE, RM
+- **Milestone**: M0-M12
+- **Wave**: W1 (Planning), W1.5 (Research), W2 (Engineering), W3 (Dataset Expansion), W4 (QA), W5 (Release), W6 (v2.0 Engineering), W7 (v2.0 QA), W8 (v2.0 Release)
+
+---
+
+## Backlog
+
+### Wave 8 -- v2.0 Release: Deployment (P1 -- M12)
+
+| ID | Card | Description | Priority | Owner | Milestone | Wave |
+|----|------|-------------|----------|-------|-----------|------|
+| V2-14 | Blue-green deployment support | Zero-downtime agent updates via container swap with health check gate. Agent update completes with zero dropped requests; automatic rollback on failed health check | P1 | DEVOPS | M12 | W8 |
 
 ---
 
@@ -30,7 +40,7 @@
 
 ## Done
 
-### Wave 1 — Planning (M0)
+### Wave 1 -- Planning (M0)
 
 | ID | Card | Priority | Owner | Milestone |
 |----|------|----------|-------|-----------|
@@ -44,7 +54,7 @@
 | PM-08 | Team Status | P0 | PM | M0 |
 | PM-09 | PM Evidence Manifest | P0 | PM | M0 |
 
-### Wave 1.5 — Research (M0)
+### Wave 1.5 -- Research (M0)
 
 | ID | Card | Priority | Owner | Milestone |
 |----|------|----------|-------|-----------|
@@ -55,7 +65,7 @@
 | LEGAL-02 | Data Privacy Assessment | P0 | LEGAL | M0 |
 | LEGAL-03 | License Matrix | P0 | LEGAL | M0 |
 
-### Wave 2 — Engineering: Infrastructure (M1-M3)
+### Wave 2 -- Engineering: Infrastructure (M1-M3)
 
 | ID | Card | Priority | Owner | Milestone |
 |----|------|----------|-------|-----------|
@@ -91,7 +101,7 @@
 | DEVOPS-25 | Teardown scripts | P1 | DEVOPS | M3 |
 | DEVOPS-26 | Health check script | P1 | DEVOPS | M3 |
 
-### Wave 2 — Engineering: Assessment Pipeline (M4)
+### Wave 2 -- Engineering: Assessment Pipeline (M4)
 
 | ID | Card | Priority | Owner | Milestone |
 |----|------|----------|-------|-----------|
@@ -106,7 +116,7 @@
 | BE-09 | Client assessment example (Lucia) | P0 | BE | M4 |
 | BE-10 | API contracts documentation | P0 | BE | M4 |
 
-### Wave 2 — Engineering: Datasets + Adapters (M5a)
+### Wave 2 -- Engineering: Datasets + Adapters (M5a)
 
 | ID | Card | Priority | Owner | Milestone |
 |----|------|----------|-------|-----------|
@@ -118,7 +128,7 @@
 | BE-67 | Adapter catalog README | P1 | BE | M5a |
 | DEVOPS-27..30 | `claw.sh datasets` commands (list, validate, download, stats) | P1 | DEVOPS | M5a |
 
-### Wave 2 — Engineering: Fine-Tuning Pipeline (M5b)
+### Wave 2 -- Engineering: Fine-Tuning Pipeline (M5b)
 
 | ID | Card | Priority | Owner | Milestone |
 |----|------|----------|-------|-----------|
@@ -130,14 +140,14 @@
 | BE-73 | Adapter merge script | P1 | BE | M5b |
 | DEVOPS-31..37 | `claw.sh finetune` commands + adapter loading in entrypoints | P1 | DEVOPS | M5b |
 
-### Wave 3 — Dataset Expansion
+### Wave 3 -- Dataset Expansion
 
 | ID | Card | Priority | Owner | Milestone |
 |----|------|----------|-------|-----------|
 | BE-74 | Real HuggingFace data downloader script | P1 | BE | M5a |
 | BE-75 | Download + convert all 50 datasets to 5,000 rows | P1 | BE | M5a |
 
-### Wave 4 — QA (M6)
+### Wave 4 -- QA (M6)
 
 | ID | Card | Priority | Owner | Milestone |
 |----|------|----------|-------|-----------|
@@ -148,7 +158,7 @@
 | QA-05 | Assessment pipeline E2E test | P0 | QA | M6 |
 | QA-06 | QA Evidence Manifest | P0 | QA | M6 |
 
-### Wave 5 — Release (M6)
+### Wave 5 -- Release (M6)
 
 | ID | Card | Priority | Owner | Milestone |
 |----|------|----------|-------|-----------|
@@ -164,21 +174,73 @@
 | PM-17 | Final project status update | P0 | PM | M6 |
 | PM-18 | Final commit log update | P0 | PM | M6 |
 
+### Wave 6 -- v2.0 Engineering: Test Foundation (M7)
+
+| ID | Card | Priority | Owner | Milestone |
+|----|------|----------|-------|-----------|
+| V2-01 | Integration test suite (6 cross-service test files) | P0 | BE | M7 |
+| V2-02 | E2E test suite (2 E2E test files, 29 tests, 100% pass) | P0 | BE | M7 |
+| V2-FE-01 | Wizard UI test suite (14 test files, vitest + RTL) | P0 | FE | M7 |
+| V2-FE-02 | Accessibility audit (WCAG 2.1 AA, rated B+) | P0 | FE | M7 |
+| V2-FE-03 | Build optimization (chunk splitting, ES2020, hidden source maps) | P1 | FE | M7 |
+
+### Wave 6 -- v2.0 Engineering: Production Infrastructure (M8)
+
+| ID | Card | Priority | Owner | Milestone |
+|----|------|----------|-------|-----------|
+| V2-03 | TLS/HTTPS termination (nginx + Let's Encrypt) | P0 | DEVOPS | M8 |
+| V2-04 | Production Docker Compose (hardened, profile-gated) | P0 | DEVOPS | M8 |
+| V2-05 | Database migration system (migrate.py + migrations/) | P0 | BE | M8 |
+| V2-06 | Automated backup & restore (backup.sh, restore.sh, cron) | P0 | DEVOPS | M8 |
+
+### Wave 7 -- v2.0 QA: Load Testing & Performance (M9)
+
+| ID | Card | Priority | Owner | Milestone |
+|----|------|----------|-------|-----------|
+| V2-07 | Load testing with k6 (4 scripts, thresholds, runner) | P0 | QA | M9 |
+
+### Wave 7 -- v2.0 QA: Security Hardening (M10)
+
+| ID | Card | Priority | Owner | Milestone |
+|----|------|----------|-------|-----------|
+| V2-08 | CI/CD pipeline hardening (E2E, integration, security, SBOM) | P0 | INFRA | M10 |
+
+### Wave 7 -- v2.0 QA: Observability Stack (M11)
+
+| ID | Card | Priority | Owner | Milestone |
+|----|------|----------|-------|-----------|
+| V2-09 | Runbook & incident response (591-line runbook, decision tree) | P0 | DEVOPS | M11 |
+| V2-11 | Grafana dashboard templates (2 pre-built dashboards) | P1 | DEVOPS | M11 |
+| V2-12 | Log aggregation with Loki (Promtail + 7-day retention) | P1 | DEVOPS | M11 |
+| V2-13 | Alerting rules (6 Prometheus alert rules) | P1 | INFRA | M11 |
+
+### Wave 8 -- v2.0 Release: Production Validation (M12)
+
+| ID | Card | Priority | Owner | Milestone |
+|----|------|----------|-------|-----------|
+| V2-10 | Smoke test on deploy (--live mode, auth token, 4 checks) | P0 | QA | M12 |
+| V2-15 | Secrets rotation automation (rotate-secrets.sh, zero-downtime) | P1 | INFRA | M12 |
+| V2-RM-01 | Release checklist | P0 | RM | M12 |
+| V2-RM-02 | Changelog (Keep a Changelog format) | P0 | RM | M12 |
+| V2-RM-03 | Rollback procedures | P0 | RM | M12 |
+| V2-RM-04 | GitHub release draft | P0 | RM | M12 |
+
 ---
 
 ## Summary Counts
 
 | Column | Count |
 |--------|-------|
-| Backlog | 0 |
+| Backlog | 1 |
 | Sprint Ready | 0 |
 | In Progress | 0 |
 | In Review | 0 |
 | Testing | 0 |
-| Done | 122 |
+| Done | 150 |
 | Blocked | 0 |
-| **Total** | **122** |
+| **Total** | **151** |
 
 ---
 
-*Kanban Board v2.0 (Final) — Claw Agents Provisioner — Amenthyx AI Teams v3.0*
+*Kanban Board v4.0 -- Claw Agents Provisioner -- Amenthyx AI Teams v3.0*
+*Updated 2026-03-02 for v2.0 production hardening completion (V2-01 through V2-15 + RM cards)*

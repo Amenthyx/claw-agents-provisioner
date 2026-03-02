@@ -1,8 +1,9 @@
 # Timeline — Claw Agents Provisioner
 
-> Version: 1.0
-> Date: 2026-02-26
+> Version: 2.0
+> Date: 2026-03-02
 > Author: PM (Full-Stack Team, Amenthyx AI Teams v3.0)
+> Supersedes: v1.0 (2026-02-26)
 
 ---
 
@@ -298,4 +299,170 @@ M5a runs in parallel (only depends on M1 for repo structure) but must complete b
 
 ---
 
-*Timeline v1.0 — Claw Agents Provisioner — Amenthyx AI Teams v3.0*
+---
+
+## v2.0 Production Hardening Timeline (Weeks 8-11)
+
+### Overview
+
+```
+Week 8  [M7 Test Foundation]       BE, QA       ==============================
+Week 9  [M8 Prod Infrastructure]   DEVOPS, INFRA ==============================
+Week 10 [M9 Load Testing]          QA, BE       ===============
+        [M10 Security Hardening]   INFRA, QA                   ===============
+Week 11 [M11 Observability]        DEVOPS, INFRA ===============
+        [M12 Prod Validation]      QA, PM                      ===============
+```
+
+**Start Date**: 2026-03-02 (immediately following v1.0 completion)
+**End Date**: 2026-03-30
+**Total v2.0 Duration**: 4 weeks
+
+---
+
+### Week 8 (2026-03-02 -- 2026-03-08): Test Foundation
+
+**Milestone**: M7
+**Primary**: BE, QA
+**Wave**: 6 (v2.0 Engineering)
+**Dependencies**: v1.0 complete (M0-M6)
+
+| Day | Agent | Task | Deliverable |
+|-----|-------|------|-------------|
+| Mon | BE | Set up pytest fixtures and test Docker Compose | `tests/conftest.py`, `docker-compose.test.yml` |
+| Mon | QA | Design E2E test framework architecture | `tests/e2e/` scaffold |
+| Tue | BE | Router -> LLM integration tests | `tests/integration/test_router_llm.py` |
+| Tue | QA | Mock external LLM API responses | `tests/mocks/` |
+| Wed | BE | Memory -> SQLite integration tests | `tests/integration/test_memory_sqlite.py` |
+| Wed | QA | E2E: Assessment -> deploy flow tests | `tests/e2e/test_deploy.py` |
+| Thu | BE | RAG pipeline + orchestrator integration tests | `tests/integration/test_rag_pipeline.py`, `test_orchestrator.py` |
+| Thu | QA | E2E: Health check -> chat -> teardown tests | `tests/e2e/test_lifecycle.py` |
+| Fri | BE | Billing -> alerts integration tests | `tests/integration/test_billing_alerts.py` |
+| Fri | QA | E2E suite finalization, CI integration | All E2E tests passing in CI |
+
+**Exit Criteria**: >= 80% integration coverage, E2E framework runs full deploy cycle, CI passes
+
+---
+
+### Week 9 (2026-03-09 -- 2026-03-15): Production Infrastructure
+
+**Milestone**: M8
+**Primary**: DEVOPS, INFRA
+**Wave**: 6 (v2.0 Engineering)
+**Dependencies**: M7 (test infrastructure for validation)
+
+| Day | Agent | Task | Deliverable |
+|-----|-------|------|-------------|
+| Mon | DEVOPS | Nginx reverse proxy configuration | `nginx/nginx.conf`, `nginx/Dockerfile` |
+| Mon | BE | Database migration scripts (memory service) | `migrations/001_memory.sql` |
+| Tue | DEVOPS | Let's Encrypt / certbot integration | `certbot/`, `nginx/renew-certs.sh` |
+| Tue | BE | Database migration scripts (billing, DAL) | `migrations/002_billing.sql`, `003_dal.sql` |
+| Wed | DEVOPS | Production Docker Compose (resource limits, restart policies) | `docker-compose.production.yml` |
+| Wed | BE | Migration rollback scripts + validation | `migrations/rollback/` |
+| Thu | DEVOPS | Automated backup script + cron config | `scripts/backup.sh`, `scripts/backup-cron.conf` |
+| Thu | INFRA | Secrets management (Docker secrets) | docker-compose secrets config |
+| Fri | DEVOPS | Automated restore script + validation | `scripts/restore.sh` |
+| Fri | ALL | Full production stack validation on Ubuntu 24.04 | Evidence: production stack running |
+
+**Exit Criteria**: Production compose works on clean Ubuntu; HTTPS active; backup/restore round-trip tested
+
+---
+
+### Week 10 (2026-03-16 -- 2026-03-22): Load Testing + Security Hardening
+
+**Milestones**: M9 (Mon-Wed), M10 (Thu-Fri)
+**Primary**: QA + BE (M9), INFRA + QA (M10)
+**Wave**: 7 (v2.0 QA)
+**Dependencies**: M8 (production infrastructure to test against and scan)
+
+| Day | Agent | Task | Deliverable |
+|-----|-------|------|-------------|
+| Mon | QA | k6 scripts for router + memory endpoints | `tests/load/router.js`, `tests/load/memory.js` |
+| Mon | BE | Performance baseline measurements | `tests/load/BASELINES.md` |
+| Tue | QA | k6 scripts for RAG + dashboard endpoints | `tests/load/rag.js`, `tests/load/dashboard.js` |
+| Tue | BE | Bottleneck analysis and fixes | Perf improvement commits |
+| Wed | QA | Load test CI stage + regression detection | `.github/workflows/load-test.yml` |
+| Thu | INFRA | Bandit scan + npm audit integration | CI security stage |
+| Thu | QA | Pre-commit hooks configuration | `.pre-commit-config.yaml` |
+| Fri | INFRA | Branch protection rules + SBOM validation | GitHub settings, CI update |
+| Fri | QA | GDPR/SOC2 compliance evidence assembly | `.team/evidence/compliance/` |
+
+**Exit Criteria**: P95 targets met; zero HIGH/CRITICAL findings; compliance evidence assembled
+
+---
+
+### Week 11 (2026-03-23 -- 2026-03-30): Observability + Production Validation
+
+**Milestones**: M11 (Mon-Wed), M12 (Thu-Fri)
+**Primary**: DEVOPS + INFRA (M11), QA + DEVOPS + PM (M12)
+**Waves**: 7 (M11), 8 (M12 -- v2.0 Release)
+**Dependencies**: M7-M10 (all prior v2.0 milestones)
+
+| Day | Agent | Task | Deliverable |
+|-----|-------|------|-------------|
+| Mon | DEVOPS | Grafana dashboard templates | `monitoring/grafana/dashboards/` |
+| Mon | INFRA | Prometheus alerting rules | `monitoring/prometheus/alerts/` |
+| Tue | DEVOPS | Loki log aggregation configuration | `monitoring/loki/` |
+| Tue | DEVOPS | Operational runbook | `docs/RUNBOOK.md` |
+| Wed | DEVOPS | Incident response playbook | `docs/INCIDENT_RESPONSE.md` |
+| Wed | QA | Runbook QA sign-off | Evidence: QA-validated runbook |
+| Thu | QA | Smoke test suite (post-deployment) | `tests/smoke/` |
+| Thu | DEVOPS | Blue-green deployment support | `scripts/blue-green-deploy.sh` |
+| Fri | QA | Final E2E on production compose | Test evidence |
+| Fri | PM | Release candidate preparation + docs review | Tagged RC, all docs updated |
+
+**Exit Criteria**: Dashboards showing all 8 services; alerts firing; smoke test auto-runs; RC deployed and validated
+
+---
+
+### v2.0 Dependency Graph
+
+```
+v1.0 Complete (M0-M6)
+  |
+  v
+M7 Test Foundation (Week 8)
+  |
+  v
+M8 Production Infrastructure (Week 9)
+  |
+  +----------+---------+
+  |          |         |
+  v          v         v
+M9 Load    M10       M11 Observability
+Testing    Security  (Week 11)
+(Week 10)  (Week 10)
+  |          |         |
+  +----------+---------+
+             |
+             v
+M12 Production Validation (Week 11)
+             |
+             v
+         v2.0 RC
+```
+
+### v2.0 Critical Path
+
+```
+M7 --> M8 --> M11 --> M12 (v2.0 RC)
+```
+
+M9 and M10 run in parallel during Week 10, providing 2 days of slack if either overruns.
+
+---
+
+### v2.0 Agent Workload Summary
+
+| Agent | Week 8 | Week 9 | Week 10 | Week 11 | Total Days |
+|-------|--------|--------|---------|---------|------------|
+| BE | M7 (5d) | M8 (4d) | M9 (2d) | -- | 11 |
+| QA | M7 (5d) | -- | M9 (3d) + M10 (2d) | M12 (3d) | 13 |
+| DEVOPS | -- | M8 (5d) | -- | M11 (4d) + M12 (1d) | 10 |
+| INFRA | -- | M8 (1d) | M10 (2d) | M11 (1d) | 4 |
+| PM | -- | -- | -- | M12 (1d) | 1 |
+
+---
+
+*Timeline v2.0 -- Claw Agents Provisioner -- Amenthyx AI Teams v3.0*
+*Updated 2026-03-02 for v2.0 production hardening timeline (Weeks 8-11)*

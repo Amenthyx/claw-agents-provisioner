@@ -1,8 +1,9 @@
 # Risk Register — Claw Agents Provisioner
 
-> Version: 1.0
-> Date: 2026-02-26
+> Version: 2.0
+> Date: 2026-03-02
 > Author: PM (Full-Stack Team, Amenthyx AI Teams v3.0)
+> Supersedes: v1.0 (2026-02-26)
 
 ---
 
@@ -330,6 +331,114 @@
 
 ---
 
+### R13 — TLS Certificate Renewal Failure
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | R13 |
+| **Category** | Infrastructure |
+| **Probability** | M (Medium) |
+| **Impact** | H (High) |
+| **Risk Score** | RED |
+| **Milestone** | M8 |
+| **Owner** | DEVOPS |
+
+**Description**: Let's Encrypt TLS certificate renewal may fail silently due to DNS propagation issues, ACME challenge failures, or certbot misconfiguration. Expired certificates cause all HTTPS services to become inaccessible, breaking production deployments for enterprise clients.
+
+**Mitigation**:
+1. Health check script verifies certificate expiry > 7 days; alerts if approaching expiry
+2. Certbot cron job runs twice daily (standard Let's Encrypt recommendation)
+3. Nginx reload after successful renewal (zero-downtime)
+4. Prometheus alert rule for cert expiry < 14 days
+5. Document manual renewal procedure in operational runbook
+
+**Contingency**: If automated renewal fails, runbook includes manual certbot command sequence. Self-signed certificate fallback for emergency access.
+
+**Status**: Open
+
+---
+
+### R14 — E2E Test Flakiness
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | R14 |
+| **Category** | Testing |
+| **Probability** | H (High) |
+| **Impact** | M (Medium) |
+| **Risk Score** | YELLOW |
+| **Milestone** | M7 |
+| **Owner** | QA |
+
+**Description**: E2E tests that depend on Docker container startup, network readiness, and service health checks are inherently timing-dependent. Flaky tests erode CI confidence and slow down development velocity.
+
+**Mitigation**:
+1. Health-check gates before test execution (wait for all services healthy before running tests)
+2. Configurable startup timeout with sensible defaults (30s per service, 120s total)
+3. Retry with exponential backoff for transient failures (max 3 retries)
+4. Separate flaky tests into a quarantine suite (non-blocking in CI)
+5. Track flakiness rate per test; auto-quarantine tests failing > 5% of runs
+
+**Contingency**: If flakiness rate exceeds 10% overall, refactor to use contract testing for cross-service flows and reserve E2E for critical path only.
+
+**Status**: Open
+
+---
+
+### R15 — Grafana/Loki Resource Overhead
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | R15 |
+| **Category** | Infrastructure |
+| **Probability** | M (Medium) |
+| **Impact** | L (Low) |
+| **Risk Score** | GREEN |
+| **Milestone** | M11 |
+| **Owner** | DEVOPS |
+
+**Description**: Adding Grafana, Loki, and Prometheus to the Docker Compose stack increases host resource consumption. On resource-constrained hosts (8 GB RAM, 2 CPU cores), the monitoring stack may compete with agent services for resources, degrading performance.
+
+**Mitigation**:
+1. Monitoring stack deployed as optional Docker Compose profile (`--profile monitoring`), not required for core operation
+2. Resource limits set in docker-compose: Grafana (256 MB), Loki (512 MB), Prometheus (256 MB)
+3. Loki retention set to 7 days by default (configurable via env)
+4. Document minimum host requirements: 4 GB for agents-only, 8 GB for agents + monitoring
+5. Health aggregator still works without monitoring stack (port 9094 is standalone)
+
+**Contingency**: If host resources are insufficient, monitoring stack can be deployed on a separate host and pointed at the agent host's /metrics endpoints remotely.
+
+**Status**: Open
+
+---
+
+### R16 — Load Test Reveals SQLite Bottleneck
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | R16 |
+| **Category** | Performance |
+| **Probability** | H (High) |
+| **Impact** | M (Medium) |
+| **Risk Score** | YELLOW |
+| **Milestone** | M9 |
+| **Owner** | BE |
+
+**Description**: Under sustained load (100 req/s), SQLite's write-lock contention may cause P95 latency to exceed targets for memory and billing services. SQLite is single-writer, and concurrent writes from multiple agent instances will serialize.
+
+**Mitigation**:
+1. WAL (Write-Ahead Logging) mode already enabled on all SQLite databases
+2. Connection pooling via DAL (Data Access Layer) already implemented
+3. PostgreSQL migration path ready (M8 deliverable) as production alternative
+4. k6 load tests specifically target SQLite-backed endpoints to identify bottleneck threshold
+5. Read replicas pattern: separate read and write connections for memory service
+
+**Contingency**: If SQLite P95 exceeds targets under load, recommend PostgreSQL for production deployments. Document the SQLite concurrency limit (expected: ~50 write req/s) in production guide.
+
+**Status**: Open
+
+---
+
 ## Risk Summary Matrix
 
 | ID | Risk | Prob | Impact | Score | Status |
@@ -346,14 +455,18 @@
 | R10 | Client PII accidental commit | H | H | RED | Open |
 | R11 | Dataset license compliance | M | H | RED | Open |
 | R12 | Repository size from datasets | L | M | GREEN | Open |
+| R13 | TLS certificate renewal failure | M | H | RED | Open |
+| R14 | E2E test flakiness | H | M | YELLOW | Open |
+| R15 | Grafana/Loki resource overhead | M | L | GREEN | Open |
+| R16 | Load test reveals SQLite bottleneck | H | M | YELLOW | Open |
 
 ### Risk Distribution
 
 | Score | Count | IDs |
 |-------|-------|-----|
-| RED (immediate action) | 5 | R01, R02, R06, R10, R11 |
-| YELLOW (monitor closely) | 4 | R03, R04, R07, R08 |
-| GREEN (acceptable) | 3 | R05, R09, R12 |
+| RED (immediate action) | 6 | R01, R02, R06, R10, R11, R13 |
+| YELLOW (monitor closely) | 6 | R03, R04, R07, R08, R14, R16 |
+| GREEN (acceptable) | 4 | R05, R09, R12, R15 |
 
 ---
 
@@ -365,4 +478,5 @@
 
 ---
 
-*Risk Register v1.0 — Claw Agents Provisioner — Amenthyx AI Teams v3.0*
+*Risk Register v2.0 -- Claw Agents Provisioner -- Amenthyx AI Teams v3.0*
+*Updated 2026-03-02 for v2.0 production-specific risks (R13-R16)*

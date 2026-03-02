@@ -1,0 +1,123 @@
+# =============================================================================
+# Claw Agents Provisioner -- Prometheus Configuration
+# =============================================================================
+# Scrapes /metrics endpoints from all Claw platform services.
+# Services expose Prometheus text format via shared/claw_metrics.py.
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+  external_labels:
+    cluster: "claw-provisioner"
+    environment: "production"
+
+# -----------------------------------------------------------------------
+# Alert rules
+# -----------------------------------------------------------------------
+rule_files:
+  - "alert.rules.yml"
+
+# -----------------------------------------------------------------------
+# Alertmanager (optional -- uncomment when Alertmanager is deployed)
+# -----------------------------------------------------------------------
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#             - "alertmanager:9093"
+
+# -----------------------------------------------------------------------
+# Scrape configurations
+# -----------------------------------------------------------------------
+scrape_configs:
+
+  # --- Prometheus self-monitoring ---
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: "prometheus"
+
+  # --- Gateway Router ---
+  - job_name: "claw-router"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["host.docker.internal:9095"]
+        labels:
+          service: "router"
+          component: "gateway"
+
+  # --- Memory Service ---
+  - job_name: "claw-memory"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["host.docker.internal:9096"]
+        labels:
+          service: "memory"
+          component: "storage"
+
+  # --- RAG Service ---
+  - job_name: "claw-rag"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["host.docker.internal:9097"]
+        labels:
+          service: "rag"
+          component: "retrieval"
+
+  # --- Wizard API ---
+  - job_name: "claw-wizard"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["host.docker.internal:9098"]
+        labels:
+          service: "wizard"
+          component: "setup"
+
+  # --- Dashboard ---
+  - job_name: "claw-dashboard"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["host.docker.internal:9099"]
+        labels:
+          service: "dashboard"
+          component: "ui"
+
+  # --- Orchestrator ---
+  - job_name: "claw-orchestrator"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["host.docker.internal:9100"]
+        labels:
+          service: "orchestrator"
+          component: "multi-agent"
+
+  # --- Health Aggregator ---
+  - job_name: "claw-health"
+    metrics_path: "/metrics"
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["host.docker.internal:9094"]
+        labels:
+          service: "health"
+          component: "monitoring"
+
+  # --- Watchdog ---
+  - job_name: "claw-watchdog"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["host.docker.internal:9090"]
+        labels:
+          service: "watchdog"
+          component: "monitoring"
+
+  # --- Nginx proxy (if nginx-prometheus-exporter is deployed) ---
+  # - job_name: "nginx"
+  #   static_configs:
+  #     - targets: ["nginx-exporter:9113"]
+  #       labels:
+  #         service: "nginx"
+  #         component: "proxy"

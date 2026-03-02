@@ -1,9 +1,10 @@
 # Project Charter — Claw Agents Provisioner
 
-> Version: 1.0
-> Date: 2026-02-26
+> Version: 2.0
+> Date: 2026-03-02
 > Author: PM (Full-Stack Team, Amenthyx AI Teams v3.0)
 > Status: APPROVED
+> Supersedes: v1.0 (2026-02-26)
 
 ---
 
@@ -11,13 +12,13 @@
 
 **Project Name**: Claw Agents Provisioner
 
-**One-Line Vision**: One-command fresh installation of any Claw AI agent (ZeroClaw, NanoClaw, PicoClaw, OpenClaw) on a clean machine via Vagrant or Docker, auto-configured from a client assessment and enhanced with LoRA/QLoRA fine-tuned agent personalities.
+**One-Line Vision**: One-command deployment of personalized AI agents — from client assessment to production-grade, monitored, secure agent fleet in under 15 minutes.
 
 **Repository**: `Amenthyx/claw-agents-provisioner`
 
 **Assessment Toolkit**: `Amenthyx/claw-client-assessment` (existing — intake forms, needs matrix, benchmarks, skills catalog, service packages)
 
-**Project Type**: Greenfield
+**Project Type**: Extending (v1.0 -> v2.0 production hardening)
 
 ---
 
@@ -48,6 +49,18 @@ A single repository where:
 | **Testing & CI** | Health checks / smoke tests, shellcheck / hadolint / ruff linting, GitHub Actions CI pipeline, dataset validation |
 | **Documentation** | README, `.ai/context_base.md`, example assessment walkthroughs |
 
+### In Scope (v2.0 — Production Hardening)
+
+| Area | Deliverables |
+|------|--------------|
+| **TLS/HTTPS** | Nginx reverse proxy with Let's Encrypt auto-renewal for all HTTP services (9090-9100) |
+| **Testing** | Integration test suite (cross-service flows), E2E test suite (full deploy lifecycle), load testing with k6, smoke tests on deploy |
+| **Production Infrastructure** | Production Docker Compose (hardened), database migration system (SQLite->PostgreSQL), automated backup & restore |
+| **CI/CD Hardening** | E2E/integration/load/security test stages in GitHub Actions, pre-commit hooks, branch protection |
+| **Observability** | Grafana dashboard templates, Loki log aggregation, Prometheus alerting rules |
+| **Operations** | Operational runbook & incident response, blue-green deployment support |
+| **Security** | Bandit scan, npm audit, Trivy container scan, compliance evidence (GDPR/SOC2) |
+
 ### Out of Scope (v1.0)
 
 | Area | Reason |
@@ -56,12 +69,23 @@ A single repository where:
 | Kubernetes / Helm charts / cloud-native orchestration | Single-machine scope only |
 | GUI / web dashboard for agent management | CLI and config files only |
 | Agent source code modifications or patches | We install upstream releases as-is; adapters loaded at runtime |
-| Production hardening (TLS, reverse proxy, rate limiting) | Dev/test scope only |
+| ~~Production hardening (TLS, reverse proxy, rate limiting)~~ | ~~Dev/test scope only~~ **Now in scope for v2.0** |
 | Custom LLM API hosting | Agents connect to external APIs |
-| ARM64 / Apple Silicon verified support | Deferred to v1.1 |
-| Ansible playbook alternatives | Deferred to v1.2 |
+| ARM64 / Apple Silicon verified support | Deferred to v2.1 |
+| Ansible playbook alternatives | Deferred to v2.2 |
 | Assessment web form (P2) | Deferred to v1.3 |
-| Pre-built adapter marketplace with trained weights | Deferred to v2.0 |
+| Pre-built adapter marketplace with trained weights | Deferred to v3.0 |
+
+### Out of Scope (v2.0)
+
+| Area | Reason |
+|------|--------|
+| Kubernetes / Helm charts | Deferred to v3.0 |
+| Multi-region deployment or geo-replication | Single-host scope for v2.0 |
+| Role-based access control (RBAC) | Single admin token for v2.0; RBAC deferred to v3.0 |
+| Distributed tracing (OpenTelemetry) | Deferred to v3.0 |
+| ARM64 / Apple Silicon verified support | Deferred to v2.1 |
+| Ansible playbook alternatives | Deferred to v2.2 |
 
 ---
 
@@ -72,15 +96,16 @@ A single repository where:
 | Role | Abbreviation | Responsibility in THIS Project |
 |------|-------------|-------------------------------|
 | **Project Manager** | PM | Planning artifacts, milestone tracking, kanban, risk register, GitHub issue templates, evidence manifests, team coordination |
-| **Backend Engineer** | BE | Python assessment pipeline (`resolve.py`, `generate_env.py`, `generate_config.py`, `validate.py`), fine-tuning pipeline (`dataset_generator.py`, `train_lora.py`, `train_qlora.py`, `merge_adapter.py`), dataset collection scripts (`download_datasets.py`, `validate_datasets.py`), 50 use-case dataset curation |
-| **DevOps Engineer** | DEVOPS | Dockerfiles (4 agents + finetune), Vagrantfiles (4 agents), install scripts (4 agents), docker-compose.yml with profiles, `claw.sh` unified launcher, entrypoint scripts, health check scripts, teardown scripts |
-| **Infrastructure Engineer** | INFRA | `.env.template` (unified, documented), env variable mapping strategy, provisioning scripts (`provision-base.sh`), skills installer (`skills-installer.sh`), `.gitignore` / `.gitattributes`, security scanning, CI/CD pipeline (GitHub Actions), pre-commit hooks |
+| **Backend Engineer** | BE | Python assessment pipeline (`resolve.py`, `generate_env.py`, `generate_config.py`, `validate.py`), fine-tuning pipeline (`dataset_generator.py`, `train_lora.py`, `train_qlora.py`, `merge_adapter.py`), dataset collection scripts (`download_datasets.py`, `validate_datasets.py`), 50 use-case dataset curation, integration tests, database migrations |
+| **DevOps Engineer** | DEVOPS | Dockerfiles (4 agents + finetune), Vagrantfiles (4 agents), install scripts (4 agents), docker-compose.yml with profiles, `claw.sh` unified launcher, entrypoint scripts, health check scripts, teardown scripts, TLS/nginx proxy, production Docker Compose, backup/restore, CI/CD hardening |
+| **Infrastructure Engineer** | INFRA | `.env.template` (unified, documented), env variable mapping strategy, provisioning scripts (`provision-base.sh`), skills installer (`skills-installer.sh`), `.gitignore` / `.gitattributes`, security scanning, CI/CD pipeline (GitHub Actions), pre-commit hooks, Prometheus alerting rules, secrets rotation |
+| **Frontend Engineer** | FE | React wizard UI testing (vitest), wizard UI component coverage (>= 70%), accessibility validation, dashboard Grafana template integration **(Added in v2.0)** |
+| **QA Engineer** | QA | E2E test suite (pytest + Docker), load testing (k6), smoke test suite, security scan validation (Bandit + Trivy), operational runbook QA sign-off, blue-green deploy validation **(Added in v2.0)** |
 
-### Inactive Roles (Not Applicable for v1.0)
+### Inactive Roles (Not Applicable for v2.0)
 
 | Role | Reason |
 |------|--------|
-| **Frontend Engineer** (FE) | No web UI in v1.0; P2 assessment web form is deferred to v1.3 |
 | **Mobile Engineer** (MOB) | No mobile component; agents are server-side services |
 
 ---
@@ -130,6 +155,8 @@ A single repository where:
 
 ## 9. Success Criteria (Definition of Done)
 
+### v1.0 Success Criteria (Achieved)
+
 A consultant can:
 1. Clone the repo
 2. Fill in `client-assessment.json` from their intake session
@@ -137,6 +164,29 @@ A consultant can:
 4. Run `./claw.sh deploy --assessment client-assessment.json`
 
 The system auto-selects the correct platform, installs the right skills, configures everything, and starts a personalized agent. The agent responds to a test message with domain-appropriate behavior.
+
+### v2.0 Success Criteria (Production Readiness)
+
+An Amenthyx consultant can deploy a production-grade agent fleet on a client's clean Ubuntu 24.04 server using `docker compose --profile production up`, with HTTPS, monitoring dashboards, automated backups, audit trails, and alerting — all working out of the box with zero manual configuration beyond `.env`.
+
+All of the following must be true:
+- [ ] All P0 features implemented and tested
+- [ ] >= 85% backend test coverage (shared/ modules)
+- [ ] >= 70% wizard UI test coverage
+- [ ] Zero CRITICAL/HIGH security vulnerabilities (Trivy + Bandit clean)
+- [ ] E2E tests pass for all 5 agent deployment flows
+- [ ] Integration tests pass for all cross-service interactions
+- [ ] Load test P95 targets met (router < 200ms, RAG < 500ms)
+- [ ] Smoke test auto-runs after every deployment
+- [ ] TLS/HTTPS working with auto-renewal
+- [ ] Backup/restore tested and documented
+- [ ] Database migrations reversible and tested
+- [ ] Operational runbook complete and QA-validated
+- [ ] OpenAPI spec up to date (61+ endpoints documented)
+- [ ] All environment variables documented in .env.template
+- [ ] Production Docker Compose validated on clean Ubuntu 24.04
+- [ ] CI/CD pipeline completes in < 20 minutes
+- [ ] Audit trail captures all API requests, auth events, security violations
 
 ### KPIs
 
@@ -150,6 +200,15 @@ The system auto-selects the correct platform, installs the right skills, configu
 | Agent coverage | 4/4 agents |
 | Pre-built adapter coverage | 50/50 use cases |
 | Dataset completeness | 50/50 datasets present and validated |
+| Deployment success rate | 100% for Docker, 95% for Vagrant |
+| Mean time to recovery (MTTR) | < 5 min (auto-restart) |
+| API availability | 99.9% uptime |
+| Security scan findings | 0 HIGH/CRITICAL |
+| Test coverage (Python) | >= 85% |
+| Test coverage (React) | >= 70% |
+| Load test P95 (router) | < 200ms at 100 req/s |
+| Audit log completeness | 100% of requests logged |
+| Backup restore success | 100% |
 
 ---
 
@@ -164,4 +223,5 @@ The system auto-selects the correct platform, installs the right skills, configu
 
 ---
 
-*Project Charter v1.0 — Claw Agents Provisioner — Amenthyx AI Teams v3.0*
+*Project Charter v2.0 — Claw Agents Provisioner — Amenthyx AI Teams v3.0*
+*Updated 2026-03-02 for production hardening scope (v2.0)*
