@@ -1,8 +1,9 @@
-# Commit Log — Claw Agents Provisioner
+# Commit Log -- Claw Agents Provisioner
 
-> Version: 1.0
-> Date: 2026-02-26
+> Version: 2.0
+> Date: 2026-03-02
 > Author: PM (Full-Stack Team, Amenthyx AI Teams v3.0)
+> Supersedes: v1.0 (2026-02-26)
 
 ---
 
@@ -49,6 +50,13 @@ Co-Authored-By: <role> <email>
 | `ci` | CI/CD and GitHub Actions |
 | `docs` | Documentation |
 | `planning` | Planning artifacts |
+| `tls` | TLS/HTTPS termination (v2.0) |
+| `testing` | Integration, E2E, load, smoke tests (v2.0) |
+| `migrations` | Database migration system (v2.0) |
+| `backup` | Backup and restore (v2.0) |
+| `monitoring` | Grafana, Loki, Prometheus alerting (v2.0) |
+| `security` | Security hardening, Bandit, compliance (v2.0) |
+| `pm` | Project management artifacts (v2.0) |
 
 ---
 
@@ -73,6 +81,14 @@ Co-Authored-By: <role> <email>
 | 15 | 2026-02-26 | 2723be5 | docs(release) | Wave 5 — final project status, kanban, and commit log update | M6 | PM |
 | 16 | 2026-02-26 | f21e8f5 | feat(assessment) | Add fillable PDF form, PDF-to-JSON converter, dataset examples, multi-instance Docker Compose | M6 | BE |
 
+### v2.0 Production Hardening Commits
+
+| # | Date | Hash | Type(Scope) | Message | Milestone | Author |
+|---|------|------|-------------|---------|-----------|--------|
+| 17 | 2026-03-02 | c7286cb | docs(strategy) | Add production-readiness strategy (STRATEGY.md) for v2.0 | M7-M12 | PM |
+| 18 | 2026-03-02 | a38198f | chore(team) | Add cost estimation for v2.0 production hardening | M7-M12 | PM |
+| 19 | 2026-03-02 | (pending) | docs(pm) | Update planning artifacts for v2.0 production hardening [Wave 1] | M7-M12 | PM |
+
 ---
 
 ## Template for Future Entries
@@ -83,4 +99,5 @@ Co-Authored-By: <role> <email>
 
 ---
 
-*Commit Log v1.0 — Claw Agents Provisioner — Amenthyx AI Teams v3.0*
+*Commit Log v2.0 -- Claw Agents Provisioner -- Amenthyx AI Teams v3.0*
+*Updated 2026-03-02 for v2.0 production hardening*

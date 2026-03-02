@@ -1,18 +1,77 @@
 # Kanban Board — Claw Agents Provisioner
 
-> Version: 2.0 (Final)
-> Date: 2026-02-26
+> Version: 3.0
+> Date: 2026-03-02
 > Author: PM (Full-Stack Team, Amenthyx AI Teams v3.0)
-> Last Updated: 2026-02-26
+> Last Updated: 2026-03-02
 
 ---
 
 ## Legend
 
 - **Priority**: P0 = Must-Have (Launch Blocker), P1 = Should-Have (Important), P2 = Nice-to-Have
-- **Owner**: PM, MKT, LEGAL, BE, DEVOPS, INFRA, QA
-- **Milestone**: M0-M6
-- **Wave**: W1 (Planning), W1.5 (Research), W2 (Engineering), W3 (Dataset Expansion), W4 (QA), W5 (Release)
+- **Owner**: PM, MKT, LEGAL, BE, DEVOPS, INFRA, QA, FE
+- **Milestone**: M0-M12
+- **Wave**: W1 (Planning), W1.5 (Research), W2 (Engineering), W3 (Dataset Expansion), W4 (QA), W5 (Release), W6 (v2.0 Engineering), W7 (v2.0 QA), W8 (v2.0 Release)
+
+---
+
+## Backlog
+
+### Wave 6 — v2.0 Engineering: Test Foundation (M7)
+
+| ID | Card | Description | Priority | Owner | Milestone | Wave |
+|----|------|-------------|----------|-------|-----------|------|
+| V2-01 | Integration test suite | Test all service interactions: router->LLM, memory->SQLite, RAG->ingest->search, orchestrator->agent, billing->alerts. >= 80% integration path coverage; all cross-service flows tested; mocked external LLM APIs | P0 | BE | M7 | W6 |
+| V2-02 | E2E test suite | Pytest E2E tests covering: assessment -> deploy -> health check -> chat -> teardown lifecycle. >= 90% path coverage of deployment pipeline; tests run in CI in < 10 min; all 5 agents tested | P0 | QA | M7 | W6 |
+
+### Wave 6 — v2.0 Engineering: Production Infrastructure (M8)
+
+| ID | Card | Description | Priority | Owner | Milestone | Wave |
+|----|------|-------------|----------|-------|-----------|------|
+| V2-03 | TLS/HTTPS termination | Nginx reverse proxy with Let's Encrypt auto-renewal for all HTTP services (9090-9100). All services accessible via HTTPS; HTTP redirects to HTTPS; cert auto-renews; zero-downtime renewal | P0 | DEVOPS | M8 | W6 |
+| V2-04 | Production Docker Compose | Hardened compose with TLS proxy, log drivers, restart policies, resource limits, named volumes, secrets management. `docker compose --profile production up` works on clean Ubuntu 24.04; all services auto-restart on failure | P0 | DEVOPS | M8 | W6 |
+| V2-05 | Database migration system | Versioned SQLite->PostgreSQL migration scripts with rollback support for memory, billing, DAL. Forward + rollback tested for each migration; zero data loss; idempotent migrations | P0 | BE | M8 | W6 |
+| V2-06 | Automated backup & restore | Scheduled backup of SQLite DBs, port maps, instance configs; restore script with validation. Daily automated backup; restore tested in CI; backup size < 100 MB; RPO < 24h | P0 | DEVOPS | M8 | W6 |
+
+### Wave 7 — v2.0 QA: Load Testing & Performance (M9)
+
+| ID | Card | Description | Priority | Owner | Milestone | Wave |
+|----|------|-------------|----------|-------|-----------|------|
+| V2-07 | Load testing with k6 | k6 scripts for router, memory, RAG, dashboard endpoints under sustained load. P95 < 200ms at 100 req/s for router; P95 < 500ms at 50 req/s for RAG; results saved as CI artifact | P0 | QA | M9 | W7 |
+
+### Wave 7 — v2.0 QA: Security Hardening (M10)
+
+| ID | Card | Description | Priority | Owner | Milestone | Wave |
+|----|------|-------------|----------|-------|-----------|------|
+| V2-08 | CI/CD pipeline hardening | Add E2E tests, integration tests, load tests, security scan, SBOM validation, deployment smoke test to GitHub Actions. All test types run in CI; pipeline completes in < 20 min; blocking on HIGH/CRITICAL findings | P0 | INFRA | M10 | W7 |
+
+### Wave 7 — v2.0 QA: Observability Stack (M11)
+
+| ID | Card | Description | Priority | Owner | Milestone | Wave |
+|----|------|-------------|----------|-------|-----------|------|
+| V2-09 | Runbook & incident response | Operational runbook: service restart procedures, log locations, common failures, escalation matrix, rollback steps. Covers all 8 services; tested by QA; includes troubleshooting decision tree | P0 | DEVOPS | M11 | W7 |
+
+### Wave 8 — v2.0 Release: Production Validation (M12)
+
+| ID | Card | Description | Priority | Owner | Milestone | Wave |
+|----|------|-------------|----------|-------|-----------|------|
+| V2-10 | Smoke test on deploy | Post-deployment automated smoke test: health endpoints, chat round-trip, memory write/read, RAG ingest/search. Smoke test runs automatically after `claw.sh deploy`; fails loudly on any check failure | P0 | QA | M12 | W8 |
+
+### Wave 7 — v2.0 QA: Observability (P1 — M11)
+
+| ID | Card | Description | Priority | Owner | Milestone | Wave |
+|----|------|-------------|----------|-------|-----------|------|
+| V2-11 | Grafana dashboard templates | Pre-built Grafana JSON dashboards consuming Prometheus /metrics from all services. Import-ready; shows request rate, latency, error rate, memory usage per service | P1 | DEVOPS | M11 | W7 |
+| V2-12 | Log aggregation with Loki | Docker log driver -> Loki -> Grafana log explorer for all services. Searchable logs by service, severity, time range; 7-day retention default | P1 | DEVOPS | M11 | W7 |
+| V2-13 | Alerting rules | Prometheus alerting rules: service down > 2 min, error rate > 5%, memory > 90%, disk > 85%. Alerts fire within 3 min of condition; webhook notification to configured URL | P1 | INFRA | M11 | W7 |
+
+### Wave 8 — v2.0 Release: Deployment (P1 — M12)
+
+| ID | Card | Description | Priority | Owner | Milestone | Wave |
+|----|------|-------------|----------|-------|-----------|------|
+| V2-14 | Blue-green deployment support | Zero-downtime agent updates via container swap with health check gate. Agent update completes with zero dropped requests; automatic rollback on failed health check | P1 | DEVOPS | M12 | W8 |
+| V2-15 | Secrets rotation automation | Scheduled rotation of API keys, vault passwords, JWT tokens with zero-downtime reload. Rotation completes without service restart; old keys invalidated after grace period | P1 | INFRA | M12 | W8 |
 
 ---
 
@@ -170,15 +229,16 @@
 
 | Column | Count |
 |--------|-------|
-| Backlog | 0 |
+| Backlog | 15 |
 | Sprint Ready | 0 |
 | In Progress | 0 |
 | In Review | 0 |
 | Testing | 0 |
 | Done | 122 |
 | Blocked | 0 |
-| **Total** | **122** |
+| **Total** | **137** |
 
 ---
 
-*Kanban Board v2.0 (Final) — Claw Agents Provisioner — Amenthyx AI Teams v3.0*
+*Kanban Board v3.0 — Claw Agents Provisioner — Amenthyx AI Teams v3.0*
+*Updated 2026-03-02 for v2.0 production hardening backlog (V2-01 through V2-15)*

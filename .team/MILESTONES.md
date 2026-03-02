@@ -1,8 +1,9 @@
 # Milestone Plan — Claw Agents Provisioner
 
-> Version: 1.0
-> Date: 2026-02-26
+> Version: 2.0
+> Date: 2026-03-02
 > Author: PM (Full-Stack Team, Amenthyx AI Teams v3.0)
+> Supersedes: v1.0 (2026-02-26)
 
 ---
 
@@ -10,14 +11,20 @@
 
 | # | Milestone | Target | Owner(s) | Status |
 |---|-----------|--------|----------|--------|
-| M0 | Planning & Architecture | Week 0 | PM | In Progress |
-| M1 | Foundation + ZeroClaw | Week 1 | DEVOPS, INFRA | Backlog |
-| M2 | NanoClaw + PicoClaw | Week 2 | DEVOPS, INFRA | Backlog |
-| M3 | OpenClaw + Multi-Agent | Week 3 | DEVOPS, INFRA | Backlog |
-| M4 | Assessment Pipeline | Week 4 | BE, INFRA | Backlog |
-| M5a | Dataset Collection & Adapter Scaffolding | Week 5 | BE | Backlog |
-| M5b | LoRA/QLoRA Fine-Tuning Pipeline | Week 6 | BE | Backlog |
-| M6 | CI/CD + Polish + Docs | Week 7 | INFRA, DEVOPS, BE, PM | Backlog |
+| M0 | Planning & Architecture | Week 0 | PM | Done |
+| M1 | Foundation + ZeroClaw | Week 1 | DEVOPS, INFRA | Done |
+| M2 | NanoClaw + PicoClaw | Week 2 | DEVOPS, INFRA | Done |
+| M3 | OpenClaw + Multi-Agent | Week 3 | DEVOPS, INFRA | Done |
+| M4 | Assessment Pipeline | Week 4 | BE, INFRA | Done |
+| M5a | Dataset Collection & Adapter Scaffolding | Week 5 | BE | Done |
+| M5b | LoRA/QLoRA Fine-Tuning Pipeline | Week 6 | BE | Done |
+| M6 | CI/CD + Polish + Docs | Week 7 | INFRA, DEVOPS, BE, PM | Done |
+| **M7** | **Test Foundation** | **Week 8** | **BE, QA** | **Backlog** |
+| **M8** | **Production Infrastructure** | **Week 9** | **DEVOPS, INFRA** | **Backlog** |
+| **M9** | **Load Testing & Performance** | **Week 10** | **QA, BE** | **Backlog** |
+| **M10** | **Security Hardening** | **Week 10** | **INFRA, QA** | **Backlog** |
+| **M11** | **Observability Stack** | **Week 11** | **DEVOPS, INFRA** | **Backlog** |
+| **M12** | **Production Validation** | **Week 11** | **QA, DEVOPS, PM** | **Backlog** |
 
 ---
 
@@ -354,4 +361,197 @@ Each of the 50 adapter folders contains:
 
 ---
 
-*Milestone Plan v1.0 — Claw Agents Provisioner — Amenthyx AI Teams v3.0*
+---
+
+## v2.0 Production Hardening Milestones (M7-M12)
+
+---
+
+## M7 — Test Foundation
+
+**Target**: Week 8 (2026-03-09)
+**Owner**: BE (primary), QA (supporting)
+**Wave**: 6 (v2.0 Engineering)
+**Depends on**: M6 (all v1.0 deliverables complete)
+
+### Deliverables
+
+| # | Deliverable | File / Artifact | Priority |
+|---|-------------|-----------------|----------|
+| 1 | Integration test suite (cross-service flows) | `tests/integration/` | P0 |
+| 2 | E2E test framework (full deploy lifecycle) | `tests/e2e/` | P0 |
+| 3 | Pytest fixtures for all services | `tests/conftest.py`, `tests/fixtures/` | P0 |
+| 4 | Test Docker Compose (isolated test environment) | `docker-compose.test.yml` | P0 |
+| 5 | Mocked external LLM API responses | `tests/mocks/` | P0 |
+| 6 | Router -> LLM integration tests | `tests/integration/test_router_llm.py` | P0 |
+| 7 | Memory -> SQLite integration tests | `tests/integration/test_memory_sqlite.py` | P0 |
+| 8 | RAG -> ingest -> search integration tests | `tests/integration/test_rag_pipeline.py` | P0 |
+| 9 | Orchestrator -> agent integration tests | `tests/integration/test_orchestrator.py` | P0 |
+| 10 | Billing -> alerts integration tests | `tests/integration/test_billing_alerts.py` | P0 |
+
+### Success Criteria
+- [ ] >= 80% integration path coverage for all cross-service flows
+- [ ] E2E framework runs full deploy cycle (assessment -> deploy -> health check -> chat -> teardown)
+- [ ] All 5 agent deployment flows tested end-to-end
+- [ ] CI passes with integration tests in < 10 min
+- [ ] All external LLM APIs mocked (no real API calls in CI)
+
+---
+
+## M8 — Production Infrastructure
+
+**Target**: Week 9 (2026-03-16)
+**Owner**: DEVOPS (primary), INFRA (supporting)
+**Wave**: 6 (v2.0 Engineering)
+**Depends on**: M7 (test foundation for validation)
+
+### Deliverables
+
+| # | Deliverable | File / Artifact | Priority |
+|---|-------------|-----------------|----------|
+| 1 | Nginx reverse proxy with Let's Encrypt | `nginx/`, `certbot/` | P0 |
+| 2 | TLS auto-renewal configuration | `nginx/renew-certs.sh` | P0 |
+| 3 | Production Docker Compose (hardened) | `docker-compose.production.yml` | P0 |
+| 4 | Resource limits, restart policies, named volumes | In docker-compose | P0 |
+| 5 | Secrets management (Docker secrets) | In docker-compose | P0 |
+| 6 | Database migration scripts (SQLite -> PostgreSQL) | `migrations/` | P0 |
+| 7 | Migration rollback support | `migrations/rollback/` | P0 |
+| 8 | Automated backup script | `scripts/backup.sh` | P0 |
+| 9 | Automated restore script with validation | `scripts/restore.sh` | P0 |
+| 10 | Backup cron configuration | `scripts/backup-cron.conf` | P0 |
+
+### Success Criteria
+- [ ] `docker compose --profile production up` works on clean Ubuntu 24.04
+- [ ] All services accessible via HTTPS; HTTP redirects to HTTPS
+- [ ] TLS certificate auto-renews with zero downtime
+- [ ] Forward + rollback tested for each migration; zero data loss
+- [ ] Daily automated backup; restore tested in CI
+- [ ] Backup size < 100 MB; RPO < 24h
+- [ ] All services auto-restart on failure
+
+---
+
+## M9 — Load Testing & Performance
+
+**Target**: Week 10 (2026-03-23)
+**Owner**: QA (primary), BE (supporting)
+**Wave**: 7 (v2.0 QA)
+**Depends on**: M8 (production infrastructure running)
+
+### Deliverables
+
+| # | Deliverable | File / Artifact | Priority |
+|---|-------------|-----------------|----------|
+| 1 | k6 test scripts for router endpoint | `tests/load/router.js` | P0 |
+| 2 | k6 test scripts for memory endpoint | `tests/load/memory.js` | P0 |
+| 3 | k6 test scripts for RAG endpoint | `tests/load/rag.js` | P0 |
+| 4 | k6 test scripts for dashboard endpoint | `tests/load/dashboard.js` | P0 |
+| 5 | Performance baselines document | `tests/load/BASELINES.md` | P0 |
+| 6 | Bottleneck analysis and fixes | Commits with perf improvements | P0 |
+| 7 | Load test CI stage | `.github/workflows/load-test.yml` | P0 |
+| 8 | k6 results as CI artifact | CI artifact (JSON + HTML) | P0 |
+
+### Success Criteria
+- [ ] P95 < 200ms at 100 req/s for router
+- [ ] P95 < 500ms at 50 req/s for RAG
+- [ ] P95 < 100ms for memory search (100K messages)
+- [ ] Load tests run in CI
+- [ ] Performance regression detection configured
+- [ ] Results saved as CI artifact
+
+---
+
+## M10 — Security Hardening
+
+**Target**: Week 10 (2026-03-23)
+**Owner**: INFRA (primary), QA (supporting)
+**Wave**: 7 (v2.0 QA)
+**Depends on**: M8 (production infrastructure to scan)
+
+### Deliverables
+
+| # | Deliverable | File / Artifact | Priority |
+|---|-------------|-----------------|----------|
+| 1 | Bandit scan (Python security) | CI integration | P0 |
+| 2 | npm audit (wizard UI dependencies) | CI integration | P0 |
+| 3 | Pre-commit hooks configuration | `.pre-commit-config.yaml` | P0 |
+| 4 | Branch protection rules | GitHub settings | P0 |
+| 5 | Security test CI stage | `.github/workflows/security.yml` | P0 |
+| 6 | GDPR compliance evidence package | `.team/evidence/compliance/` | P0 |
+| 7 | SOC2 audit trail evidence | `.team/evidence/compliance/` | P0 |
+| 8 | SBOM validation in CI | CI update | P0 |
+
+### Success Criteria
+- [ ] Zero HIGH/CRITICAL findings in Bandit + Trivy + npm audit
+- [ ] Pre-commit hooks catch issues before commit
+- [ ] Branch protection requires PR reviews + passing CI
+- [ ] Audit trail complete (all API requests, auth events, security violations)
+- [ ] GDPR/SOC2 evidence package assembled
+
+---
+
+## M11 — Observability Stack
+
+**Target**: Week 11 (2026-03-30)
+**Owner**: DEVOPS (primary), INFRA (supporting)
+**Wave**: 7 (v2.0 QA)
+**Depends on**: M8 (production Docker Compose with monitoring services)
+
+### Deliverables
+
+| # | Deliverable | File / Artifact | Priority |
+|---|-------------|-----------------|----------|
+| 1 | Grafana dashboard templates (JSON) | `monitoring/grafana/dashboards/` | P1 |
+| 2 | Loki log aggregation configuration | `monitoring/loki/` | P1 |
+| 3 | Docker log driver -> Loki config | In docker-compose | P1 |
+| 4 | Prometheus alerting rules | `monitoring/prometheus/alerts/` | P1 |
+| 5 | Alert webhook notification | Prometheus alertmanager config | P1 |
+| 6 | Operational runbook | `docs/RUNBOOK.md` | P0 |
+| 7 | Incident response playbook | `docs/INCIDENT_RESPONSE.md` | P0 |
+| 8 | Troubleshooting decision tree | In runbook | P0 |
+
+### Success Criteria
+- [ ] Grafana dashboards show all 8 services (request rate, latency, error rate, memory)
+- [ ] Logs searchable by service, severity, time range with 7-day retention
+- [ ] Alerts fire within 3 min of condition (service down > 2 min, error rate > 5%, memory > 90%, disk > 85%)
+- [ ] Runbook covers all 8 services with restart procedures, log locations, common failures
+- [ ] Runbook tested and QA-signed-off
+- [ ] Escalation matrix and rollback steps documented
+
+---
+
+## M12 — Production Validation
+
+**Target**: Week 11 (2026-03-30)
+**Owner**: QA (primary), DEVOPS + PM (supporting)
+**Wave**: 8 (v2.0 Release)
+**Depends on**: M7-M11 (all prior v2.0 milestones)
+
+### Deliverables
+
+| # | Deliverable | File / Artifact | Priority |
+|---|-------------|-----------------|----------|
+| 1 | Smoke test suite (post-deployment) | `tests/smoke/` | P0 |
+| 2 | Health endpoint validation | In smoke tests | P0 |
+| 3 | Chat round-trip validation | In smoke tests | P0 |
+| 4 | Memory write/read validation | In smoke tests | P0 |
+| 5 | RAG ingest/search validation | In smoke tests | P0 |
+| 6 | Blue-green deployment support | `scripts/blue-green-deploy.sh` | P1 |
+| 7 | Final E2E on production compose | Test evidence | P0 |
+| 8 | Release candidate build | Tagged release | P0 |
+| 9 | Final documentation review | All docs updated | P0 |
+| 10 | Production deployment evidence | `.team/evidence/` | P0 |
+
+### Success Criteria
+- [ ] Smoke test runs automatically after `claw.sh deploy`
+- [ ] Smoke test fails loudly on any check failure
+- [ ] All tests green on production Docker Compose profile
+- [ ] Blue-green deploy completes with zero dropped requests
+- [ ] Automatic rollback on failed health check
+- [ ] RC deployed and validated on clean Ubuntu 24.04
+- [ ] All documentation complete and reviewed
+
+---
+
+*Milestone Plan v2.0 — Claw Agents Provisioner — Amenthyx AI Teams v3.0*
+*Updated 2026-03-02 for v2.0 production hardening milestones (M7-M12)*
