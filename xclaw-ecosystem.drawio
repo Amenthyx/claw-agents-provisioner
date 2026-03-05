@@ -1,0 +1,442 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.6 Chrome/140.0.7339.249 Electron/38.8.0 Safari/537.36" version="29.3.6">
+  <diagram id="xclaw-runtime" name="XClaw Runtime Ecosystem">
+    <mxGraphModel dx="1665" dy="962" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="4400" pageHeight="5200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=0;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=26;fontColor=#00ffcc;fontStyle=1;" value="XClaw — Runtime Ecosystem Architecture" vertex="1">
+          <mxGeometry height="36" width="1100" x="300" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" parent="1" style="text;html=0;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#888888;" value="End-to-End Request/Response Flow  |  Security Gate at Every Stage  |  14-Rule Optimizer  |  5 Agents  |  16 Services" vertex="1">
+          <mxGeometry height="20" width="1300" x="200" y="56" as="geometry" />
+        </mxCell>
+        <mxCell id="step_num_1" parent="1" style="text;html=0;align=right;verticalAlign=middle;fontSize=10;fontColor=#3b82f6;fontStyle=1;" value="STEP 1" vertex="1">
+          <mxGeometry height="20" width="60" x="370" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="client" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#0d1520;strokeColor=#3b82f6;arcSize=12;shadow=1;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="60" width="420" x="440" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="client_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=14;fontColor=#3b82f6;fontStyle=1;" value="CLIENT APPLICATION (Telegram/Whatsapp/...)" vertex="1">
+          <mxGeometry height="22" width="400" x="450" y="92" as="geometry" />
+        </mxCell>
+        <mxCell id="client_d" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=9;fontColor=#6688bb;" value="Any OpenAI SDK-compatible app  |  POST /v1/chat/completions  |  Target: localhost:9095" vertex="1">
+          <mxGeometry height="16" width="400" x="450" y="114" as="geometry" />
+        </mxCell>
+        <mxCell id="arr_1_2" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#3b82f6;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="650" y="150" as="sourcePoint" />
+            <mxPoint x="650" y="180" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arr_1_2_label" connectable="0" parent="arr_1_2" style="edgeLabel;fontSize=8;fontColor=#3b82f6;" value="HTTPS request" vertex="1">
+          <mxGeometry offset="40" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step_num_2" parent="1" style="text;html=0;align=right;verticalAlign=middle;fontSize=10;fontColor=#ff3355;fontStyle=1;" value="STEP 2" vertex="1">
+          <mxGeometry height="20" width="60" x="370" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_inbound" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#1a0a0a;strokeColor=#ff3355;arcSize=10;shadow=1;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="120" width="420" x="440" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_in_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=13;fontColor=#ff3355;fontStyle=1;" value="SECURITY GATE — INBOUND CHECK" vertex="1">
+          <mxGeometry height="22" width="400" x="450" y="184" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_in_d" parent="1" style="text;html=0;align=left;verticalAlign=top;fontSize=9;fontColor=#cc8899;spacingLeft=8;spacingTop=2;" value="check_url() — validate all URLs against 50+ blocked domains, 8 regex, 4 TLDs&#xa;check_content() — scan for 10 forbidden categories + 6 injection patterns&#xa;detect_pii() — flag 8 PII types (email, SSN, CC, phone, passport, IBAN, IPv4)&#xa;Rate limit: 120 RPM global, 60 RPM per user&#xa;&#xa;VIOLATION → block_and_log → return 403 + audit entry → request stopped" vertex="1">
+          <mxGeometry height="86" width="400" x="452" y="208" as="geometry" />
+        </mxCell>
+        <mxCell id="arr_2_3" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#00ffcc;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="650" y="300" as="sourcePoint" />
+            <mxPoint x="650" y="326" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arr_2_3_label" connectable="0" parent="arr_2_3" style="edgeLabel;fontSize=8;fontColor=#00ff88;" value="request clean, proceed" vertex="1">
+          <mxGeometry offset="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step_num_3" parent="1" style="text;html=0;align=right;verticalAlign=middle;fontSize=10;fontColor=#00ffcc;fontStyle=1;" value="STEP 3" vertex="1">
+          <mxGeometry height="20" width="60" x="370" y="326" as="geometry" />
+        </mxCell>
+        <mxCell id="gateway" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#0d1117;strokeColor=#00ffcc;arcSize=10;shadow=1;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="130" width="420" x="440" y="326" as="geometry" />
+        </mxCell>
+        <mxCell id="gw_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=13;fontColor=#00ffcc;fontStyle=1;" value="GATEWAY ROUTER — claw_router.py :9095" vertex="1">
+          <mxGeometry height="22" width="400" x="450" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="gw_d" parent="1" style="text;html=0;align=left;verticalAlign=top;fontSize=9;fontColor=#88ccaa;spacingLeft=8;spacingTop=2;" value="OpenAI-compatible proxy — single entry point for all requests&#xa;&#xa;Task Detection: coding | reasoning | creative | translation | summarization | data_analysis&#xa;Routing: auto-detect (task → best agent) or manual (fixed target)&#xa;Failover: local-first | cloud-first | round-robin&#xa;Auth validation + request logging" vertex="1">
+          <mxGeometry height="90" width="400" x="452" y="354" as="geometry" />
+        </mxCell>
+        <mxCell id="arr_3_4" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#a855f7;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="650" y="456" as="sourcePoint" />
+            <mxPoint x="650" y="482" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arr_3_4_label" connectable="0" parent="arr_3_4" style="edgeLabel;fontSize=8;fontColor=#a855f7;" value="routed to optimizer" vertex="1">
+          <mxGeometry offset="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step_num_4" parent="1" style="text;html=0;align=right;verticalAlign=middle;fontSize=10;fontColor=#a855f7;fontStyle=1;" value="STEP 4" vertex="1">
+          <mxGeometry height="20" width="60" x="370" y="482" as="geometry" />
+        </mxCell>
+        <mxCell id="opt_pre" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#0d1117;strokeColor=#a855f7;arcSize=8;shadow=1;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="280" width="420" x="440" y="482" as="geometry" />
+        </mxCell>
+        <mxCell id="opt_pre_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=13;fontColor=#a855f7;fontStyle=1;" value="OPTIMIZER — 11 PRE-CALL RULES" vertex="1">
+          <mxGeometry height="22" width="400" x="450" y="486" as="geometry" />
+        </mxCell>
+        <mxCell id="opt_pre_sub" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=9;fontColor=#888888;" value="claw_optimizer.py  |  Dashboard :9091  |  Sequential pipeline before LLM call" vertex="1">
+          <mxGeometry height="14" width="400" x="450" y="508" as="geometry" />
+        </mxCell>
+        <mxCell id="opt_rules" parent="1" style="text;html=0;align=left;verticalAlign=top;fontSize=9;fontColor=#ccbbee;fontFamily=Courier New;spacingLeft=8;spacingTop=2;" value="R1  ConversationDedup       60s window — drop exact duplicates&#xa;R2  SemanticCache           0.85 cosine threshold, 3600s TTL&#xa;R3  TokenEstimator          Estimate cost before calling LLM&#xa;R4  ContextPruner           100K max tokens, 0.7 summary ratio&#xa;R5  PromptOptimizer         Compress/rewrite for fewer tokens&#xa;R6  BudgetEnforcer          $50/day  $200/week  $500/month&#xa;                            80% alert threshold, auto-downgrade&#xa;R7  TaskComplexityRouter    &lt;500 tok → budget, else premium&#xa;R8  LatencyRouter           (disabled) 2000ms threshold&#xa;R9  ProviderHealthScorer    Min 0.5 score, 60min window&#xa;R10 RateLimitManager        anthropic:50 openai:60&#xa;                            deepseek:100 gemini:60 RPM&#xa;R11 FallbackChain           Retry 429/500/502/503, 3 attempts" vertex="1">
+          <mxGeometry height="190" width="400" x="452" y="526" as="geometry" />
+        </mxCell>
+        <mxCell id="opt_tiers" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=8;fontColor=#888888;fontStyle=2;" value="Tiers: Budget (deepseek-chat, gemini-flash) | Standard (sonnet, gpt-4.1-mini) | Premium (opus, gpt-4.1)" vertex="1">
+          <mxGeometry height="14" width="400" x="452" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="opt_storage" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=8;fontColor=#666666;" value="Storage: cost_log.sqlite3  response_cache.sqlite3  budget_tracking.sqlite3  cost_log.jsonl" vertex="1">
+          <mxGeometry height="14" width="400" x="452" y="738" as="geometry" />
+        </mxCell>
+        <mxCell id="arr_4_5" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#22c55e;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="650" y="762" as="sourcePoint" />
+            <mxPoint x="650" y="788" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arr_4_5_label" connectable="0" parent="arr_4_5" style="edgeLabel;fontSize=8;fontColor=#22c55e;" value="optimized request → selected agent" vertex="1">
+          <mxGeometry offset="60" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step_num_5" parent="1" style="text;html=0;align=right;verticalAlign=middle;fontSize=10;fontColor=#22c55e;fontStyle=1;" value="STEP 5" vertex="1">
+          <mxGeometry height="20" width="60" x="370" y="788" as="geometry" />
+        </mxCell>
+        <mxCell id="agents" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#0d1117;strokeColor=#22c55e;arcSize=8;shadow=1;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="140" width="420" x="440" y="788" as="geometry" />
+        </mxCell>
+        <mxCell id="agents_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=13;fontColor=#22c55e;fontStyle=1;" value="AGENT EXECUTION — 5 Platforms" vertex="1">
+          <mxGeometry height="22" width="400" x="450" y="792" as="geometry" />
+        </mxCell>
+        <mxCell id="agents_d" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=9;fontColor=#888888;" value="Security rules injected into system prompt at boot (integration point 1)&#xa;Every tool call and I/O validated by security engine in real-time (integration point 3)" vertex="1">
+          <mxGeometry height="28" width="400" x="450" y="814" as="geometry" />
+        </mxCell>
+        <mxCell id="ag1" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#0f2f1f;strokeColor=#22c55e;fontSize=9;fontColor=#66dd88;align=center;" value="ZeroClaw&#xa;Rust :3100&#xa;512MB" vertex="1">
+          <mxGeometry height="50" width="72" x="452" y="850" as="geometry" />
+        </mxCell>
+        <mxCell id="ag2" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#0f2f1f;strokeColor=#22c55e;fontSize=9;fontColor=#66dd88;align=center;" value="NanoClaw&#xa;TS :3200&#xa;1GB" vertex="1">
+          <mxGeometry height="50" width="72" x="532" y="850" as="geometry" />
+        </mxCell>
+        <mxCell id="ag3" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#0f2f1f;strokeColor=#22c55e;fontSize=9;fontColor=#66dd88;align=center;" value="PicoClaw&#xa;Go :3300&#xa;256MB" vertex="1">
+          <mxGeometry height="50" width="72" x="612" y="850" as="geometry" />
+        </mxCell>
+        <mxCell id="ag4" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#0f2f1f;strokeColor=#22c55e;fontSize=9;fontColor=#66dd88;align=center;" value="OpenClaw&#xa;Node :3400&#xa;2GB" vertex="1">
+          <mxGeometry height="50" width="72" x="692" y="850" as="geometry" />
+        </mxCell>
+        <mxCell id="ag5" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#0f2f1f;strokeColor=#22c55e;fontSize=9;fontColor=#66dd88;align=center;" value="Parlant&#xa;Py :8800&#xa;4GB" vertex="1">
+          <mxGeometry height="50" width="72" x="772" y="850" as="geometry" />
+        </mxCell>
+        <mxCell id="arr_5_6" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#f97316;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="650" y="928" as="sourcePoint" />
+            <mxPoint x="650" y="954" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arr_5_6_label" connectable="0" parent="arr_5_6" style="edgeLabel;fontSize=8;fontColor=#f97316;" value="LLM inference call" vertex="1">
+          <mxGeometry offset="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step_num_6" parent="1" style="text;html=0;align=right;verticalAlign=middle;fontSize=10;fontColor=#f97316;fontStyle=1;" value="STEP 6" vertex="1">
+          <mxGeometry height="20" width="60" x="370" y="954" as="geometry" />
+        </mxCell>
+        <mxCell id="llm" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#0d1117;strokeColor=#f97316;arcSize=8;shadow=1;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="150" width="420" x="440" y="954" as="geometry" />
+        </mxCell>
+        <mxCell id="llm_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=13;fontColor=#f97316;fontStyle=1;" value="LLM BACKENDS — Cloud + Local + Hybrid" vertex="1">
+          <mxGeometry height="22" width="400" x="450" y="958" as="geometry" />
+        </mxCell>
+        <mxCell id="llm_cloud" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=9;fontColor=#ffbb66;" value="Cloud: Anthropic | OpenAI | DeepSeek | Google | Groq" vertex="1">
+          <mxGeometry height="16" width="400" x="452" y="986" as="geometry" />
+        </mxCell>
+        <mxCell id="llm_cloud_d" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=8;fontColor=#ff8866;" value="All connections via allowed_api_hosts whitelist (security domain E)  |  TLS 1.2+ required" vertex="1">
+          <mxGeometry height="14" width="400" x="452" y="1002" as="geometry" />
+        </mxCell>
+        <mxCell id="llm_local" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=9;fontColor=#ffbb66;" value="Local: Ollama :11434 | llama.cpp :8080 | vLLM :8000 | LocalAI :8080" vertex="1">
+          <mxGeometry height="16" width="400" x="452" y="1024" as="geometry" />
+        </mxCell>
+        <mxCell id="llm_hybrid" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=9;fontColor=#ffbb66;" value="Hybrid: local primary + cloud fallback via FallbackChain (R11)" vertex="1">
+          <mxGeometry height="16" width="400" x="452" y="1048" as="geometry" />
+        </mxCell>
+        <mxCell id="llm_models" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=8;fontColor=#886644;" value="8 models: deepseek-chat, gemini-2.0-flash, claude-sonnet-4-6, gpt-4.1-mini, claude-opus-4-6,&#xa;gpt-4.1, llama-3.3-70b, qwen-2.5-72b" vertex="1">
+          <mxGeometry height="14" width="400" x="452" y="1072" as="geometry" />
+        </mxCell>
+        <mxCell id="arr_6_7" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#f97316;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="650" y="1104" as="sourcePoint" />
+            <mxPoint x="650" y="1140" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arr_6_7_label" connectable="0" parent="arr_6_7" style="edgeLabel;fontSize=8;fontColor=#ff8844;" value="raw LLM response (may contain secrets/PII)" vertex="1">
+          <mxGeometry offset="80" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step_num_7" parent="1" style="text;html=0;align=right;verticalAlign=middle;fontSize=10;fontColor=#a855f7;fontStyle=1;" value="STEP 7" vertex="1">
+          <mxGeometry height="20" width="60" x="370" y="1140" as="geometry" />
+        </mxCell>
+        <mxCell id="opt_post" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#0d1117;strokeColor=#a855f7;arcSize=8;shadow=1;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="90" width="420" x="440" y="1140" as="geometry" />
+        </mxCell>
+        <mxCell id="opt_post_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=13;fontColor=#a855f7;fontStyle=1;" value="OPTIMIZER — 2 POST-CALL RULES + LOGGER" vertex="1">
+          <mxGeometry height="22" width="400" x="450" y="1144" as="geometry" />
+        </mxCell>
+        <mxCell id="opt_post_d" parent="1" style="text;html=0;align=left;verticalAlign=top;fontSize=9;fontColor=#ccbbee;fontFamily=Courier New;spacingLeft=8;spacingTop=2;" value="R12 ResponseQualityGate   Min 10 chars, 2 retries if empty/malformed&#xa;R13 CostAttributionLogger  Log: model, tokens, cost, latency, provider&#xa;                          Dual storage: SQLite + JSONL" vertex="1">
+          <mxGeometry height="50" width="400" x="452" y="1170" as="geometry" />
+        </mxCell>
+        <mxCell id="arr_7_8" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#ff3355;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="650" y="1230" as="sourcePoint" />
+            <mxPoint x="650" y="1256" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arr_7_8_label" connectable="0" parent="arr_7_8" style="edgeLabel;fontSize=8;fontColor=#ff3355;" value="response enters security scan" vertex="1">
+          <mxGeometry offset="60" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step_num_8" parent="1" style="text;html=0;align=right;verticalAlign=middle;fontSize=10;fontColor=#ff3355;fontStyle=1;" value="STEP 8" vertex="1">
+          <mxGeometry height="20" width="60" x="370" y="1256" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_outbound" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#1a0a0a;strokeColor=#ff3355;arcSize=10;shadow=1;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="154" width="420" x="440" y="1256" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_out_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=13;fontColor=#ff3355;fontStyle=1;" value="SECURITY GATE — OUTBOUND SCAN" vertex="1">
+          <mxGeometry height="22" width="400" x="450" y="1260" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_out_d" parent="1" style="text;html=0;align=left;verticalAlign=top;fontSize=9;fontColor=#cc8899;spacingLeft=8;spacingTop=2;" value="mask_secrets() — scan for 16 secret patterns in response&#xa;  API keys (Anthropic, OpenAI, DeepSeek, Groq, HF, GitHub, AWS...)&#xa;  JWTs, private keys, bearer tokens, passwords&#xa;  ALL matches replaced with ***REDACTED***&#xa;&#xa;detect_pii() — scan for 8 PII types in response&#xa;  email, phone, SSN, credit card, IPv4, passport, IBAN&#xa;  Action: redact_and_warn or block per config&#xa;&#xa;check_content() — verify response doesn&#39;t violate content policy" vertex="1">
+          <mxGeometry height="116" width="400" x="452" y="1284" as="geometry" />
+        </mxCell>
+        <mxCell id="arr_8_9" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#00ff88;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="650" y="1406" as="sourcePoint" />
+            <mxPoint x="650" y="1432" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arr_8_9_label" connectable="0" parent="arr_8_9" style="edgeLabel;fontSize=8;fontColor=#00ff88;" value="clean response (secrets redacted, PII masked)" vertex="1">
+          <mxGeometry offset="80" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step_num_9" parent="1" style="text;html=0;align=right;verticalAlign=middle;fontSize=10;fontColor=#00ff88;fontStyle=1;" value="STEP 9" vertex="1">
+          <mxGeometry height="20" width="60" x="370" y="1432" as="geometry" />
+        </mxCell>
+        <mxCell id="response" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#0f1f15;strokeColor=#00ff88;arcSize=12;shadow=1;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="80" width="420" x="440" y="1432" as="geometry" />
+        </mxCell>
+        <mxCell id="resp_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=14;fontColor=#00ff88;fontStyle=1;" value="RESPONSE DELIVERED TO CLIENT" vertex="1">
+          <mxGeometry height="22" width="400" x="450" y="1436" as="geometry" />
+        </mxCell>
+        <mxCell id="resp_d" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=9;fontColor=#88ccaa;" value="SSE stream (text/event-stream) or JSON (application/json)&#xa;All secrets redacted  |  PII masked  |  Content policy verified  |  Cost logged" vertex="1">
+          <mxGeometry height="30" width="400" x="452" y="1462" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_panel" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#1a0a0a;strokeColor=#ff3355;arcSize=6;shadow=1;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="1080" width="480" x="920" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_panel_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=15;fontColor=#ff3355;fontStyle=1;" value="SECURITY GATE ENGINE — claw_security.py" vertex="1">
+          <mxGeometry height="24" width="440" x="940" y="98" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_panel_sub" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=9;fontColor=#888888;" value="Wraps the ENTIRE flow — checks inbound (step 2) and outbound (step 8)" vertex="1">
+          <mxGeometry height="16" width="440" x="940" y="122" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_hw_box" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#1f1015;strokeColor=#552233;arcSize=8;" value="" vertex="1">
+          <mxGeometry height="130" width="440" x="940" y="148" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_hw_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=11;fontColor=#ff6688;fontStyle=1;" value="HOW THE GATE WORKS" vertex="1">
+          <mxGeometry height="18" width="400" x="960" y="152" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_hw_d" parent="1" style="text;html=0;align=left;verticalAlign=top;fontSize=9;fontColor=#ccaaaa;spacingLeft=6;spacingTop=2;" value="1. Agent boot → SecurityChecker instantiated, rules loaded&#xa;2. ALL regex compiled once into RAM (not re-compiled per request)&#xa;3. IP ranges parsed into ip_network objects for O(1) CIDR lookup&#xa;4. INBOUND: check_url → check_content → detect_pii&#xa;5. OUTBOUND: mask_secrets → detect_pii → check_content&#xa;6. Violations → enforcement action + audit log entry&#xa;7. Config also generates system prompt appendix injected at boot&#xa;8. Two modes: Config generator (JSON) + Runtime validator (library)" vertex="1">
+          <mxGeometry height="100" width="420" x="950" y="172" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_ram_box" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#1f1015;strokeColor=#552233;arcSize=8;" value="" vertex="1">
+          <mxGeometry height="140" width="440" x="940" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_ram_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=11;fontColor=#ff6688;fontStyle=1;" value="SECRETS IN RAM — Pre-Compiled Pattern Engine" vertex="1">
+          <mxGeometry height="18" width="400" x="960" y="294" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_ram_d" parent="1" style="text;html=0;align=left;verticalAlign=top;fontSize=9;fontColor=#ccaaaa;spacingLeft=6;spacingTop=2;" value="Held in memory only — never serialized to disk:&#xa;&#xa;_compiled_url_patterns[]       8 regex (bare IP, .onion, exploits...)&#xa;_compiled_injection_patterns[] 6 regex (prompt injection detectors)&#xa;_compiled_pii_patterns{}       8 named patterns (email, SSN, CC...)&#xa;_compiled_secret_patterns{}    16 named patterns (API keys, JWT...)&#xa;_blocked_networks[]            15 CIDR ranges as ip_network objects&#xa;&#xa;Total: 53 compiled patterns — O(1) per-request validation" vertex="1">
+          <mxGeometry height="110" width="420" x="950" y="314" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_dom_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=11;fontColor=#ff6688;fontStyle=1;" value="6 SECURITY DOMAINS" vertex="1">
+          <mxGeometry height="18" width="400" x="960" y="444" as="geometry" />
+        </mxCell>
+        <mxCell id="domA" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#1f1015;strokeColor=#552233;fontSize=8;fontColor=#ccaaaa;align=left;spacingLeft=6;spacingTop=2;" value="A. Forbidden URLs&#xa;50+ blocked domains&#xa;8 URL regex patterns&#xa;4 blocked TLDs (.onion .bit .i2p .loki)&#xa;URL shortener: resolve_and_check&#xa;Action: block_and_log" vertex="1">
+          <mxGeometry height="86" width="215" x="940" y="466" as="geometry" />
+        </mxCell>
+        <mxCell id="domB" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#1f1015;strokeColor=#552233;fontSize=8;fontColor=#ccaaaa;align=left;spacingLeft=6;spacingTop=2;" value="B. Content Rules&#xa;10 forbidden categories:&#xa;  MALWARE CREDENTIALS PII_EXFIL&#xa;  CSAM WEAPONS HARASSMENT&#xa;  FRAUD PRIVACY SAFETY_BYPASS&#xa;  ILLEGAL_SERVICES&#xa;6 injection detection patterns&#xa;Action: block_and_log" vertex="1">
+          <mxGeometry height="110" width="215" x="1165" y="466" as="geometry" />
+        </mxCell>
+        <mxCell id="domC" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#1f1015;strokeColor=#552233;fontSize=8;fontColor=#ccaaaa;align=left;spacingLeft=6;spacingTop=2;" value="C. Data Handling&#xa;8 PII detectors: email phone_us&#xa;  phone_intl ssn credit_card&#xa;  ipv4 passport iban&#xa;16 secret masks (see below)&#xa;Retention: conv 30d, PII 7d,&#xa;  logs 90d, audit 365d&#xa;8 prohibited data operations&#xa;Action: redact_and_warn" vertex="1">
+          <mxGeometry height="118" width="215" x="940" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="domD" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#1f1015;strokeColor=#552233;fontSize=8;fontColor=#ccaaaa;align=left;spacingLeft=6;spacingTop=2;" value="D. Behavioral Rules&#xa;Rate: 60 RPM/user, 500 RPH&#xa;Max: 100K tok/req, 32K resp&#xa;Max: 200 conv depth, 5 tools&#xa;10 scope restrictions&#xa;8 mandatory behaviors&#xa;8 forbidden actions&#xa;Action: block_and_log" vertex="1">
+          <mxGeometry height="110" width="215" x="1165" y="584" as="geometry" />
+        </mxCell>
+        <mxCell id="domE" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#1f1015;strokeColor=#552233;fontSize=8;fontColor=#ccaaaa;align=left;spacingLeft=6;spacingTop=2;" value="E. Network Rules&#xa;15 forbidden IP ranges (RFC1918+)&#xa;Allowed ports: 80 443 8080 8443&#xa;TLS 1.2+ required&#xa;DNS rebinding protection&#xa;10 allowed API hosts whitelist&#xa;Strip internal headers&#xa;Action: block_and_log" vertex="1">
+          <mxGeometry height="110" width="215" x="940" y="686" as="geometry" />
+        </mxCell>
+        <mxCell id="domF" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#1f1015;strokeColor=#552233;fontSize=8;fontColor=#ccaaaa;align=left;spacingLeft=6;spacingTop=2;" value="F. Compliance&#xa;GDPR: 9 rules (erasure, DSAR,&#xa;  consent, data portability...)&#xa;HIPAA: 9 rules (PHI encrypt,&#xa;  BAA, breach notify, 15min timeout)&#xa;PCI-DSS: 7 rules (mask CC,&#xa;  no CVV storage, audit)&#xa;SOC2: 7 rules (access, monitoring)&#xa;Activated via CLAW_COMPLIANCE env" vertex="1">
+          <mxGeometry height="120" width="215" x="1165" y="702" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_secrets_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=11;fontColor=#ff6688;fontStyle=1;" value="16 SECRET MASKING PATTERNS" vertex="1">
+          <mxGeometry height="18" width="400" x="960" y="836" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_secrets_col1" parent="1" style="text;html=0;align=left;verticalAlign=top;fontSize=8;fontColor=#aa8888;fontFamily=Courier New;spacingLeft=6;" value="anthropic_key   sk-ant-*&#xa;openai_key      sk-*&#xa;openrouter_key  sk-or-*&#xa;deepseek_key    sk-*&#xa;groq_key        gsk_*&#xa;huggingface     hf_*&#xa;github_token    gh[ps]_*&#xa;aws_key         AKIA*" vertex="1">
+          <mxGeometry height="110" width="210" x="940" y="858" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_secrets_col2" parent="1" style="text;html=0;align=left;verticalAlign=top;fontSize=8;fontColor=#aa8888;fontFamily=Courier New;spacingLeft=6;" value="aws_secret      [A-Za-z0-9/+=]{40}&#xa;telegram_token  digits:token&#xa;discord_token   M/N prefix&#xa;slack_token     xox[bpasr]-*&#xa;generic_bearer  Bearer *&#xa;generic_passwd  key=value pairs&#xa;private_key     -----BEGIN...KEY-----&#xa;jwt             eyJ*.eyJ*.*" vertex="1">
+          <mxGeometry height="110" width="230" x="1160" y="858" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_secrets_note" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=9;fontColor=#ff3355;fontStyle=2;" value="All matches replaced with ***REDACTED*** — never reaches client or logs" vertex="1">
+          <mxGeometry height="16" width="440" x="940" y="970" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_integ_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=11;fontColor=#ff6688;fontStyle=1;" value="5 INTEGRATION POINTS" vertex="1">
+          <mxGeometry height="18" width="400" x="960" y="996" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_i1" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=9;fontColor=#ccaaaa;spacingLeft=6;" value="1  Config injection at agent boot → rules in system prompt" vertex="1">
+          <mxGeometry height="14" width="440" x="940" y="1016" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_i2" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=9;fontColor=#ccaaaa;spacingLeft=6;" value="2  Inbound gate at router → check_url + check_content on input" vertex="1">
+          <mxGeometry height="14" width="440" x="940" y="1032" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_i3" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=9;fontColor=#ccaaaa;spacingLeft=6;" value="3  Agent runtime → every tool call / I/O validated in real-time" vertex="1">
+          <mxGeometry height="14" width="440" x="940" y="1048" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_i4" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=9;fontColor=#ccaaaa;spacingLeft=6;" value="4  Response scan → mask_secrets + detect_pii on all outbound" vertex="1">
+          <mxGeometry height="14" width="440" x="940" y="1064" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_i5" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=9;fontColor=#ccaaaa;spacingLeft=6;" value="5  Compliance overlay → GDPR/HIPAA/PCI enforced everywhere" vertex="1">
+          <mxGeometry height="14" width="440" x="940" y="1080" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_actions" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=9;fontColor=#ff6688;fontStyle=2;" value="Actions: block_and_log (403) | redact_and_warn | warn_and_log | log_only" vertex="1">
+          <mxGeometry height="16" width="440" x="940" y="1104" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_cli" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=8;fontColor=#666666;" value="CLI: --init-config | --validate | --check-url | --check-content | --generate-prompt | --report" vertex="1">
+          <mxGeometry height="14" width="440" x="940" y="1122" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_arr_in" edge="1" parent="1" source="sec_panel" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#ff3355;strokeWidth=1;dashed=1;exitX=0;exitY=0.15;entryX=1;entryY=0.5;" target="sec_inbound">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="920" y="240" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sec_arr_in_l" connectable="0" parent="sec_arr_in" style="edgeLabel;fontSize=8;fontColor=#ff3355;" value="step 2" vertex="1">
+          <mxGeometry offset="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_arr_ag" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#ff3355;strokeWidth=1;dashed=1;entryX=1;entryY=0.3;" target="agents">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="920" y="830" />
+            </Array>
+            <mxPoint x="920" y="830" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sec_arr_ag_l" connectable="0" parent="sec_arr_ag" style="edgeLabel;fontSize=8;fontColor=#ff3355;" value="step 5 (runtime checks)" vertex="1">
+          <mxGeometry offset="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_arr_out" edge="1" parent="1" source="sec_panel" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#ff3355;strokeWidth=1;dashed=1;exitX=0;exitY=0.95;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="890" y="1116" />
+              <mxPoint x="890" y="1330" />
+            </Array>
+            <mxPoint x="860" y="1330" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sec_arr_out_l" connectable="0" parent="sec_arr_out" style="edgeLabel;fontSize=8;fontColor=#ff3355;" value="step 8" vertex="1">
+          <mxGeometry offset="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_box" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#0d1117;strokeColor=#6366f1;arcSize=6;shadow=1;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="400" width="480" x="920" y="1256" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=14;fontColor=#6366f1;fontStyle=1;" value="SHARED SERVICES — 16 Modules" vertex="1">
+          <mxGeometry height="24" width="440" x="940" y="1264" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_sub" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=9;fontColor=#888888;" value="All services on xclaw-net Docker bridge — accessible by all agents" vertex="1">
+          <mxGeometry height="14" width="440" x="940" y="1288" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_c1" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=9;fontColor=#8888ff;fontStyle=1;spacingLeft=6;" value="MONITORING" vertex="1">
+          <mxGeometry height="14" width="200" x="940" y="1310" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_1" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#aaaacc;fontFamily=Courier New;spacingLeft=10;" value="Dashboard :9099     real-time agent health + metrics" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1326" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_2" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#aaaacc;fontFamily=Courier New;spacingLeft=10;" value="Orchestrator :9100  multi-agent task coordination" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1340" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_3" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#aaaacc;fontFamily=Courier New;spacingLeft=10;" value="Watchdog            health checks + restart → feeds R9 HealthScorer" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1354" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_c2" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=9;fontColor=#8888ff;fontStyle=1;spacingLeft=6;" value="INTELLIGENCE" vertex="1">
+          <mxGeometry height="14" width="200" x="940" y="1374" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_4" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#aaaacc;fontFamily=Courier New;spacingLeft=10;" value="Skills              42 skills / 8 categories / 6 bundles" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1390" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_5" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#ff8888;fontFamily=Courier New;spacingLeft=10;" value="Memory              30d conv TTL, 7d PII TTL (security enforced)" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1404" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_6" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#aaaacc;fontFamily=Courier New;spacingLeft=10;" value="RAG                 retrieval-augmented generation pipeline" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1418" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_7" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#aaaacc;fontFamily=Courier New;spacingLeft=10;" value="Strategy            agent selection + task routing logic" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1432" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_8" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#aaaacc;fontFamily=Courier New;spacingLeft=10;" value="Adapter Selector    matches task to best agent" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1446" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_c3" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=9;fontColor=#8888ff;fontStyle=1;spacingLeft=6;" value="SECURITY + FINANCE" vertex="1">
+          <mxGeometry height="14" width="200" x="940" y="1466" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_9" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#ff8888;fontFamily=Courier New;spacingLeft=10;" value="Vault               encrypted credential store (uses 16 secret masks)" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1482" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_10" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#cc88ff;fontFamily=Courier New;spacingLeft=10;" value="Billing             usage tracking → feeds R13 CostAttributionLogger" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1496" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_11" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#ff6688;fontFamily=Courier New;spacingLeft=10;" value="Security            claw_security.py (the gate engine)" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1510" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_c4" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=9;fontColor=#8888ff;fontStyle=1;spacingLeft=6;" value="INFRASTRUCTURE" vertex="1">
+          <mxGeometry height="14" width="200" x="940" y="1530" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_12" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#aaaacc;fontFamily=Courier New;spacingLeft=10;" value="Hardware            GPU/CPU/RAM detection for model selection" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1546" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_13" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#cc88ff;fontFamily=Courier New;spacingLeft=10;" value="Optimizer           claw_optimizer.py (the 14-rule pipeline)" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1560" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_14" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#00ddaa;fontFamily=Courier New;spacingLeft=10;" value="Router              claw_router.py (the gateway)" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1574" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_15" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#aaaacc;fontFamily=Courier New;spacingLeft=10;" value="Wizard API :9098    SSE streaming deploy endpoint" vertex="1">
+          <mxGeometry height="12" width="440" x="940" y="1588" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_compliance" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=8;fontColor=#ff3355;fontStyle=2;" value="Compliance overlay (GDPR/HIPAA/PCI-DSS/SOC2) enforced across ALL services" vertex="1">
+          <mxGeometry height="14" width="440" x="940" y="1618" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" parent="1" style="rounded=1;whiteSpace=wrap;fillColor=#0d1117;strokeColor=#333366;arcSize=8;" value="" vertex="1">
+          <mxGeometry height="120" width="420" x="440" y="1540" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_t" parent="1" style="text;html=0;align=center;verticalAlign=middle;fontSize=11;fontColor=#888888;fontStyle=1;" value="LEGEND" vertex="1">
+          <mxGeometry height="16" width="380" x="460" y="1546" as="geometry" />
+        </mxCell>
+        <mxCell id="l1" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#88aacc;spacingLeft=8;" value="Blue = Client entry/exit     Cyan = Gateway Router" vertex="1">
+          <mxGeometry height="12" width="380" x="460" y="1566" as="geometry" />
+        </mxCell>
+        <mxCell id="l2" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#cc88aa;spacingLeft=8;" value="Red = Security Gate           Purple = Optimizer Pipeline" vertex="1">
+          <mxGeometry height="12" width="380" x="460" y="1580" as="geometry" />
+        </mxCell>
+        <mxCell id="l3" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#88cc88;spacingLeft=8;" value="Green = Agent Platforms       Orange = LLM Backends" vertex="1">
+          <mxGeometry height="12" width="380" x="460" y="1594" as="geometry" />
+        </mxCell>
+        <mxCell id="l4" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#00ff88;spacingLeft=8;" value="Bright Green = Clean response to client" vertex="1">
+          <mxGeometry height="12" width="380" x="460" y="1608" as="geometry" />
+        </mxCell>
+        <mxCell id="l5" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#ff3355;spacingLeft=8;" value="Dashed red = Security enforcement connections (5 integration points)" vertex="1">
+          <mxGeometry height="12" width="380" x="460" y="1622" as="geometry" />
+        </mxCell>
+        <mxCell id="l6" parent="1" style="text;html=0;align=left;verticalAlign=middle;fontSize=8;fontColor=#888888;spacingLeft=8;" value="STEPS 1-9 = complete request/response lifecycle (top to bottom)" vertex="1">
+          <mxGeometry height="12" width="380" x="460" y="1636" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

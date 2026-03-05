@@ -2067,11 +2067,11 @@ cd wizard-ui && npm run build     # Production build (served via dashboard)
 | **Orchestrator** | **9100** | Task coordination |
 | **React Wizard** | **3000** | Installation UI |
 
-## Ecosystem Diagram
+## Architecture Diagram
 
-![Claw Agents Provisioner — Ecosystem Diagram](ecosystem-diagram.png)
+![Claw Agents Provisioner — Architecture Diagram](xclaw-architecture.png)
 
-> Edit the source: [`ecosystem-diagram.drawio`](ecosystem-diagram.drawio) — open in [draw.io](https://app.diagrams.net)
+> Edit the source: [`xclaw-architecture.drawio`](xclaw-architecture.drawio) — open in [draw.io](https://app.diagrams.net)
 
 ## Credits
 

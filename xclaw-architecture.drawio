@@ -1,0 +1,547 @@
+<mxfile host="app.diagrams.net" modified="2026-03-01T00:00:00.000Z" agent="Claude" version="24.0.0" type="device">
+  <diagram id="xclaw-lld" name="xClaw Low-Level Architecture">
+    <mxGraphModel dx="3000" dy="2400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="4000" pageHeight="3200" math="0" shadow="0" background="#FFFFFF">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ================================================================== -->
+        <!-- TITLE -->
+        <!-- ================================================================== -->
+        <mxCell id="title" value="xClaw Agents Provisioner — Low-Level Solution Design" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=22;fontColor=#000000;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="550" y="-140" width="680" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Enterprise AI Agents Ecosystem  |  Multi-Tenant  |  Assessment-Driven Deployment" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=13;fontColor=#555555;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="550" y="-105" width="680" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================== -->
+        <!-- LAYER 1: PRESENTATION LAYER -->
+        <!-- ================================================================== -->
+        <mxCell id="ui-group" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0F4FF;strokeColor=#3B5998;strokeWidth=2;verticalAlign=top;fontSize=13;fontStyle=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="80" y="-60" width="1940" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="ui-label" value="PRESENTATION LAYER" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=#3B5998;fontSize=12;fontColor=#FFFFFF;fontStyle=1;spacingLeft=8;spacingRight=8;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="-55" width="170" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- React Wizard UI -->
+        <mxCell id="wizard-ui" value="React Wizard UI&#xa;&#xa;10-Step Deployment&#xa;Welcome → Platform → LLM&#xa;Hardware → Channels → Gateway&#xa;Security → Storage → Review → Deploy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5B2C6F;strokeColor=#4A235A;fontSize=11;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="100" y="-20" width="230" height="130" as="geometry" />
+        </mxCell>
+
+        <!-- Dashboard UI -->
+        <mxCell id="dashboard-ui" value="Enterprise Dashboard&#xa;&#xa;Real-time Monitoring&#xa;Agents | Models | Channels&#xa;Instances | Logs | Security&#xa;Data Mgmt | Triggers | Settings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5B2C6F;strokeColor=#4A235A;fontSize=11;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="360" y="-20" width="230" height="130" as="geometry" />
+        </mxCell>
+
+        <!-- CLI -->
+        <mxCell id="cli" value="CLI  —  claw.sh&#xa;&#xa;Primary Control Interface&#xa;deploy | validate | finetune&#xa;health | logs | status&#xa;vault | security | strategy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1B2631;strokeColor=#0B1622;fontSize=11;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="620" y="-20" width="230" height="130" as="geometry" />
+        </mxCell>
+
+        <!-- Chat Channels Group -->
+        <mxCell id="channels-group" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1A3636;strokeColor=#0D2626;verticalAlign=top;fontSize=11;fontStyle=1;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="880" y="-20" width="550" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="channels-label" value="CHAT CHANNELS" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=#E67E22;fontSize=10;fontColor=#FFFFFF;fontStyle=1;spacingLeft=6;spacingRight=6;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="890" y="-15" width="115" height="22" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ch-telegram" value="Telegram&#xa;Bot API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2196F3;strokeColor=#1565C0;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="895" y="20" width="75" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="ch-discord" value="Discord&#xa;Bot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7289DA;strokeColor=#5B6EAE;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="980" y="20" width="75" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="ch-slack" value="Slack&#xa;Bot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4A154B;strokeColor=#3B0F3C;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1065" y="20" width="75" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="ch-whatsapp" value="WhatsApp&#xa;Baileys" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#25D366;strokeColor=#1DA851;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="20" width="75" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="ch-signal" value="Signal&#xa;CLI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3A76F0;strokeColor=#2C5BB8;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1235" y="20" width="75" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="ch-webapi" value="Web API&#xa;REST" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF5722;strokeColor=#D84315;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="20" width="75" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="ch-config" value="channel_config.json  |  triggers.json" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=9;fontColor=#AAAAAA;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="80" width="200" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Deployment Methods -->
+        <mxCell id="deploy-group" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2C3E50;strokeColor=#1A252F;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="-20" width="530" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="deploy-label" value="DEPLOYMENT METHODS" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=#E74C3C;fontSize=10;fontColor=#FFFFFF;fontStyle=1;spacingLeft=6;spacingRight=6;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="-15" width="155" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="hw-detect" value="Hardware&#xa;Detector&#xa;GPU/CPU/RAM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1ABC9C;strokeColor=#16A085;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1490" y="20" width="100" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="deploy-docker" value="Docker&#xa;Compose&#xa;Profiles" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2496ED;strokeColor=#1A73C7;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1610" y="20" width="100" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="deploy-vagrant" value="Vagrant&#xa;VirtualBox&#xa;Per-agent VM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1868F2;strokeColor=#1050C0;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1730" y="20" width="100" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="deploy-bare" value="Bare Metal&#xa;install-*.sh&#xa;Shell Scripts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7F8C8D;strokeColor=#5D6D7E;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1850" y="20" width="100" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================== -->
+        <!-- LAYER 2: CONTROL PLANE SERVICES -->
+        <!-- ================================================================== -->
+        <mxCell id="cp-group" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF5F5;strokeColor=#C0392B;strokeWidth=2;verticalAlign=top;fontSize=13;fontStyle=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="80" y="230" width="1940" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="cp-label" value="CONTROL PLANE  —  Shared Microservices  (Python stdlib-only, zero dependencies)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=#C0392B;fontSize=12;fontColor=#FFFFFF;fontStyle=1;spacingLeft=8;spacingRight=8;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="235" width="460" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Orchestrator -->
+        <mxCell id="svc-orch" value="ORCHESTRATOR&#xa;:9100&#xa;&#xa;Multi-agent task queue&#xa;Health monitoring&#xa;Pipeline coordination&#xa;Agent-to-Agent messaging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#922B21;strokeColor=#7B241C;fontSize=10;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="100" y="280" width="180" height="125" as="geometry" />
+        </mxCell>
+
+        <!-- Router -->
+        <mxCell id="svc-router" value="MODEL ROUTER&#xa;:9095&#xa;&#xa;OpenAI-compatible proxy&#xa;/v1/chat/completions&#xa;Multi-provider failover&#xa;Response caching" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#922B21;strokeColor=#7B241C;fontSize=10;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="310" y="280" width="180" height="125" as="geometry" />
+        </mxCell>
+
+        <!-- Optimizer -->
+        <mxCell id="svc-optim" value="OPTIMIZER&#xa;:9091&#xa;&#xa;14-Rule Pipeline&#xa;Semantic cache (Jaccard)&#xa;Budget enforcement&#xa;Task complexity routing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#922B21;strokeColor=#7B241C;fontSize=10;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="520" y="280" width="180" height="125" as="geometry" />
+        </mxCell>
+
+        <!-- Memory -->
+        <mxCell id="svc-memory" value="MEMORY SERVICE&#xa;:9096&#xa;&#xa;Conversation persistence&#xa;Cross-agent context&#xa;TTL-based sharing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#922B21;strokeColor=#7B241C;fontSize=10;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="730" y="280" width="170" height="125" as="geometry" />
+        </mxCell>
+
+        <!-- RAG -->
+        <mxCell id="svc-rag" value="RAG PIPELINE&#xa;:9097&#xa;&#xa;Trigram document retrieval&#xa;Chunking + indexing&#xa;Jaccard similarity 0.85" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#922B21;strokeColor=#7B241C;fontSize=10;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="930" y="280" width="170" height="125" as="geometry" />
+        </mxCell>
+
+        <!-- Wizard API -->
+        <mxCell id="svc-wizapi" value="WIZARD API&#xa;:9098&#xa;&#xa;React backend&#xa;SSE deploy streaming&#xa;Platform/HW/Model data" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#922B21;strokeColor=#7B241C;fontSize=10;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="280" width="165" height="125" as="geometry" />
+        </mxCell>
+
+        <!-- Dashboard API -->
+        <mxCell id="svc-dashapi" value="DASHBOARD API&#xa;:9099&#xa;&#xa;Metrics aggregation&#xa;WebSocket real-time&#xa;Log streaming" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#922B21;strokeColor=#7B241C;fontSize=10;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="1325" y="280" width="165" height="125" as="geometry" />
+        </mxCell>
+
+        <!-- Strategy Engine -->
+        <mxCell id="svc-strategy" value="STRATEGY ENGINE&#xa;&#xa;Model discovery&#xa;Routing strategy gen&#xa;Latency benchmark" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#922B21;strokeColor=#7B241C;fontSize=10;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="280" width="165" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Optimizer 14 Rules Detail -->
+        <mxCell id="optim-rules" value="PRE-API: ConversationDedup | SemanticCache | TokenEstimator | ContextPruner | PromptOptimizer | BudgetEnforcer | TaskComplexityRouter | LatencyRouter | HealthScorer | RateLimiter&#xa;POST-API: FallbackChain | ResponseQualityGate | CostAttributionLogger" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5B041;strokeColor=#D4AC0D;fontSize=9;fontColor=#000000;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="100" y="430" width="620" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Model Tiers -->
+        <mxCell id="model-tiers" value="MODEL TIERS&#xa;Local ($0): llama3.2, mistral, codellama, phi3&#xa;Budget: deepseek-chat, gemini-2.0-flash&#xa;Standard: claude-sonnet, gpt-4.1-mini&#xa;Premium: claude-opus, gpt-4.1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5B041;strokeColor=#D4AC0D;fontSize=9;fontColor=#000000;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="740" y="430" width="280" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Watchdog -->
+        <mxCell id="svc-watchdog" value="WATCHDOG&#xa;watchdog.json&#xa;Health + Alerts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E74C3C;strokeColor=#C0392B;fontSize=9;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="440" width="130" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Multi-Instance -->
+        <mxCell id="svc-instances" value="MULTI-INSTANCE&#xa;instances.json&#xa;Named compose projects" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E74C3C;strokeColor=#C0392B;fontSize=9;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1190" y="440" width="160" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Stats Box -->
+        <mxCell id="stats" value="ECOSYSTEM STATS&#xa;&#xa;5 AI Agents  (Rust, TS, Go, Node, Python)&#xa;7 Microservices  (stdlib-only Python)&#xa;7 Cloud LLM Providers + 6 Local Runtimes&#xa;6 Chat Channels&#xa;50+ Skills Marketplace&#xa;50 Fine-Tune Datasets  (LoRA / QLoRA)&#xa;14-Rule Cost Optimization Pipeline&#xa;6 Security Domains + 4 Compliance Frameworks&#xa;315 Source Files  |  ~12K Lines Python&#xa;3 Deployment Methods" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1B2631;strokeColor=#0D1820;fontSize=10;fontColor=#ECF0F1;fontStyle=1;arcSize=4;align=left;spacingLeft=14;spacingTop=6;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1710" y="270" width="290" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================== -->
+        <!-- LAYER 3: AGENT RUNTIME LAYER -->
+        <!-- ================================================================== -->
+        <mxCell id="agent-group" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EBF5FB;strokeColor=#2471A3;strokeWidth=2;verticalAlign=top;fontSize=13;fontStyle=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="80" y="630" width="1940" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="agent-label" value="AGENT RUNTIME LAYER  —  Docker Compose Profiles  |  docker compose -p &lt;name&gt; --profile &lt;agent&gt; up -d" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=#2471A3;fontSize=12;fontColor=#FFFFFF;fontStyle=1;spacingLeft=8;spacingRight=8;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="635" width="625" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- ZeroClaw -->
+        <mxCell id="agent-zero" value="ZEROCLAW  :3100&#xa;&#xa;Rust  |  512 MB&#xa;Multi-provider&#xa;Encrypted TOML config&#xa;~8 MB idle / 100 MB active&#xa;Minimal footprint" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0E6655;strokeColor=#0A5243;fontSize=11;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="100" y="680" width="210" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- NanoClaw -->
+        <mxCell id="agent-nano" value="NANOCLAW  :3200&#xa;&#xa;TypeScript  |  1 GB&#xa;Claude-native&#xa;Docker-out-of-Docker (DooD)&#xa;~120 MB idle / 500 MB active&#xa;Host Docker socket mount" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1A5276;strokeColor=#154360;fontSize=11;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="340" y="680" width="210" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- PicoClaw -->
+        <mxCell id="agent-pico" value="PICOCLAW  :3300&#xa;&#xa;Go  |  128 MB&#xa;Edge / IoT / Raspberry Pi&#xa;Ultra-lightweight&#xa;~8 MB idle / 30 MB active&#xa;Static binary" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6C3483;strokeColor=#5B2C6F;fontSize=11;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="580" y="680" width="210" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- OpenClaw -->
+        <mxCell id="agent-open" value="OPENCLAW  :3400&#xa;&#xa;Node.js  |  4 GB&#xa;50+ integrations / plugins&#xa;Feature-rich, heavyweight&#xa;~1.2 GB idle / 4 GB active&#xa;JSON5 config" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B9770E;strokeColor=#9A6500;fontSize=11;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="820" y="680" width="210" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- Parlant -->
+        <mxCell id="agent-parlant" value="PARLANT  :8800 + MCP :8181&#xa;&#xa;Python  |  2 GB&#xa;Guidelines-driven AI&#xa;MCP protocol support&#xa;~200 MB idle / 2 GB active&#xa;Tini init system" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1F618D;strokeColor=#1A5276;fontSize=11;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="680" width="210" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- Finetune Container -->
+        <mxCell id="agent-finetune" value="FINE-TUNE CONTAINER&#xa;(GPU Required)&#xa;&#xa;NVIDIA GPU + toolkit&#xa;LoRA (32 rank, 24+ GB VRAM)&#xa;QLoRA (4-bit, 8-16 GB VRAM)&#xa;Mistral / LLaMA / Phi / Qwen" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D35400;strokeColor=#A04000;fontSize=11;fontColor=#FFFFFF;fontStyle=1;shadow=0;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="680" width="220" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- PostgreSQL -->
+        <mxCell id="pg" value="PostgreSQL 16&#xa;:5432 (optional)&#xa;Alpine | 512 MB&#xa;Shared database" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#2C3E50;strokeColor=#1B2631;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="690" width="140" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- Docker info -->
+        <mxCell id="dc-note" value="Docker Volumes (per instance):&#xa;zeroclaw-data | nanoclaw-data | picoclaw-data&#xa;openclaw-data | parlant-data | postgres-data&#xa;Networks: Isolated per -p &lt;name&gt;&#xa;Healthchecks: 30s interval, 3 retries" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#34495E;strokeColor=#2C3E50;fontSize=9;fontColor=#ECF0F1;fontStyle=0;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1730" y="690" width="260" height="95" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================== -->
+        <!-- LAYER 4: DATA & PERSISTENCE LAYER (Simplified) -->
+        <!-- ================================================================== -->
+        <mxCell id="data-group" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBF0;strokeColor=#B7950B;strokeWidth=2;verticalAlign=top;fontSize=13;fontStyle=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="80" y="950" width="1940" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="data-label" value="DATA &amp; PERSISTENCE LAYER" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=#B7950B;fontSize=12;fontColor=#FFFFFF;fontStyle=1;spacingLeft=8;spacingRight=8;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="955" width="210" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Instance DB -->
+        <mxCell id="db-instance" value="INSTANCE DATABASE&#xa;data/instance.db  (SQLite WAL, per-deployment)&#xa;&#xa;local_config  —  instance settings&#xa;local_logs  —  debug/info/warn/error/critical&#xa;conversations  —  chat session metadata&#xa;messages  —  full history + token counts&#xa;llm_requests  —  API call logs (sanitized)&#xa;response_cache  —  semantic cache (SHA-256)&#xa;knowledge_documents  —  RAG document index&#xa;knowledge_chunks  —  chunked text for retrieval" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#7D6608;strokeColor=#6D5600;fontSize=10;fontColor=#FFFFFF;fontStyle=1;align=left;spacingLeft=14;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1000" width="380" height="185" as="geometry" />
+        </mxCell>
+
+        <!-- Shared DB -->
+        <mxCell id="db-shared" value="SHARED DATABASE&#xa;data/shared/shared.db  (SQLite or PostgreSQL, multi-deployment)&#xa;&#xa;agents  —  multi-agent registry + health status&#xa;shared_memory  —  cross-agent context sharing (TTL)&#xa;cost_tracking  —  token usage + cost per agent/model/provider&#xa;cost_budgets  —  daily/weekly/monthly spend caps&#xa;security_events  —  all security rule violations&#xa;rbac_roles  —  role-based access control definitions&#xa;rbac_assignments  —  agent-to-role mappings&#xa;audit_log  —  complete audit trail" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#7D6608;strokeColor=#6D5600;fontSize=10;fontColor=#FFFFFF;fontStyle=1;align=left;spacingLeft=14;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="540" y="1000" width="420" height="185" as="geometry" />
+        </mxCell>
+
+        <!-- Vault -->
+        <mxCell id="vault" value="SECRETS VAULT&#xa;secrets.vault (encrypted)&#xa;&#xa;AES encryption at rest&#xa;Runtime decryption to tmpfs&#xa;Zero-knowledge design&#xa;Fallback: legacy .env" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CB4335;strokeColor=#A93226;fontSize=10;fontColor=#FFFFFF;fontStyle=1;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="1010" width="200" height="130" as="geometry" />
+        </mxCell>
+
+        <!-- Config Files -->
+        <mxCell id="config-files" value="CONFIGURATION FILES&#xa;&#xa;.env.template (337 lines)&#xa;hardware_profile.json&#xa;optimization.json (14 rules)&#xa;security_rules.json&#xa;strategy.json&#xa;skills-catalog.json (50+)&#xa;ollama-models.json&#xa;instances.json / triggers.json&#xa;watchdog.json / channel_config.json" style="shape=document;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=0.1;fillColor=#7D6608;strokeColor=#6D5600;fontSize=9;fontColor=#FFFFFF;fontStyle=1;spacingTop=4;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="1000" width="230" height="185" as="geometry" />
+        </mxCell>
+
+        <!-- Fine-tune Datasets -->
+        <mxCell id="ft-datasets" value="FINE-TUNE DATASETS&#xa;finetune/datasets/ (50)&#xa;&#xa;01-customer-support&#xa;02-real-estate&#xa;03-healthcare  ...  47 more&#xa;Training + validation data&#xa;claw_adapter_selector.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D35400;strokeColor=#A04000;fontSize=10;fontColor=#FFFFFF;fontStyle=1;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="1570" y="1010" width="200" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- DB Schemas -->
+        <mxCell id="db-schemas" value="DB SCHEMAS&#xa;schema/ directory&#xa;&#xa;shared_sqlite.sql (150+ lines)&#xa;instance_sqlite.sql&#xa;FK constraints + indexes&#xa;Connection pool (5, 30s)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7D6608;strokeColor=#6D5600;fontSize=9;fontColor=#FFFFFF;fontStyle=1;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="1830" y="1010" width="170" height="130" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================== -->
+        <!-- LAYER 5: SECURITY & COMPLIANCE -->
+        <!-- ================================================================== -->
+        <mxCell id="sec-group" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDEDEC;strokeColor=#C0392B;strokeWidth=2;verticalAlign=top;fontSize=13;fontStyle=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1270" width="1000" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="sec-label" value="SECURITY &amp; COMPLIANCE ENGINE  (security_rules.json  —  6 Domains)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=#922B21;fontSize=12;fontColor=#FFFFFF;fontStyle=1;spacingLeft=8;spacingRight=8;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="1275" width="465" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec-urls" value="FORBIDDEN URLs&#xa;&#xa;70+ blocked domains&#xa;8 URL patterns&#xa;4 TLD blocks&#xa;(.onion, .bit, .i2p, .loki)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#78281F;strokeColor=#641E16;fontSize=9;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1320" width="140" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec-content" value="CONTENT RULES&#xa;&#xa;MALWARE | CREDS&#xa;PII_EXFIL | CSAM&#xa;WEAPONS | FRAUD&#xa;HARASSMENT | PRIVACY" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#78281F;strokeColor=#641E16;fontSize=9;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="255" y="1320" width="140" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec-data" value="DATA HANDLING&#xa;&#xa;PII detection + masking&#xa;Secret detection&#xa;Retention policies&#xa;Encryption requirements" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#78281F;strokeColor=#641E16;fontSize=9;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="410" y="1320" width="140" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec-behavior" value="BEHAVIORAL RULES&#xa;&#xa;Rate limits (60 RPM)&#xa;Max tokens (8192)&#xa;Recursion depth limits&#xa;Token budgets/request" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#78281F;strokeColor=#641E16;fontSize=9;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="565" y="1320" width="140" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec-network" value="NETWORK RULES&#xa;&#xa;Forbidden IPs&#xa;TLS required (no HTTP)&#xa;DNS safety checks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#78281F;strokeColor=#641E16;fontSize=9;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="720" y="1320" width="130" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec-compliance" value="COMPLIANCE&#xa;&#xa;GDPR&#xa;HIPAA&#xa;PCI-DSS&#xa;SOC2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#78281F;strokeColor=#641E16;fontSize=9;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="865" y="1320" width="100" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec-rbac" value="RBAC: rbac_roles + rbac_assignments (agent-to-role mappings)   |   AUDIT: audit_log (complete trail) + security_events (violations)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#641E16;strokeColor=#512E1E;fontSize=9;fontColor=#F5B7B1;fontStyle=1;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1435" width="560" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================== -->
+        <!-- SKILLS MARKETPLACE -->
+        <!-- ================================================================== -->
+        <mxCell id="skills-group" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F8F5;strokeColor=#0E6655;strokeWidth=2;verticalAlign=top;fontSize=13;fontStyle=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="1270" width="900" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="skills-label" value="SKILLS MARKETPLACE  (skills-catalog.json  —  50+ skills)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=#0E6655;fontSize=12;fontColor=#FFFFFF;fontStyle=1;spacingLeft=8;spacingRight=8;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="1275" width="400" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sk-comm" value="COMMUNICATION&#xa;auto-reply, email-mgmt&#xa;sms-notify, whatsapp&#xa;slack, discord-bot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#145A32;strokeColor=#0B3D22;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="1320" width="170" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sk-prod" value="PRODUCTIVITY&#xa;calendar, task-mgr&#xa;note-taking, doc-parser&#xa;file-manager" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#145A32;strokeColor=#0B3D22;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1330" y="1320" width="170" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sk-data" value="DATA &amp; ANALYTICS&#xa;web-search, db-query&#xa;spreadsheet, reporting&#xa;sentiment, trends" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#145A32;strokeColor=#0B3D22;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="1320" width="170" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sk-dev" value="DEV &amp; INTEGRATION&#xa;git-manager, code-review&#xa;ci-cd-monitor, crm-sync&#xa;webhook, api-gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#145A32;strokeColor=#0B3D22;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1710" y="1320" width="170" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sk-compat" value="Platform compatibility per skill:&#xa;zeroclaw | nanoclaw | picoclaw | openclaw | parlant&#xa;Install: npm install @claw/skill-*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0B3D22;strokeColor=#072E1A;fontSize=9;fontColor=#82E0AA;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="1420" width="400" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================== -->
+        <!-- LAYER 6: EXTERNAL PROVIDERS -->
+        <!-- ================================================================== -->
+        <mxCell id="ext-group" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF2F8;strokeColor=#1A5276;strokeWidth=2;verticalAlign=top;fontSize=13;fontStyle=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1550" width="1940" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="ext-label" value="EXTERNAL LLM PROVIDERS &amp; LOCAL RUNTIMES" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=#1A5276;fontSize=12;fontColor=#FFFFFF;fontStyle=1;spacingLeft=8;spacingRight=8;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="1555" width="340" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Cloud Providers Label -->
+        <mxCell id="cloud-badge" value="CLOUD  (7 providers)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=#2980B9;fontSize=10;fontColor=#FFFFFF;fontStyle=1;spacingLeft=6;spacingRight=6;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1595" width="135" height="22" as="geometry" />
+        </mxCell>
+
+        <mxCell id="llm-anthropic" value="Anthropic&#xa;Claude Sonnet&#xa;Claude Opus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D4A574;strokeColor=#C09060;fontSize=10;fontColor=#1B2631;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1625" width="110" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="llm-openai" value="OpenAI&#xa;GPT-4.1&#xa;GPT-4.1 Mini" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1B2631;strokeColor=#0D1820;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="225" y="1625" width="110" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="llm-deepseek" value="DeepSeek&#xa;deepseek-chat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2E4057;strokeColor=#1C2F42;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="1625" width="110" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="llm-gemini" value="Google&#xa;Gemini 2.0 Flash" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4285F4;strokeColor=#3367D6;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="475" y="1625" width="110" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="llm-groq" value="Groq&#xa;LLaMA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F06292;strokeColor=#D84778;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="1625" width="90" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="llm-hf" value="HuggingFace&#xa;Inference API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFD54F;strokeColor=#F9A825;fontSize=10;fontColor=#1B2631;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="705" y="1625" width="100" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="llm-openrouter" value="OpenRouter&#xa;Multi-provider" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6A1B9A;strokeColor=#4A148C;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="820" y="1625" width="100" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Separator line -->
+        <mxCell id="sep-local" value="" style="endArrow=none;html=1;strokeColor=#1A5276;strokeWidth=2;dashed=1;dashPattern=8 4;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="955" y="1590" as="sourcePoint" />
+            <mxPoint x="955" y="1720" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Local Runtimes Label -->
+        <mxCell id="local-badge" value="LOCAL RUNTIMES  (6 supported, $0 cost)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=#27AE60;fontSize=10;fontColor=#FFFFFF;fontStyle=1;spacingLeft=6;spacingRight=6;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="980" y="1595" width="260" height="22" as="geometry" />
+        </mxCell>
+
+        <mxCell id="local-ollama" value="Ollama&#xa;CPU + GPU" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0E6655;strokeColor=#0A5243;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="980" y="1625" width="105" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="local-vllm" value="vLLM&#xa;GPU Max Throughput" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0E6655;strokeColor=#0A5243;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="1625" width="115" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="local-llamacpp" value="llama.cpp&#xa;Best CPU Perf" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0E6655;strokeColor=#0A5243;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="1625" width="105" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="local-ipex" value="ipex-llm&#xa;Intel SYCL/AMX" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0E6655;strokeColor=#0A5243;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1350" y="1625" width="105" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="local-sglang" value="SGLang&#xa;Fast CUDA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0E6655;strokeColor=#0A5243;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="1625" width="105" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="local-docker" value="Docker&#xa;Model Runner&#xa;Native" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0E6655;strokeColor=#0A5243;fontSize=10;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1590" y="1625" width="105" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ================================================================== -->
+        <!-- CONNECTIONS -->
+        <!-- ================================================================== -->
+
+        <!-- UI → Control Plane APIs -->
+        <mxCell id="conn-wiz-wizapi" value="REST" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#5B2C6F;strokeWidth=2;fontSize=9;fontColor=#5B2C6F;fontStyle=1;" edge="1" source="wizard-ui" target="svc-wizapi" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="conn-dash-dashapi" value="WebSocket" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#5B2C6F;strokeWidth=2;fontSize=9;fontColor=#5B2C6F;fontStyle=1;" edge="1" source="dashboard-ui" target="svc-dashapi" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="conn-cli-orch" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1B2631;strokeWidth=2;" edge="1" source="cli" target="svc-orch" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Orchestrator → Agent Layer -->
+        <mxCell id="conn-orch-agents" value="task dispatch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C0392B;strokeWidth=3;fontSize=10;fontColor=#C0392B;fontStyle=1;" edge="1" source="svc-orch" target="agent-group" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Agents → Router (the main data flow) -->
+        <mxCell id="conn-agents-router" value="/v1/chat/completions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2471A3;strokeWidth=3;fontSize=9;fontColor=#2471A3;fontStyle=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" source="agent-open" target="svc-router" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="925" y="630" />
+              <mxPoint x="400" y="630" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Router → Optimizer -->
+        <mxCell id="conn-router-optim" value="pre/post" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#922B21;strokeWidth=2;fontSize=9;fontColor=#922B21;fontStyle=1;" edge="1" source="svc-router" target="svc-optim" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Router → External LLM Providers -->
+        <mxCell id="conn-router-llms" value="API calls (failover chain)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1A5276;strokeWidth=3;fontSize=9;fontColor=#1A5276;fontStyle=1;" edge="1" source="svc-router" target="ext-group" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="400" y="520" />
+              <mxPoint x="50" y="520" />
+              <mxPoint x="50" y="1640" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Memory → Instance DB -->
+        <mxCell id="conn-memory-db" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#B7950B;strokeWidth=2;" edge="1" source="svc-memory" target="db-instance" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- RAG → Instance DB -->
+        <mxCell id="conn-rag-db" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#B7950B;strokeWidth=2;" edge="1" source="svc-rag" target="db-instance" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1015" y="530" />
+              <mxPoint x="60" y="530" />
+              <mxPoint x="60" y="1100" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Dashboard API → Shared DB -->
+        <mxCell id="conn-dashapi-shareddb" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#B7950B;strokeWidth=2;" edge="1" source="svc-dashapi" target="db-shared" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Orchestrator → Shared DB -->
+        <mxCell id="conn-orch-shareddb" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#B7950B;strokeWidth=2;" edge="1" source="svc-orch" target="db-shared" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="190" y="540" />
+              <mxPoint x="750" y="540" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Channels → Agents -->
+        <mxCell id="conn-channels-agents" value="user messages" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#E67E22;strokeWidth=3;fontSize=9;fontColor=#E67E22;fontStyle=1;" edge="1" source="channels-group" target="agent-group" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1155" y="190" />
+              <mxPoint x="2040" y="190" />
+              <mxPoint x="2040" y="760" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Finetune → Datasets -->
+        <mxCell id="conn-ft-datasets" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#D35400;strokeWidth=2;" edge="1" source="agent-finetune" target="ft-datasets" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Agents → Security (dashed) -->
+        <mxCell id="conn-agents-security" value="content filtering" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#922B21;strokeWidth=2;fontSize=9;fontColor=#922B21;fontStyle=1;dashed=1;dashPattern=8 4;" edge="1" source="agent-group" target="sec-group" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Agents → Skills (dashed) -->
+        <mxCell id="conn-agents-skills" value="skill install" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0E6655;strokeWidth=2;fontSize=9;fontColor=#0E6655;fontStyle=1;dashed=1;dashPattern=8 4;" edge="1" source="agent-group" target="skills-group" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2040" y="890" />
+              <mxPoint x="2040" y="1380" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ================================================================== -->
+        <!-- LEGEND -->
+        <!-- ================================================================== -->
+        <mxCell id="legend" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1B2631;strokeColor=#0D1820;arcSize=6;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1740" y="1555" width="270" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" value="COMMUNICATION PATTERNS" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=#E74C3C;fontSize=10;fontColor=#FFFFFF;fontStyle=1;spacingLeft=6;spacingRight=6;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="1790" y="1563" width="185" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1" value="REST JSON  —  All microservice APIs" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=10;fontColor=#ECF0F1;" vertex="1" parent="1">
+          <mxGeometry x="1755" y="1592" width="230" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" value="SSE  —  Deploy streaming (Wizard)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=10;fontColor=#ECF0F1;" vertex="1" parent="1">
+          <mxGeometry x="1755" y="1612" width="220" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3" value="WebSocket  —  Dashboard real-time" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=10;fontColor=#ECF0F1;" vertex="1" parent="1">
+          <mxGeometry x="1755" y="1632" width="230" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4" value="OpenAI-compat  —  /v1/chat/completions" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=10;fontColor=#ECF0F1;" vertex="1" parent="1">
+          <mxGeometry x="1755" y="1652" width="255" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5" value="SQLite Task Queue  —  Orchestrator" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=10;fontColor=#ECF0F1;" vertex="1" parent="1">
+          <mxGeometry x="1755" y="1672" width="235" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg6" value="MCP Protocol  —  Parlant (:8181)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=10;fontColor=#ECF0F1;" vertex="1" parent="1">
+          <mxGeometry x="1755" y="1692" width="215" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
